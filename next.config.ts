@@ -1,7 +1,18 @@
-import type { NextConfig } from "next";
+// const nextConfig = {
+//   reactStrictMode: true,
+//   swcMinify: true,
+//   // Removed deprecated experimental.serverActions flag
+//   // Server Actions are now stable in Next.js 14+
+// };
 
-const nextConfig: NextConfig = {
-  /* config options here */
+// export default nextConfig;
+
+
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  swcMinify: true, // faster builds & smaller bundles
 };
 
 export default nextConfig;
