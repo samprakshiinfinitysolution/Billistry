@@ -34,6 +34,6 @@ const CustomerSchema = new Schema<ICustomer>(
   { timestamps: true }
 );
 
-CustomerSchema.index({ business: 1, phone: 1 }, { unique: false });
+CustomerSchema.index({ business: 1, phone: 1 }, { unique: true });
 
 export default models.Customer || model<ICustomer>("Customer", CustomerSchema);

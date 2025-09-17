@@ -59,7 +59,6 @@ export const createSaleReturn = async (payload: Partial<IReturn>, user: any) => 
   const returnDoc = await ReturnModel.create({
     type: "sales",
     saleId: payload.saleId,
-    
     items,
     subtotal,
     refundAmount,

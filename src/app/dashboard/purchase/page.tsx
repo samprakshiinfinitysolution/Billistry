@@ -44,6 +44,9 @@ import useAuthGuard from "@/hooks/useAuthGuard";
 interface Supplier {
   _id: string;
   name: string;
+  phone?: string;
+  email?: string;
+
 }
 
 interface Item {
@@ -473,7 +476,7 @@ export default function PurchasePage() {
               <SelectContent>
                 {suppliers.map((s) => (
                   <SelectItem key={s._id} value={s._id}>
-                    {s.name}
+                    {s.name} ({s.phone || s.email || "N/A"})
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -30,6 +30,13 @@ export const createCustomer = async (
     throw new Error("Name and phone are required");
   }
 
+  // Check for existing customer with same phone in the business
+  const existing = await Customer.findOne({ phone: body.phone, business: user.businessId, isDeleted: false });
+  if (existing) {
+    throw new Error("Customer with this phone already exists");
+  }
+
+
   const customer = await Customer.create({
     name: body.name,
     phone: body.phone,
@@ -70,6 +77,10 @@ export const updateCustomer = async (
 
 // ✅ DELETE (soft) customer
 export const deleteCustomer = async (id: string, user: UserPayload) => {
+  
+
+
+
   const customer = await Customer.findById(id);
   if (!customer || customer.isDeleted || customer.business.toString() !== user.businessId) {
     return null;
