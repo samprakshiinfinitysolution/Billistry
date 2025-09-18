@@ -4,7 +4,7 @@ import mongoose, { Schema, Document, model, models } from "mongoose";
 export interface ICustomer extends Document {
   business: mongoose.Types.ObjectId;
   name: string;
-  phone?: string;
+  phone: string;
   email?: string;
   address?: string;
   openingBalance: number; // positive => customer owes business
@@ -20,7 +20,7 @@ const CustomerSchema = new Schema<ICustomer>(
   {
     business: { type: Schema.Types.ObjectId, ref: "Business", required: true, index: true },
     name: { type: String, required: true, index: true },
-    phone: { type: String, index: true },
+    phone: { type: String,required:true, index: true },
     email: { type: String, index: true },
     address: { type: String },
     openingBalance: { type: Number, default: 0 },
@@ -34,6 +34,6 @@ const CustomerSchema = new Schema<ICustomer>(
   { timestamps: true }
 );
 
-CustomerSchema.index({ business: 1, phone: 1 }, { unique: false });
+CustomerSchema.index({ business: 1, phone: 1 }, { unique: true });
 
 export default models.Customer || model<ICustomer>("Customer", CustomerSchema);

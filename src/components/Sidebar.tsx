@@ -361,7 +361,10 @@ const navLinks = [
   { href: '/dashboard/cashbook', label: 'Cashbook', icon: <CreditCard className="w-5 h-5" /> },
   { href: '/dashboard/product', label: 'Product', icon: <Package className="w-5 h-5" /> },
   { href: '/dashboard/sale', label: 'Sale', icon: <FileText className="w-5 h-5" /> },
+  { href: '/dashboard/return/sale', label: 'Return Sale', icon: <FileText className="w-5 h-5" /> },
+
   { href: '/dashboard/purchase', label: 'Purchase', icon: <FileText className="w-5 h-5" /> },
+   { href: '/dashboard/return/purchase', label: 'Return Purchase', icon: <FileText className="w-5 h-5" /> },
   { href: '/dashboard/expenses', label: 'Expenses', icon: <FileText className="w-5 h-5" /> },
   { 
     href: '/dashboard/staff', 

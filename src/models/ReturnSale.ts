@@ -13,6 +13,7 @@ export interface IReturn extends Document {
   type: "sales" | "purchase";
   saleId?: mongoose.Types.ObjectId;
   purchaseId?: mongoose.Types.ObjectId;
+  invoiceNo: string; // ✅ added
   items: IReturnItem[];
   reason?: string;
   refundAmount?: number; // ✅ only refundable if condition = good
@@ -42,6 +43,7 @@ const ReturnSchema = new Schema<IReturn>(
     type: { type: String, enum: ["sales", "purchase"], required: true },
     saleId: { type: Schema.Types.ObjectId, ref: "Sale" },
     purchaseId: { type: Schema.Types.ObjectId, ref: "Purchase" },
+    invoiceNo: { type: String, required: true, unique: true }, // ✅ added
     items: [ReturnItemSchema],
     reason: { type: String },
     refundAmount: { type: Number, default: 0 },

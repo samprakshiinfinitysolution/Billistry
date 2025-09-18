@@ -14,6 +14,7 @@ interface SaleInput {
     item: string;
     quantity: number;
     rate: number;
+  
   }>;
   paymentStatus?: string;
   date?: string;

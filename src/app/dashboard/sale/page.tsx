@@ -44,11 +44,14 @@ import * as XLSX from "xlsx";
 interface Customer {
   _id: string;
   name: string;
+  phone?: string;
+  email?: string;
 }
 
 interface Item {
   _id: string;
   name: string;
+  sku?: string;
   purchasePrice: number;
   gstRate?: number; // percent
 }
@@ -594,7 +597,7 @@ export default function SalePage() {
               <SelectContent>
                 {customers.map((c) => (
                   <SelectItem key={c._id} value={c._id}>
-                    {c.name}
+                   {c.name} ({c.phone || c.email || "N/A"})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -620,7 +623,7 @@ export default function SalePage() {
                   <SelectContent>
                     {items.map((i) => (
                       <SelectItem key={i._id} value={i._id}>
-                        {i.name}
+                    {`${i.name}${i.sku ? ` (SKU: ${i.sku})` : ""}`}
                       </SelectItem>
                     ))}
                   </SelectContent>

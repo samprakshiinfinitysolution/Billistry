@@ -2089,13 +2089,23 @@ export default function ProductPage() {
                         value={formData.sku || ""}
                         readOnly
                       />
-                      <Button
+                      {/* <Button
                         onClick={() =>
                           setFormData({ ...formData, sku: generateSKU() })
                         }
                       >
                         Generate
-                      </Button>
+                      </Button> */}
+                      {!formData._id && ( // only show button for new products
+                        <Button
+                          type="button"
+                          onClick={() =>
+                            setFormData({ ...formData, sku: generateSKU() })
+                          }
+                        >
+                          Generate
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -2244,168 +2254,6 @@ export default function ProductPage() {
                     : "Save"}
                 </Button>
               </div>
-
-              {/* <div className="space-y-4 w-full">
-              
-                <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">Name *</label>
-                  <Input
-                    placeholder="Product Name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                  />
-                </div>
-
-             
-                <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">SKU</label>
-                  <div className="flex space-x-2">
-                    <Input
-                      placeholder="SKU"
-                      value={formData.sku || ""}
-                      readOnly
-                    />
-                    <Button
-                      onClick={() =>
-                        setFormData({ ...formData, sku: generateSKU() })
-                      }
-                    >
-                      Generate
-                    </Button>
-                  </div>
-                </div>
-           
-                <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">Category</label>
-                  <Input
-                    placeholder="Category"
-                    value={formData.category}
-                    onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
-                    }
-                  />
-                </div>
-
-              
-                <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">Purchase Price</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="Purchase Price"
-                    value={formData.purchasePrice || ""}
-                    onChange={(e) =>
-                      handleNumberChange("purchasePrice", e.target.value)
-                    }
-                  />
-                </div>
-
-               
-                <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">Selling Price *</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="Selling Price"
-                    value={formData.sellingPrice}
-                    onChange={(e) =>
-                      handleNumberChange("sellingPrice", e.target.value)
-                    }
-                  />
-                </div>
-          
-                <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">GST</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="GST %"
-                    value={formData.taxPercent}
-                    onChange={(e) =>
-                      handleNumberChange("taxPercent", e.target.value)
-                    }
-                  />
-                </div>
-
-              
-                <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">HSN</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="HSN Code"
-                    value={formData.hsnCode}
-                    onChange={(e) =>
-                      setFormData({ ...formData, hsnCode: e.target.value })
-                    }
-                  />
-                </div>
-
-               
-                <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">Opening Stock</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="Opening Stock"
-                    value={formData.openingStock || ""}
-                    onChange={(e) =>
-                      handleNumberChange("openingStock", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">Low Stock Alert</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="Low Stock Alert"
-                    value={formData.lowStockAlert || ""}
-                    onChange={(e) =>
-                      handleNumberChange("lowStockAlert", e.target.value)
-                    }
-                  />
-                </div>
-
-              
-                <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">Unit</label>
-                  <Select
-                    value={formData.unit}
-                    onValueChange={(val) =>
-                      setFormData({ ...formData, unit: val })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select unit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {UNIT_OPTIONS.map((unit) => (
-                        <SelectItem key={unit} value={unit}>
-                          {unit}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button
-                  onClick={handleSaveProduct}
-                  disabled={loading}
-                  className="w-full"
-                >
-                  {loading
-                    ? editingProduct
-                      ? "Updating..."
-                      : "Saving..."
-                    : editingProduct
-                    ? "Update"
-                    : "Save"}
-                </Button>
-              </div> */}
             </DialogContent>
           </Dialog>
         </div>
