@@ -2334,7 +2334,7 @@ export default function ProductPage() {
 
                   <td className="px-4 py-2">{p.sellingPrice || "-"}</td>
                   <td className="px-4 py-2 text-center space-x-2">
-                    {user?.permissions?.products?.update && (
+                   
                       <Button
                         size="sm"
                         variant="outline"
@@ -2342,8 +2342,8 @@ export default function ProductPage() {
                       >
                         Edit
                       </Button>
-                    )}
-                    {user?.permissions?.products?.delete && (
+                  
+                   
                       <Button
                         size="sm"
                         variant="destructive"
@@ -2351,7 +2351,7 @@ export default function ProductPage() {
                       >
                         Delete
                       </Button>
-                    )}
+                  
                   </td>
                 </tr>
               ))

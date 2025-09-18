@@ -26,7 +26,7 @@ const SupplierSchema = new Schema<ISupplier>(
   {
     business: { type: Schema.Types.ObjectId, ref: "Business", required: true, index: true },
     name: { type: String, required: true, index: true },
-    phone: { type: String, index: true },
+    phone: { type: String,required:true, index: true },
     email: { type: String, index: true },
     address: { type: String },
     gstnumber: { type: String, default: "" },
@@ -46,7 +46,7 @@ const SupplierSchema = new Schema<ISupplier>(
   { timestamps: true }
 );
 
-SupplierSchema.index({ business: 1, phone: 1 });
+SupplierSchema.index({ business: 1, phone: 1 }, { unique: true });
 
 export default models.Supplier || model<ISupplier>("Supplier", SupplierSchema);
 
