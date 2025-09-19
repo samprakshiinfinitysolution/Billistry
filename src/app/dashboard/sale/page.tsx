@@ -1327,7 +1327,13 @@ export default function SalePage() {
               </SelectTrigger>
               <SelectContent>
                 {customers.map((c) => (
+<<<<<<< HEAD
+                  <SelectItem key={c._id} value={c._id}>
+                   {c.name} ({c.phone || c.email || "N/A"})
+                  </SelectItem>
+=======
                   <SelectItem key={c._id} value={c._id}>{c.name} ({c.phone || c.email || "N/A"})</SelectItem>
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
                 ))}
               </SelectContent>
             </Select>
@@ -1346,7 +1352,13 @@ export default function SalePage() {
                   </SelectTrigger>
                   <SelectContent>
                     {items.map((i) => (
+<<<<<<< HEAD
+                      <SelectItem key={i._id} value={i._id}>
+                    {`${i.name}${i.sku ? ` (SKU: ${i.sku})` : ""}`}
+                      </SelectItem>
+=======
                       <SelectItem key={i._id} value={i._id}>{`${i.name}${i.sku ? ` (SKU: ${i.sku})` : ""}`}</SelectItem>
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
                     ))}
                   </SelectContent>
                 </Select>

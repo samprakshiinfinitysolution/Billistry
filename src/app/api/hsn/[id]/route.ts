@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 // import { NextResponse } from "next/server";
 // import { connectDB } from '@/lib/db';
 // import { getHSNById } from "@/controllers/hsnController";
+=======
+import { NextResponse } from "next/server";
+import {connectDB} from "@/lib/db";
+import { getHSNById } from "@/controllers/hsnController";
+>>>>>>> 859ea50619b3eedbad1266497fed90e9a98490a0
 
 // export async function GET(
 //   req: Request,
