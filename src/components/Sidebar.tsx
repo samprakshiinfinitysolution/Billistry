@@ -178,25 +178,11 @@ interface SidebarProps {
 }
 
 const navLinks = [
-<<<<<<< HEAD
-  { href: '/dashboard/home', label: 'Home', icon: <Home className="w-5 h-5" /> },
-  { href: '/dashboard/customers', label: 'Customers', icon: <Users className="w-5 h-5" /> },
-  { href: '/dashboard/suppliers', label: 'Suppliers', icon: <Users className="w-5 h-5" /> },
-  { href: '/dashboard/cashbook', label: 'Cashbook', icon: <CreditCard className="w-5 h-5" /> },
-  { href: '/dashboard/product', label: 'Product', icon: <Package className="w-5 h-5" /> },
-  { href: '/dashboard/sale', label: 'Sale', icon: <FileText className="w-5 h-5" /> },
-  { href: '/dashboard/return/sale', label: 'Return Sale', icon: <FileText className="w-5 h-5" /> },
-
-  { href: '/dashboard/purchase', label: 'Purchase', icon: <FileText className="w-5 h-5" /> },
-   { href: '/dashboard/return/purchase', label: 'Return Purchase', icon: <FileText className="w-5 h-5" /> },
-  { href: '/dashboard/expenses', label: 'Expenses', icon: <FileText className="w-5 h-5" /> },
-=======
   { href: '/dashboard/home', label: 'Home', icon: Home },
   { href: '/dashboard/customers', label: 'Customers', icon: Users },
   { href: '/dashboard/suppliers', label: 'Suppliers', icon: Users },
   { href: '/dashboard/product', label: 'Product', icon:Users },
   
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
   { 
     label: 'Sales', icon: FileText, children: [
       { href: '/dashboard/sale', label: 'Sale' },

@@ -247,24 +247,10 @@ import { connectDB } from '@/lib/db';
 import { UserPayload } from '@/lib/middleware/auth';
 import mongoose from 'mongoose';
 
-<<<<<<< HEAD
-interface SaleInput {
-  billTo: string;
-  items: Array<{
-    item: string;
-    quantity: number;
-    rate: number;
-  
-  }>;
-  paymentStatus?: string;
-  date?: string;
-  notes?: string;
-=======
 interface SaleItemInput {
   item: string;
   quantity: number;
   rate: number;
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
 }
 
 interface SaleInput {
