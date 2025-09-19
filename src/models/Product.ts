@@ -6,7 +6,8 @@ export interface IProduct extends Document {
   name: string;
   sku?: string;
   barcode?: string;
-  category?: string;
+  // category?: string;
+  category?: mongoose.Types.ObjectId; // <-- reference to Category
   description?: string;
   purchasePrice?: number;
   sellingPrice: number;
@@ -27,7 +28,8 @@ const ProductSchema = new Schema<IProduct>(
     name: { type: String, required: true, index: true },
     sku: { type: String, index: true },
     barcode: { type: String, index: true },
-    category: { type: String, index: true },
+    // category: { type: String, index: true },
+    category: { type: Schema.Types.ObjectId, ref: "Category", index: true }, // relation
     description: { type: String },
     purchasePrice: { type: Number },
     sellingPrice: { type: Number, required: true },

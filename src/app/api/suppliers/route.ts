@@ -82,3 +82,4 @@ export const POST = asyncHandler(async (req: NextRequest) => {
 
   return NextResponse.json({ success: true, supplier }, { status: 201 });
 });
+
