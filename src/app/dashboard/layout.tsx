@@ -30,7 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Spinner />
+        {/* <Spinner /> */}
       </div>
     );
   }
