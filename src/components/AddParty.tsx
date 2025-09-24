@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, ArrowUp } from 'lucide-react';
+import { CreateParty } from './CreateParty';
 
 // Interfaces and Types
 export interface Party {
@@ -64,6 +65,7 @@ interface AddPartyProps {
 export const AddParty = ({ selectedParty, onSelectParty, onClearParty, partyType, partyList }: AddPartyProps) => {
     const [isAddingParty, setIsAddingParty] = useState(false);
     const [partySearchTerm, setPartySearchTerm] = useState('');
+    const [isCreatePartyModalOpen, setCreatePartyModalOpen] = useState(false);
     const partySelectionRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -95,58 +97,71 @@ export const AddParty = ({ selectedParty, onSelectParty, onClearParty, partyType
         (party.phone && party.phone.includes(partySearchTerm))
     );
 
-    const partyTypeName = 'Party';
     const label = partyType === 'Customer' ? 'Bill To' : 'Bill From';
 
     return (
-        <div className="relative" ref={partySelectionRef}>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">{label}</label>
-            {selectedParty ? (
-                <div className="border rounded-lg p-4 min-h-[150px] flex flex-col justify-between bg-gray-50">
-                    <div>
-                        <p className="font-semibold text-gray-800">{selectedParty.name}</p>
-                        {selectedParty.phone && selectedParty.phone !== 'N/A' && <p className="text-sm text-gray-500">{selectedParty.phone}</p>}
+        <>
+            <CreateParty 
+                isOpen={isCreatePartyModalOpen}
+                onClose={() => setCreatePartyModalOpen(false)}
+                onSave={(data) => {
+                    console.log("New Party Saved:", data);
+                    // Here you would typically call an API to save the party
+                    // and then maybe select it automatically.
+                }}
+            />
+            <div className="relative" ref={partySelectionRef}>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">{label}</label>
+                {selectedParty ? (
+                    <div className="border rounded-lg p-4 min-h-[150px] flex flex-col justify-between bg-gray-50">
+                        <div>
+                            <p className="font-semibold text-gray-800">{selectedParty.name}</p>
+                            {selectedParty.phone && selectedParty.phone !== 'N/A' && <p className="text-sm text-gray-500">{selectedParty.phone}</p>}
+                        </div>
+                        <div className="flex justify-between items-end">
+                            <p className="text-sm text-gray-600">
+                                Balance: <span className={selectedParty.balance < 0 ? 'text-red-500 font-semibold' : 'text-green-500 font-semibold'}>₹{formatCurrency(Math.abs(selectedParty.balance))}</span>
+                            </p>
+                            <Button variant="link" className="text-blue-600 p-0 text-sm h-auto" onClick={handleChangeClick}>
+                                Change
+                            </Button>
+                        </div>
                     </div>
-                    <div className="flex justify-between items-end">
-                        <p className="text-sm text-gray-600">
-                            Balance: <span className={selectedParty.balance < 0 ? 'text-red-500 font-semibold' : 'text-green-500 font-semibold'}>₹{formatCurrency(Math.abs(selectedParty.balance))}</span>
-                        </p>
-                        <Button variant="link" className="text-blue-600 p-0 text-sm h-auto" onClick={handleChangeClick}>
-                            Change
+                ) : isAddingParty ? (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[150px] flex flex-col">
+                        <Input
+                            placeholder={`Search Party by name or number`}
+                            value={partySearchTerm}
+                            onChange={(e) => setPartySearchTerm(e.target.value)}
+                            autoFocus
+                            className="mb-2"
+                        />
+                        <ul className="flex-1 max-h-32 overflow-y-auto divide-y">
+                            {filteredParties.length > 0 ? filteredParties.map(party => (
+                                <li key={party.id} onClick={() => handleInternalSelect(party)} className="p-2 hover:bg-gray-100 rounded cursor-pointer flex justify-between items-center">
+                                    <span>{party.name}</span>
+                                    <span className={`text-xs flex items-center ${party.balance < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                        {party.balance !== 0 ? `₹${formatCurrency(Math.abs(party.balance))}` : '₹0.00'}
+                                        {party.balance < 0 && <ArrowUp className="h-3 w-3 ml-1" />}
+                                    </span>
+                                </li>
+                            )) : <li className="p-2 text-center text-gray-500">No parties found.</li>}
+                        </ul>
+                        <Button variant="link" className="w-full text-blue-600 mt-2" onClick={() => setCreatePartyModalOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" /> Create Party
                         </Button>
                     </div>
-                </div>
-            ) : isAddingParty ? (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[150px] flex flex-col">
-                    <Input
-                        placeholder={`Search ${partyTypeName} by name or number`}
-                        value={partySearchTerm}
-                        onChange={(e) => setPartySearchTerm(e.target.value)}
-                        autoFocus
-                        className="mb-2"
-                    />
-                    <ul className="flex-1 max-h-32 overflow-y-auto divide-y">
-                        {filteredParties.length > 0 ? filteredParties.map(party => (
-                            <li key={party.id} onClick={() => handleInternalSelect(party)} className="p-2 hover:bg-gray-100 rounded cursor-pointer flex justify-between items-center">
-                                <span>{party.name}</span>
-                                <span className={`text-xs flex items-center ${party.balance < 0 ? 'text-red-500' : 'text-green-500'}`}>
-                                    {party.balance !== 0 ? `₹${formatCurrency(Math.abs(party.balance))}` : '₹0.00'}
-                                    {party.balance < 0 && <ArrowUp className="h-3 w-3 ml-1" />}
-                                </span>
-                            </li>
-                        )) : <li className="p-2 text-center text-gray-500">No {partyTypeName.toLowerCase()}s found.</li>}
-                    </ul>
-                    <Button variant="link" className="w-full text-blue-600 mt-2" onClick={() => alert(`Create new ${partyTypeName}`)}>
-                        <Plus className="mr-2 h-4 w-4" /> Create {partyTypeName}
-                    </Button>
-                </div>
-            ) : (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex justify-center items-center w-full max-w-xs h-[150px]">
-                    <Button variant="outline" className="text-blue-600 border-none hover:bg-blue-50" onClick={() => setIsAddingParty(true)}>
-                        <Plus className="mr-2 h-4 w-4" /> Add {partyTypeName}
-                    </Button>
-                </div>
-            )}
-        </div>
+                ) : (
+                    <div 
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex justify-center items-center w-full max-w-xs h-[150px] cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={() => setIsAddingParty(true)}
+                    >
+                        <Button variant="outline" className="text-blue-600 border-none pointer-events-none">
+                            <Plus className="mr-2 h-4 w-4" /> Add Party
+                        </Button>
+                    </div>
+                )}
+            </div>
+        </>
     );
 };

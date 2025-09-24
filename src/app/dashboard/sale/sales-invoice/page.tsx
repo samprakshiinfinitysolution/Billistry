@@ -452,8 +452,11 @@ const CreateSalesInvoicePage = () => {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="border-2 border-dashed border-gray-300 rounded-lg flex justify-center py-3">
-                                        <Button variant="outline" className="text-blue-600 border-none hover:bg-blue-50" onClick={() => setShowDueDateForm(true)}>
+                                    <div 
+                                        className="border-2 border-dashed border-gray-300 rounded-lg flex justify-center py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                                        onClick={() => setShowDueDateForm(true)}
+                                    >
+                                        <Button variant="outline" className="text-blue-600 border-none pointer-events-none">
                                             <Plus className="mr-2 h-4 w-4" /> Add Due Date
                                         </Button>
                                     </div>
