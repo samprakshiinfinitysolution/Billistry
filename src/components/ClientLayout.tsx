@@ -5,6 +5,7 @@ import TopHeader from '@/components/TopHeader';
 import Footer from '@/components/Footer';
 import BillistrySidebar from '@/components/BillistrySidebar';
 import { Provider } from "react-redux";
+import { Toaster } from 'react-hot-toast';
 import { store } from "@/redux/store";
 
 interface ClientLayoutProps {
@@ -19,6 +20,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
   return (
     <Provider store={store}>
+      <Toaster position="top-center" reverseOrder={false} />
       {/* Dashboard layout */}
       {isDashboard && (
         <div className="flex w-full h-screen  overflow-hidden">

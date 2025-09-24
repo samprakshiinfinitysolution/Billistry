@@ -13,7 +13,7 @@ const stats = [
 function useCountUp(ref: React.RefObject<HTMLSpanElement>, end: number, duration = 1200, suffix = '') {
   useEffect(() => {
     if (!ref.current) return
-    let start = 0
+    const start = 0
     const increment = end / (duration / 16)
     let current = start
     const animate = () => {
@@ -38,6 +38,7 @@ export default function StatsSection() {
   ]
 
   stats.forEach((stat, i) => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     useCountUp(refs[i], stat.value, 1200, stat.suffix || (stat.label === 'System Uptime' ? '%' : '+'))
   })
 

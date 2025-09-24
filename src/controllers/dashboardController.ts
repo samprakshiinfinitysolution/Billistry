@@ -241,7 +241,7 @@ async function getTrendData(
       results.push({ date: hourLabel, total: found ? found.total : 0 });
     }
   } else {
-    let current = new Date(start);
+    const current = new Date(start);
     while (current <= end) {
       const dateStr = current.toISOString().split("T")[0];
       const found = trend.find((t) => t._id === dateStr);

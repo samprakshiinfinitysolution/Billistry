@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    let filter: any = {};
+    const filter: any = {};
 
     if (startDate && endDate) {
       filter.createdAt = {

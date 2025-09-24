@@ -889,10 +889,10 @@ export default function SalePage() {
     setForm({ ...form, items: updated });
   };
 
-  const handleItemChange = (
+  const handleItemChange = <K extends keyof SaleItemForm>(
     index: number,
-    key: keyof SaleItemForm,
-    value: any
+    key: K,
+    value: SaleItemForm[K]
   ) => {
     const updated = [...form.items];
     updated[index][key] = value;
@@ -916,7 +916,7 @@ export default function SalePage() {
   };
 
   const calcTotal = useMemo(() => {
-    let subtotal = form.items.reduce((acc, it) => {
+    const subtotal = form.items.reduce((acc, it) => {
       const itemData = items.find((i) => i._id === it.item);
       if (!itemData) return acc;
       let amount = (Number(it.rate) || 0) * (Number(it.quantity) || 0);

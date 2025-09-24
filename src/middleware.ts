@@ -116,7 +116,7 @@ export function middleware(req: NextRequest) {
         // If token is valid, redirect logged-in user away from public page
         jwt.verify(token, JWT_SECRET);
         const url = req.nextUrl.clone();
-        url.pathname = "/dashboard";
+        url.pathname = "/dashboard/home";
         return NextResponse.redirect(url);
       } catch {
         // invalid token, continue to public page

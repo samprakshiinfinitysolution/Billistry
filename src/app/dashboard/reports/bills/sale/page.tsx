@@ -68,7 +68,7 @@ const SaleReportPage = () => {
 
   useEffect(() => {
     fetchReport();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [filter, startDate, endDate, paymentStatus]);
 
   // Excel download
@@ -167,13 +167,13 @@ const downloadSalePDF = () => {
           <>
             <DatePicker
               selected={startDate}
-              onChange={(date) => setStartDate(date)}
+              onChange={(date: Date | null) => setStartDate(date)}
               className="border p-2 rounded"
               placeholderText="Start Date"
             />
             <DatePicker
               selected={endDate}
-              onChange={(date) => setEndDate(date)}
+              onChange={(date: Date | null) => setEndDate(date)}
               className="border p-2 rounded"
               placeholderText="End Date"
             />

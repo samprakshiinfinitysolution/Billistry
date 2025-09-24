@@ -53,7 +53,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     fetchReport();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, []);
 
   const exportCSV = () => {

@@ -1,14 +1,17 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function NotFound() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-white px-6 py-12 text-center">
       <div className="w-full max-w-md">
-        <img
+        <Image
           src="/images/404.svg" // Make sure this image exists in public/images/
           alt="404 - Page Not Found"
+          width={400}
+          height={300}
           className="w-full h-auto mb-8"
         />
       </div>

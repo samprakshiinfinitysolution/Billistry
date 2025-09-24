@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { User, Mail, Phone, Edit } from 'lucide-react'
+import Image from 'next/image'
 
 export default function ProfilePage() {
   const [user, setUser] = useState({
@@ -19,9 +20,11 @@ export default function ProfilePage() {
       <div className="bg-white border rounded-xl shadow-md p-6 flex flex-col md:flex-row items-center gap-8">
         {/* Avatar */}
         <div className="relative">
-          <img
+          <Image
             src={user.avatar}
             alt="Avatar"
+            width={128}
+            height={128}
             className="w-32 h-32 rounded-full object-cover border-4 border-pink-200"
           />
           <button className="absolute bottom-0 right-0 bg-pink-500 text-white p-1 rounded-full hover:bg-pink-600">
