@@ -1,0 +1,44 @@
+// tsconfig.json (at the root of your inventory-management project)
+{
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true, // Next.js handles emission
+    "esModuleInterop": true, // Crucial for module interoperability
+    "module": "esnext", // Use ES Modules syntax
+    "moduleResolution": "bundler", // Recommended for modern Next.js/Webpack
+    // Or try "node" if "bundler" doesn't work, but "bundler" is newer.
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ] // Ensure your alias is correct
+    },
+    "target": "ES2017"
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx",
+    ".next/types/**/*.ts" // This is important for Next.js 13+
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
