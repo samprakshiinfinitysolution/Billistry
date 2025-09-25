@@ -66,6 +66,10 @@ const PurchaseReportPage = () => {
 
   useEffect(() => {
     fetchReport();
+<<<<<<< HEAD
+=======
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
   }, [filter, startDate, endDate, paymentStatus]);
 
   // Excel download
@@ -176,13 +180,21 @@ const downloadPDF = () => {
           <>
             <DatePicker
               selected={startDate}
+<<<<<<< HEAD
               onChange={(date: Date | null) => setStartDate(date)}
+=======
+              onChange={(date) => setStartDate(date)}
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
               className="border p-2 rounded"
               placeholderText="Start Date"
             />
             <DatePicker
               selected={endDate}
+<<<<<<< HEAD
               onChange={(date: Date | null) => setEndDate(date)}
+=======
+              onChange={(date) => setEndDate(date)}
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
               className="border p-2 rounded"
               placeholderText="End Date"
             />

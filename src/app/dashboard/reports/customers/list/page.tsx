@@ -300,10 +300,17 @@ export default function CustomerListPage() {
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4 text-center font-bold">
         <div className="p-4 bg-green-100 rounded-lg">
+<<<<<<< HEAD
           You&apos;ll Get: ₹{totalGet}
         </div>
         <div className="p-4 bg-red-100 rounded-lg">
           You&apos;ll Give: ₹{totalGive}
+=======
+          You'll Get: ₹{totalGet}
+        </div>
+        <div className="p-4 bg-red-100 rounded-lg">
+          You'll Give: ₹{totalGive}
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
         </div>
         <div className="p-4 bg-blue-100 rounded-lg">
           Net Balance: ₹{netBalance}
@@ -347,8 +354,13 @@ export default function CustomerListPage() {
             <tr>
               <th className="border p-2">Name</th>
               <th className="border p-2">Phone</th>
+<<<<<<< HEAD
               <th className="border p-2">You&apos;ll Get</th>
               <th className="border p-2">You&apos;ll Give</th>
+=======
+              <th className="border p-2">You'll Get</th>
+              <th className="border p-2">You'll Give</th>
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
               <th className="border p-2">Collection Date</th>
             </tr>
           </thead>

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // tsconfig.json (at the root of your inventory-management project)
 {
   "compilerOptions": {
@@ -14,26 +15,116 @@
     "module": "esnext", // Use ES Modules syntax
     "moduleResolution": "bundler", // Recommended for modern Next.js/Webpack
     // Or try "node" if "bundler" doesn't work, but "bundler" is newer.
+=======
+// {
+//   "compilerOptions": {
+//     "target": "ES2017",
+//     "lib": ["dom", "dom.iterable", "esnext"],
+//     "allowJs": true,
+//     "skipLibCheck": true,
+//     "strict": true,
+//     "noEmit": true,
+//     "esModuleInterop": true,
+//     "module": "esnext",
+//     "moduleResolution": "bundler",
+//     "resolveJsonModule": true,
+//     "isolatedModules": true,
+//     "jsx": "preserve",
+//     "incremental": true,
+//     "plugins": [
+//       {
+//         "name": "next"
+//       }
+//     ],
+//     "baseUrl": ".",
+//     "paths": {
+//       "@/*": ["./src/*"]
+//     }
+//   },
+//   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+//   "exclude": ["node_modules"]
+// }
+
+
+
+
+// {
+//   "compilerOptions": {
+//     "target": "ES2017",
+//     "lib": ["dom", "dom.iterable", "esnext"],
+//     "allowJs": true,
+//     "skipLibCheck": true,
+//     "strict": true,
+//     "noEmit": true,
+//     "esModuleInterop": true,
+//     "module": "esnext",
+//     "moduleResolution": "bundler",
+//     "resolveJsonModule": true,
+//     "isolatedModules": true,
+//     "jsx": "preserve",
+//     "incremental": true,
+//     "types": ["node", "next", "multer"],
+//     "plugins": [
+//       {
+//         "name": "next"
+//       }
+//     ],
+//     "baseUrl": ".",
+//     "paths": {
+//       "@/*": ["./src/*"]
+//     }
+//   },
+//   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+//   "exclude": ["node_modules"]
+// }
+
+
+
+
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+<<<<<<< HEAD
+=======
+    "types": ["node", "next", "multer"], 
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
     "plugins": [
       {
         "name": "next"
       }
     ],
+<<<<<<< HEAD
     "paths": {
       "@/*": [
         "./src/*"
       ] // Ensure your alias is correct
     },
     "target": "ES2017"
+=======
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+<<<<<<< HEAD
     "**/*.js",
     "**/*.jsx",
     ".next/types/**/*.ts" // This is important for Next.js 13+
@@ -41,4 +132,9 @@
   "exclude": [
     "node_modules"
   ]
+=======
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
 }

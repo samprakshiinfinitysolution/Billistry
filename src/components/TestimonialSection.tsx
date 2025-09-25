@@ -1,6 +1,9 @@
 // src/components/TestimonialSection.tsx
+<<<<<<< HEAD
 import Image from 'next/image';
 
+=======
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
 export default function TestimonialSection() {
   const testimonials = [
     {
@@ -31,6 +34,7 @@ export default function TestimonialSection() {
           {testimonials.map((t, idx) => (
             <div
               key={idx}
+<<<<<<< HEAD
               className="bg-gray-50 p-6 rounded-2xl shadow hover:shadow-lg transition flex flex-col items-center"
             >
               <Image
@@ -45,6 +49,22 @@ export default function TestimonialSection() {
                 <p className="text-sm text-gray-500">{t.role}</p>
               </div>
               <p className="text-gray-600 text-left mt-4">“{t.text}”</p>
+=======
+              className="bg-gray-50 p-6 rounded-2xl shadow hover:shadow-lg transition"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <img
+                  src={t.image}
+                  alt={t.name}
+                  className="w-14 h-14 rounded-full object-cover border-2 border-pink-500"
+                />
+                <div className="text-left">
+                  <h4 className="text-lg font-semibold text-gray-800">{t.name}</h4>
+                  <p className="text-sm text-gray-500">{t.role}</p>
+                </div>
+              </div>
+              <p className="text-gray-600 text-left">“{t.text}”</p>
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
             </div>
           ))}
         </div>

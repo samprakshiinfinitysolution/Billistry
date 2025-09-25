@@ -11,7 +11,11 @@ export async function GET(req: Request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
+<<<<<<< HEAD
     const filter: any = {};
+=======
+    let filter: any = {};
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
 
     if (startDate && endDate) {
       filter.createdAt = {

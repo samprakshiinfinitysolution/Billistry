@@ -6,8 +6,12 @@ export interface IProduct extends Document {
   name: string;
   sku?: string;
   barcode?: string;
+<<<<<<< HEAD
   // category?: string;
   category?: mongoose.Types.ObjectId; // <-- reference to Category
+=======
+  category?: string;
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
   description?: string;
   purchasePrice?: number;
   sellingPrice: number;
@@ -28,8 +32,12 @@ const ProductSchema = new Schema<IProduct>(
     name: { type: String, required: true, index: true },
     sku: { type: String, index: true },
     barcode: { type: String, index: true },
+<<<<<<< HEAD
     // category: { type: String, index: true },
     category: { type: Schema.Types.ObjectId, ref: "Category", index: true }, // relation
+=======
+    category: { type: String, index: true },
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
     description: { type: String },
     purchasePrice: { type: Number },
     sellingPrice: { type: Number, required: true },

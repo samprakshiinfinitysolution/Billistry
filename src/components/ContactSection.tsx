@@ -33,7 +33,11 @@ export default function ContactSection() {
             Get in Touch
           </h2>
           <p className="text-gray-600 mb-10">
+<<<<<<< HEAD
             Have questions? We&#39;d love to hear from you. Fill out the form and our team will respond promptly.
+=======
+            Have questions? We'd love to hear from you. Fill out the form and our team will respond promptly.
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
           </p>
           <form className="grid gap-6">
             <input

@@ -6,7 +6,11 @@ import AuditLog from "@/models/AuditLog";
 export async function GET(req: NextRequest) {
   // Only superadmin can view audit logs
   const auth = await authMiddleware(req, ["superadmin"]);
+<<<<<<< HEAD
   if (auth) return auth; // if not authorized, return NextResponse
+=======
+  if (auth) return auth;
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
 
   try {
     await connectDB();
@@ -44,7 +48,11 @@ export async function GET(req: NextRequest) {
       page,
       limit,
       total,
+<<<<<<< HEAD
       logs: logs.map((log) => ({
+=======
+      logs: logs.map(log => ({
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
         _id: log._id,
         action: log.action,
         resourceType: log.resourceType,
@@ -59,9 +67,13 @@ export async function GET(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("AUDIT_API_ERROR:", err);
+<<<<<<< HEAD
     return NextResponse.json(
       { error: "Server error", details: err.message },
       { status: 500 }
     );
+=======
+    return NextResponse.json({ error: "Server error", details: err.message }, { status: 500 });
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
   }
 }
