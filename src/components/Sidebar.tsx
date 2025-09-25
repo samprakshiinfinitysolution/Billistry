@@ -279,10 +279,10 @@ const navLinks = [
 
   {
     label: 'Sales', icon: FileText, section: 'SALES', children: [
-      { href: '/dashboard/sale-invoice', label: 'Sales Invoices' },
+      { href: '/dashboard/sale/sales-data', label: 'Sales Invoices' },
       // { href: '/dashboard/quotation-estimate', label: 'Quotation / Estimate' }, // Added
       // { href: '/dashboard/payment-in', label: 'Payment In' }, // Added
-      { href: '/dashboard/return/sale', label: 'Sales Return' }, // Renamed Sale Return
+      { href: '/dashboard/return/sale/sales-return-data', label: 'Sales Return' }, // Renamed Sale Return
       // { href: '/dashboard/credit-note', label: 'Credit Note' }, // Added
       // { href: '/dashboard/delivery-challan', label: 'Delivery Challan' }, // Added
       // { href: '/dashboard/proforma-invoice', label: 'Proforma Invoice' } // Added
@@ -291,8 +291,8 @@ const navLinks = [
   {
     label: 'Purchases', icon: Package, section: 'PURCHASES', children: [ // New Section
       // { href: '/dashboard/purchase', label: 'Purchase' },
-      { href: '/dashboard/purchase-invoice', label: 'Purchase Invoices' },
-      { href: '/dashboard/return/purchase', label: 'Purchase Return' }
+      { href: '/dashboard/purchase/purchase-data', label: 'Purchase Invoices' },
+      { href: '/dashboard/return/purchase/purchase-return-data', label: 'Purchase Return' }
     ]
   },
   { href: '/dashboard/cashbook', label: 'Cashbook', icon: CreditCard, section: 'GENERAL' }, // Moved to GENERAL

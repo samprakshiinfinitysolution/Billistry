@@ -765,6 +765,7 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import toast from "react-hot-toast";
 
 interface Customer {
   _id: string;
@@ -982,10 +983,10 @@ export default function SalePage() {
 
       if (editingSaleId) {
         await axios.put(`/api/sale/${editingSaleId}`, payload);
-        alert("Sale updated successfully");
+        toast.success("Sale updated successfully");
       } else {
         await axios.post("/api/sale", payload);
-        alert("Sale created successfully");
+        toast.success("Sale created successfully");
       }
 
       setOpen(false);
@@ -994,7 +995,7 @@ export default function SalePage() {
       console.error(err);
       const msg = err.response?.data?.message || "Error saving sale";
       setError(msg);
-      alert(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -1004,11 +1005,11 @@ export default function SalePage() {
     if (!confirm("Are you sure you want to delete this sale?")) return;
     try {
       await axios.delete(`/api/sale/${id}`);
-      alert("Sale deleted successfully");
+      toast.success("Sale deleted successfully");
       fetchSales();
     } catch (err: any) {
       console.error(err);
-      alert(err.response?.data?.message || "Failed to delete sale");
+      toast.error(err.response?.data?.message || "Failed to delete sale");
     }
   };
 

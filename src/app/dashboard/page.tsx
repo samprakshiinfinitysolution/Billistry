@@ -115,6 +115,7 @@
 
 import React, { useState } from 'react';
 import { CreateBusinessModal, FormDataType } from '@/components/CreateBusinessModal'; // Adjust path
+import toast from 'react-hot-toast';
 
 const DashboardPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -146,7 +147,7 @@ const DashboardPage = () => {
         console.log("Business created successfully!", result.business);
         // You would typically refresh your list of businesses here
         // e.g., router.refresh() or refetch a query from a data-fetching library.
-        alert(`Business "${result.business.name}" created successfully!`);
+        toast.success(`Business "${result.business.name}" created successfully!`);
     };
 
     return (

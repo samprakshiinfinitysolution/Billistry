@@ -153,8 +153,8 @@ export const formatExpense = (expense: IExpense) => {
 
 // ✅ CREATE
 export const createExpense = async (body: Partial<IExpense>, user: UserPayload) => {
-  if (!body.title || !body.amount) {
-    throw new Error("Title and Amount are required");
+  if ( !body.amount) {
+    throw new Error(" Amount are required");
   }
 
   const expenseNo = await generateExpenseNo(

@@ -3,7 +3,6 @@ import mongoose, { Schema, Document, model, models } from "mongoose";
 export interface IExpense extends Document {
   business: mongoose.Types.ObjectId;
   expenseNo: number; // added
-  title: string;
   amount: number;
   category?: string;
   paidTo?: string;
@@ -18,7 +17,6 @@ const ExpenseSchema = new Schema<IExpense>(
   {
     business: { type: Schema.Types.ObjectId, ref: "Business", required: true, index: true },
     expenseNo: { type: Number, required: true }, // 👈 fixed, required so always saved
-    title: { type: String, required: true },
     amount: { type: Number, required: true },
     category: { type: String },
     paidTo: { type: String },
