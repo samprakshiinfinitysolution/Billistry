@@ -243,6 +243,10 @@
 import { Sale, ISale } from '@/models/Sale';
 import Product from '@/models/Product';
 import Counter from '@/models/Counter';
+
+//this is new file
+import '@/models/Party'; // Import Customer model to register it
+
 import { connectDB } from '@/lib/db';
 import { UserPayload } from '@/lib/middleware/auth';
 import mongoose from 'mongoose';
@@ -348,7 +352,7 @@ export const getAllSales = async (user: UserPayload) => {
   if (!user?.userId || !user?.businessId) throw new Error('Unauthorized');
 
   const sales = await Sale.find({ business: user.businessId, isDeleted: false })
-    .populate('billTo')
+    .populate("billTo")
     .populate('items.item')
     .sort({ createdAt: -1 });
 
@@ -427,6 +431,7 @@ export const updateSale = async (id: string, data: Partial<SaleInput>, user: Use
   }
 
   if (data.billTo) sale.billTo = data.billTo;
+  // if (data.billTo) sale.billTo = new mongoose.Types.ObjectId(data.billTo);
   if (data.paymentStatus) sale.paymentStatus = data.paymentStatus;
   if (data.date) sale.date = new Date(data.date);
   if (data.notes) sale.notes = data.notes;

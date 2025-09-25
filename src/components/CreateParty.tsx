@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { useForm, Controller } from 'react-hook-form';
 import { ChevronDown, X } from 'lucide-react';
 
@@ -46,11 +47,12 @@ Checkbox.displayName = "Checkbox";
 interface CreatePartyProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (data: any) => void;
+    partyType: 'Customer' | 'Supplier';
+    onSaveSuccess: (newPartyData: any) => void;
 }
 
-export const CreateParty: React.FC<CreatePartyProps> = ({ isOpen, onClose, onSave }) => {
-    const { register, handleSubmit, control, watch, formState: { errors, isValid } } = useForm({
+export const CreateParty: React.FC<CreatePartyProps> = ({ isOpen, onClose, partyType, onSaveSuccess }) => {
+    const { register, handleSubmit, control, watch, formState: { errors, isValid, isSubmitting }, reset, setError } = useForm({
         mode: 'onChange',
         defaultValues: {
             partyName: '',
@@ -67,9 +69,44 @@ export const CreateParty: React.FC<CreatePartyProps> = ({ isOpen, onClose, onSav
 
     const shippingSameAsBilling = watch('shippingSameAsBilling');
 
-    const onSubmit = (data: any) => {
-        onSave(data);
+    const handleClose = () => {
+        reset(); // Reset form fields
         onClose();
+    };
+
+    const onSubmit = async (data: any) => {
+        const payload = {
+            ...data,
+            partyType: partyType,
+        };
+
+        try {
+            const res = await fetch('/api/parties', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const result = await res.json();
+
+            if (result.success) {
+                toast.success(`${partyType} created successfully!`);
+                onSaveSuccess(result.party); // Pass the new party data back
+                handleClose();
+            } else {
+                if (result.error && result.error.toLowerCase().includes('mobile number already exists')) {
+                    setError('mobileNumber', {
+                        type: 'manual',
+                        message: result.error,
+                    });
+                } else {
+                    toast.error(result.error || 'Failed to create party.');
+                }
+            }
+        } catch (error) {
+            toast.error('An unexpected error occurred.');
+            console.error(error);
+        }
     };
 
     if (!isOpen) return null;
@@ -79,12 +116,12 @@ export const CreateParty: React.FC<CreatePartyProps> = ({ isOpen, onClose, onSav
             <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-auto">
                 <div className="flex justify-between items-center p-4 border-b">
                     <h2 className="text-xl font-bold">Create New Party</h2>
-                    <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-gray-100 rounded-full">
+                    <Button variant="ghost" size="icon" onClick={handleClose} className="hover:bg-gray-100 rounded-full">
                         <X className="h-5 w-5" />
                     </Button>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+                <form id="create-party-form" onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
                     <div>
                         <label className="text-sm font-medium text-gray-700">Party Name *</label>
                         <Input {...register("partyName", { required: "This field is mandatory" })} className={`mt-1 ${errors.partyName ? 'border-red-500' : ''}`} />
@@ -93,7 +130,8 @@ export const CreateParty: React.FC<CreatePartyProps> = ({ isOpen, onClose, onSav
 
                     <div>
                         <label className="text-sm font-medium text-gray-700">Mobile Number</label>
-                        <Input {...register("mobileNumber")} className="mt-1" type="tel" />
+                        <Input {...register("mobileNumber")} className={`mt-1 ${errors.mobileNumber ? 'border-red-500' : ''}`} type="tel" />
+                        {errors.mobileNumber && <p className="text-red-500 text-xs mt-1">{errors.mobileNumber.message}</p>}
                     </div>
 
                     {/* Address Section */}
@@ -139,18 +177,18 @@ export const CreateParty: React.FC<CreatePartyProps> = ({ isOpen, onClose, onSav
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-6 py-2"
                     >
                         Cancel
                     </Button>
                     <Button
                         type="submit"
-                        onClick={handleSubmit(onSubmit)}
-                        disabled={!isValid}
-                        className="bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed px-6 py-2"
+                        form="create-party-form"
+                        disabled={!isValid || isSubmitting}
+                        className="bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed px-6 py-2 w-24"
                     >
-                        Save
+                        {isSubmitting ? 'Saving...' : 'Save'}
                     </Button>
                 </div>
             </div>

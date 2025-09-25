@@ -1,5 +1,4 @@
 'use client';
-import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Settings, CalendarIcon, Trash2, QrCode, X, ArrowLeft, Search, ArrowUp } from 'lucide-react';
@@ -10,8 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AddItemModal, ItemData } from '../../../../components/AddItem';
-import { AddParty, Party, mockCustomers } from '../../../../components/AddParty';
+import { AddItemModal, ItemData } from "../../../../components/AddItem";
+import { AddParty, Party } from "../../../../components/AddParty";
 import { ScanBarcodeModal } from '../../../../components/ScanBarcode';
 
 const formatCurrency = (amount: number) => {
@@ -126,7 +125,6 @@ const CreateSalesInvoicePage = () => {
     const [selectedParty, setSelectedParty] = useState<Party | null>(null);
     
     // --- CALCULATIONS ---
-    const [isAddBankAccountModalOpen, setIsAddBankAccountModalOpen] = useState(false);
     const subtotal = items.reduce((acc, item) => acc + (item.qty || 0) * (item.price || 0), 0);
     const totalItemDiscount = items.reduce((acc, item) => acc + (parseFloat(item.discountAmountStr) || 0), 0);
     const subtotalAfterItemDiscounts = subtotal - totalItemDiscount;
@@ -374,7 +372,6 @@ const CreateSalesInvoicePage = () => {
                 onClose={() => setIsScanBarcodeModalOpen(false)}
                 onAddItem={handleAddItemFromModal}
             />
-            <AddBankAccountModal isOpen={isAddBankAccountModalOpen} onClose={() => setIsAddBankAccountModalOpen(false)} />
             {/* Header */}
             <header className="bg-white shadow-sm sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -408,9 +405,7 @@ const CreateSalesInvoicePage = () => {
                             selectedParty={selectedParty}
                             onSelectParty={setSelectedParty}
                             onClearParty={() => setSelectedParty(null)}
-                            partyType="Customer"
-                            partyList={mockCustomers}
-                        />
+                            partyType="Customer" />
                         <div className="flex flex-col items-end gap-4">
                              <div className="flex flex-col sm:flex-row gap-4">
                                  <div className="w-full sm:w-64">
@@ -605,7 +600,7 @@ const CreateSalesInvoicePage = () => {
                                     <X className="h-4 w-4" />
                                </Button>
                            </div>
-                           <Button variant="link" className="text-blue-600 p-0 hover:underline"  onClick={() => setIsAddBankAccountModalOpen(true)}><Plus className="mr-1 h-4 w-4" /> Add New Account</Button>
+                           <Button variant="link" className="text-blue-600 p-0 hover:underline"><Plus className="mr-1 h-4 w-4" /> Add New Account</Button>
                         </div>
 
                         {/* Right side - FINAL CORRECTED LOGIC */}
@@ -810,150 +805,3 @@ const CreateSalesInvoicePage = () => {
 };
 
 export default CreateSalesInvoicePage;
-
-interface AddBankAccountModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-}
-
-const AddBankAccountModal: React.FC<AddBankAccountModalProps> = ({ isOpen, onClose }) => {
-    const { register, handleSubmit, formState: { errors } } = useForm();
-
-    const onSubmit = (data: any) => {
-        console.log("Form Data:", data);
-        onClose();
-    };
-
-    return (
-        <>
-            {isOpen && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-    <div className="bg-white rounded-lg p-8 max-w-2xl w-full h-[75vh] overflow-y-auto">
-      <h2 className="text-2xl font-semibold mb-4">Add Bank Account</h2>
-      <p className="mb-4">
-        Please fill in the details below to add a new bank account. All fields marked with an asterisk (*) are required.
-      </p>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          {/* Left Side */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Account Name:*</label>
-            <Input
-              type="text"
-              {...register("accountName", { required: "Account Name is required" })}
-              className="mt-1 block w-full"
-            />
-            {errors.accountName && <p className="text-red-500 text-xs mt-1">{errors.accountName.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">As of Date:*</label>
-            <Input
-              type="date"
-              {...register("asOfDate", { required: "As of Date is required" })}
-              className="mt-1 block w-full"
-            />
-            {errors.asOfDate && <p className="text-red-500 text-xs mt-1">{errors.asOfDate.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Opening Balance:*</label>
-            <Input
-              type="number"
-              {...register("openingBalance", { required: "Opening Balance is required" })}
-              className="mt-1 block w-full"
-            />
-            {errors.openingBalance && <p className="text-red-500 text-xs mt-1">{errors.openingBalance.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Bank Account Number:*</label>
-            <Input
-              type="number"
-              {...register("bankAccountNumber", { required: "Bank Account Number is required" })}
-              className="mt-1 block w-full"
-            />
-            {errors.bankAccountNumber && <p className="text-red-500 text-xs mt-1">{errors.bankAccountNumber.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Re-Enter Bank Account Number:*</label>
-            <Input
-              type="number"
-              {...register("reEnterBankAccountNumber", {
-                required: "Please re-enter your Bank Account Number",
-                validate: (value) =>
-                  value === getValues("bankAccountNumber") || "Account numbers must match",
-              })}
-              className="mt-1 block w-full"
-            />
-            {errors.reEnterBankAccountNumber && <p className="text-red-500 text-xs mt-1">{errors.reEnterBankAccountNumber.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">IFSC Code:*</label>
-            <Input
-              type="text"
-              {...register("ifscCode", { required: "IFSC Code is required" })}
-              className="mt-1 block w-full"
-            />
-            {errors.ifscCode && <p className="text-red-500 text-xs mt-1">{errors.ifscCode.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Bank & Branch Name:*</label>
-            <Input
-              type="text"
-              {...register("bankAndBranchName", { required: "Bank & Branch Name is required" })}
-              className="mt-1 block w-full"
-            />
-            {errors.bankAndBranchName && <p className="text-red-500 text-xs mt-1">{errors.bankAndBranchName.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Account Holder’s Name:*</label>
-            <Input
-              type="text"
-              {...register("accountHoldersName", { required: "Account Holder's Name is required" })}
-              className="mt-1 block w-full"
-            />
-            {errors.accountHoldersName && <p className="text-red-500 text-xs mt-1">{errors.accountHoldersName.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">UPI ID:</label>
-            <Input
-              type="text"
-              {...register("upiID")}
-              className="mt-1 block w-full"
-            />
-            {errors.upiID && <p className="text-red-500 text-xs mt-1">{errors.upiID.message}</p>}
-          </div>
-        </div>
-
-        {/* Footer Buttons */}
-        <div className="flex justify-end space-x-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            className="bg-white border border-gray-300 text-gray-700 rounded px-4 py-2 hover:bg-gray-100"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            className="bg-indigo-600 text-white rounded px-4 py-2 hover:bg-indigo-700"
-          >
-            Submit
-          </Button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
-
-        </>
-    );
-};

@@ -2,6 +2,11 @@
 import { Purchase, IPurchase } from "@/models/Purchase";
 import Product from "@/models/Product";
 import Counter from "@/models/Counter";
+
+//  new code
+import "@/models/Party"; // Import Supplier model to register it
+
+
 import { connectDB } from "@/lib/db";
 import { UserPayload } from "@/lib/middleware/auth";
 import mongoose from "mongoose";
@@ -201,6 +206,7 @@ export const updatePurchase = async (
 
   // 3️⃣ Update other fields if provided
   if (data.billTo) purchase.supplier = data.billTo;
+  // if (data.billTo) purchase.billTo = data.billTo;
   if (data.paymentStatus) purchase.paymentStatus = data.paymentStatus;
   if (data.date) purchase.date = new Date(data.date);
   if (data.notes) purchase.notes = data.notes;

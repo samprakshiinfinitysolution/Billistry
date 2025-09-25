@@ -1,7 +1,8 @@
 'use client';
 
+import axios from 'axios';
 import Link from 'next/link';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
     BadgeIndianRupee,
     CalendarIcon,
@@ -12,6 +13,9 @@ import {
     Search,
     ChevronLeft,
     ChevronRight,
+    MoreVertical,
+    Edit,
+    Trash2,
 } from 'lucide-react';
 
 // Mock UI components
@@ -107,6 +111,18 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
     );
 };
 
+interface Purchase {
+    _id: string;
+    invoiceNo: string;
+    billTo: {
+        name: string;
+    };
+    invoiceAmount: number;
+    paymentStatus: 'unpaid' | 'cash' | 'online';
+    date: string;
+    dueDate?: string;
+}
+
 
 interface StatCardProps {
     title: string;
@@ -130,7 +146,7 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
     } else if (title === "Unpaid") {
         titleColor = "text-red-600";
         iconColor = "text-red-600";
-    } else { // "Total Sales"
+    } else { // "Total Purchases"
         titleColor = isSelected ? "text-violet-800 dark:text-violet-300" : "";
         iconColor = isSelected ? "text-violet-600 dark:text-violet-400" : "";
     }
@@ -154,14 +170,114 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
 };
 
 
-const PurchaseInvoicePage = () => {
+const PurchaseDataPage = () => {
+    const [purchases, setPurchases] = useState<Purchase[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [selectedCard, setSelectedCard] = useState('Total Purchases');
     const [selectedDateRange, setSelectedDateRange] = useState('Last 365 Days');
     const [hoveredDateRange, setHoveredDateRange] = useState<string | null>(null);
     const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [customDate, setCustomDate] = useState<Date | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+    const dropdownRefs = useRef<{ [key: string]: HTMLTableCellElement | null }>({});
     const datePickerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const fetchPurchases = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await axios.get('/api/purchase', { withCredentials: true });
+                const data = res.data;
+
+                if (data.success) {
+                    setPurchases(data.data || []);
+                } else {
+                    throw new Error(data.error || 'Failed to fetch purchase data.');
+                }
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchPurchases();
+    }, []);
+
+    const { totalPurchases, paidAmount, unpaidAmount } = useMemo(() => {
+        return purchases.reduce((acc, purchase) => {
+            acc.totalPurchases += purchase.invoiceAmount;
+            if (purchase.paymentStatus === 'unpaid') {
+                acc.unpaidAmount += purchase.invoiceAmount;
+            } else {
+                acc.paidAmount += purchase.invoiceAmount;
+            }
+            return acc;
+        }, { totalPurchases: 0, paidAmount: 0, unpaidAmount: 0 });
+    }, [purchases]);
+
+    const filteredPurchases = useMemo(() => {
+        const getStartDate = (range: string): Date | null => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            switch (range) {
+                case 'Today': return today;
+                case 'Yesterday': const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1); return yesterday;
+                case 'This Week': const thisWeek = new Date(today); thisWeek.setDate(today.getDate() - today.getDay()); return thisWeek;
+                case 'Last Week': const lastWeekEnd = new Date(today); lastWeekEnd.setDate(today.getDate() - today.getDay() - 1); const lastWeekStart = new Date(lastWeekEnd); lastWeekStart.setDate(lastWeekEnd.getDate() - 6); return lastWeekStart;
+                case 'Last 7 Days': const last7 = new Date(today); last7.setDate(today.getDate() - 6); return last7;
+                case 'This Month': return new Date(today.getFullYear(), today.getMonth(), 1);
+                case 'Previous Month': return new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                case 'Last 30 Days': const last30 = new Date(today); last30.setDate(today.getDate() - 29); return last30;
+                case 'This Quarter': const q = Math.floor(today.getMonth() / 3); return new Date(today.getFullYear(), q * 3, 1);
+                case 'Previous Quarter': const pq = Math.floor(today.getMonth() / 3) - 1; const pqy = pq < 0 ? today.getFullYear() - 1 : today.getFullYear(); const pqsm = pq < 0 ? 9 : pq * 3; return new Date(pqy, pqsm, 1);
+                case 'Current Fiscal Year': const fys = 3; return new Date(today.getMonth() >= fys ? today.getFullYear() : today.getFullYear() - 1, fys, 1);
+                case 'Previous Fiscal Year': const pfys = 3; const pcY = today.getFullYear(); const psY = today.getMonth() >= pfys ? pcY : pcY - 1; return new Date(psY - 1, pfys, 1);
+                case 'Last 365 Days': const last365 = new Date(today); last365.setDate(today.getDate() - 364); return last365;
+                default: return null;
+            }
+        };
+
+        let dateFilteredPurchases = purchases;
+
+        if (selectedDateRange === 'Custom Date Range' && customDate) {
+            dateFilteredPurchases = purchases.filter(purchase => {
+                const purchaseDate = new Date(purchase.date);
+                return purchaseDate.toDateString() === customDate.toDateString();
+            });
+        } else if (selectedDateRange !== 'All Time') {
+            const startDate = getStartDate(selectedDateRange);
+            if (startDate) {
+                 dateFilteredPurchases = purchases.filter(purchase => new Date(purchase.date) >= startDate);
+            }
+        }
+
+        return dateFilteredPurchases.filter(purchase => {
+            const matchesStatus =
+                selectedCard === 'Total Purchases' ||
+                (selectedCard === 'Paid' && (purchase.paymentStatus === 'cash' || purchase.paymentStatus === 'online')) ||
+                (selectedCard === 'Unpaid' && purchase.paymentStatus === 'unpaid');
+
+            if (!matchesStatus) return false;
+
+            const lowercasedTerm = searchTerm.toLowerCase();
+            if (lowercasedTerm === '') return true;
+
+            return (
+                (purchase.invoiceNo).toLowerCase().includes(lowercasedTerm) ||
+                (purchase.billTo?.name || '').toLowerCase().includes(lowercasedTerm) ||
+                String(purchase.invoiceAmount).includes(lowercasedTerm)
+            );
+        });
+    }, [purchases, selectedCard, searchTerm, selectedDateRange, customDate]);
+
+    const formatDisplayCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-IN').format(amount);
+    };
 
     const getFormattedDate = (date: Date): string => {
         const day = String(date.getDate()).padStart(2, '0');
@@ -201,10 +317,14 @@ const PurchaseInvoicePage = () => {
                 setIsDateDropdownOpen(false);
                 setIsDatePickerOpen(false);
             }
+            if (openDropdownId && dropdownRefs.current[openDropdownId] && !dropdownRefs.current[openDropdownId]!.contains(event.target as Node)) {
+                setOpenDropdownId(null);
+            }
         };
+
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [openDropdownId]);
 
     const handleDateButtonClick = () => {
         if (isDatePickerOpen) {
@@ -232,16 +352,16 @@ const PurchaseInvoicePage = () => {
             </header>
             <main className="flex-1 py-6 space-y-6">
                 <div className="grid gap-6 md:grid-cols-3">
-                    <StatCard title="Total Purchases" amount="0" icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCard('Total Purchases')} isSelected={selectedCard === 'Total Purchases'} />
-                    <StatCard title="Paid" amount="0" icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Paid')} isSelected={selectedCard === 'Paid'} />
-                    <StatCard title="Unpaid" amount="0" icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Unpaid')} isSelected={selectedCard === 'Unpaid'} />
+                    <StatCard title="Total Purchases" amount={formatDisplayCurrency(totalPurchases)} icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCard('Total Purchases')} isSelected={selectedCard === 'Total Purchases'} />
+                    <StatCard title="Paid" amount={formatDisplayCurrency(paidAmount)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Paid')} isSelected={selectedCard === 'Paid'} />
+                    <StatCard title="Unpaid" amount={formatDisplayCurrency(unpaidAmount)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Unpaid')} isSelected={selectedCard === 'Unpaid'} />
                 </div>
 
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input placeholder="Search..." className="pl-10 pr-4 py-2 border rounded-md w-64 bg-white" />
+                            <Input placeholder="Search by Invoice No, Party, Amount..." className="pl-10 pr-4 py-2 border rounded-md w-64 bg-white" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         </div>
 
                         <div ref={datePickerRef} className="relative">
@@ -299,12 +419,11 @@ const PurchaseInvoicePage = () => {
                                 </Button>
                             </DropdownMenuTrigger>
                         </DropdownMenu>
-                        {/* <Button className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2">Create Sales Invoice</Button> */}
-                    <Link href="/dashboard/purchase/purchase-invoice">
-    <Button className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2">
-        Create Purchase Invoice
-    </Button>
-</Link>
+                        <Link href="/dashboard/purchase/purchase-invoice">
+                            <Button className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2">
+                                Create Purchase Invoice
+                            </Button>
+                        </Link>
                     </div>
                 </div>
 
@@ -313,23 +432,67 @@ const PurchaseInvoicePage = () => {
                         <TableHeader>
                             <TableRow className="border-b dark:border-gray-700">
                                 <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Invoice Number</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier Name</TableHead>
+                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice Number</TableHead>
+                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party Name</TableHead>
                                 <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due In</TableHead>
                                 <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</TableHead>
                                 <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
+                                <TableHead className="p-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
-                        <TableBody>
-                            <TableRow>
-                                <TableCell colSpan={6} className="text-center py-20">
-                                    <div className="flex flex-col items-center gap-4">
-                                        <ClipboardX className="h-16 w-16 text-gray-300 dark:text-gray-600" strokeWidth={1} />
-                                        <p className="text-gray-500 dark:text-gray-400">No Transactions Matching the current filter</p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        </TableBody>
+                        <TableBody>{
+                            loading ? (
+                                <TableRow><TableCell colSpan={7} className="text-center py-20">Loading...</TableCell></TableRow>
+                            ) : error ? (
+                                <TableRow><TableCell colSpan={7} className="text-center py-20 text-red-500">{error}</TableCell></TableRow>
+                            ) : purchases.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="text-center py-20">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <ClipboardX className="h-16 w-16 text-gray-300 dark:text-gray-600" strokeWidth={1} />
+                                            <p className="text-gray-500 dark:text-gray-400">No purchase invoices found.</p>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filteredPurchases.map(purchase => (
+                                    <TableRow key={purchase._id} className="border-b dark:border-gray-700">
+                                        <TableCell className="p-4">{new Date(purchase.date).toLocaleDateString()}</TableCell>
+                                        <TableCell className="p-4">{purchase.invoiceNo}</TableCell>
+                                        <TableCell className="p-4">{purchase.billTo?.name || 'N/A'}</TableCell>
+                                        <TableCell className="p-4">{purchase.dueDate ? new Date(purchase.dueDate).toLocaleDateString() : 'N/A'}</TableCell>
+                                        <TableCell className="p-4">₹{formatDisplayCurrency(purchase.invoiceAmount)}</TableCell>
+                                        <TableCell className="p-4">
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                                purchase.paymentStatus === 'unpaid' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                            }`}>
+                                                {purchase.paymentStatus.charAt(0).toUpperCase() + purchase.paymentStatus.slice(1)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell ref={el => dropdownRefs.current[purchase._id] = el} className="p-4 text-right relative">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() => setOpenDropdownId(openDropdownId === purchase._id ? null : purchase._id)}
+                                            >
+                                                <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                            {openDropdownId === purchase._id && (
+                                                <div className="absolute right-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10">
+                                                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                                        <Edit className="h-4 w-4 mr-2" /> Edit
+                                                    </button>
+                                                    <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center">
+                                                        <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )
+                        }</TableBody>
                     </Table>
                 </div>
             </main>
@@ -337,4 +500,4 @@ const PurchaseInvoicePage = () => {
     );
 };
 
-export default PurchaseInvoicePage;
+export default PurchaseDataPage;

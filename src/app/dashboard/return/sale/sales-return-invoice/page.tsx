@@ -9,8 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AddItemModal, ItemData } from '../../../../../components/AddItem';
-import { AddParty, Party, mockCustomers } from '../../../../../components/AddParty';
+import { AddItemModal, ItemData } from "../../../../../components/AddItem";
+import { AddParty, Party } from "../../../../../components/AddParty";
 import { LinkToInvoice, Invoice, mockSalesInvoices } from '../../../../../components/LinkToInvoice';
 import { ScanBarcodeModal } from '../../../../../components/ScanBarcode';
 
@@ -375,7 +375,6 @@ const CreateSalesReturnInvoicePage = () => {
                             onSelectParty={setSelectedParty}
                             onClearParty={() => setSelectedParty(null)}
                             partyType="Customer"
-                            partyList={mockCustomers}
                         />
                         <div className="flex flex-col items-end gap-4">
                              <div className="flex flex-col sm:flex-row gap-4">

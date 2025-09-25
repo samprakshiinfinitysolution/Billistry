@@ -36,7 +36,7 @@ const purchaseSchema = new Schema<IPurchase>(
     },
     billTo: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Supplier",
+      ref: "Party",
       required: true,
     },
     items: [

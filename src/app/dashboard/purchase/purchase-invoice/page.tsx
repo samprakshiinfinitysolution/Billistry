@@ -9,9 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AddItemModal, ItemData } from '../../../../components/AddItem';
-import { AddParty, Party, mockSuppliers } from '../../../../components/AddParty';
-import { ScanBarcodeModal } from '../../../../components/ScanBarcode';
+import { AddItemModal, ItemData } from "../../../../components/AddItem";
+import { AddParty, Party } from "../../../../components/AddParty";
+import { ScanBarcodeModal } from "../../../../components/ScanBarcode";
 
 const formatCurrency = (amount: number) => {
     if (isNaN(amount) || amount === null) return '0.00';
@@ -407,7 +407,6 @@ const CreatePurchaseInvoicePage = () => {
                             onSelectParty={setSelectedParty}
                             onClearParty={() => setSelectedParty(null)}
                             partyType="Supplier"
-                            partyList={mockSuppliers}
                         />
                         <div className="flex flex-col items-end gap-4">
                              <div className="flex flex-col sm:flex-row gap-4">
@@ -450,8 +449,11 @@ const CreatePurchaseInvoicePage = () => {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="border-2 border-dashed border-gray-300 rounded-lg flex justify-center py-3">
-                                        <Button variant="outline" className="text-blue-600 border-none hover:bg-blue-50" onClick={() => setShowDueDateForm(true)}>
+                                    <div 
+                                        className="border-2 border-dashed border-gray-300 rounded-lg flex justify-center py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                                        onClick={() => setShowDueDateForm(true)}
+                                    >
+                                        <Button variant="outline" className="text-blue-600 border-none pointer-events-none">
                                             <Plus className="mr-2 h-4 w-4" /> Add Due Date
                                         </Button>
                                     </div>
