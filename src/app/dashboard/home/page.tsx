@@ -185,11 +185,7 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-<<<<<<< HEAD
       const params: any = { filter };
-=======
-      let params: any = { filter };
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
 
       if (filter === "day") {
         params.start = format(new Date(), "yyyy-MM-dd");

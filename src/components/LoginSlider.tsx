@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-
-=======
 // 'use client';
 // import { useState } from 'react';
 
@@ -394,16 +391,11 @@
 //     </>
 //   );
 // }
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
 
 
 
 'use client';
 
-<<<<<<< HEAD
-import toast from 'react-hot-toast';
-=======
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import useGuestGuard from '@/hooks/useGuestGuard';
@@ -422,10 +414,7 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
   const [otp, setOtp] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [loading, setLoading] = useState(false);
-<<<<<<< HEAD
-=======
   const [error, setError] = useState<string | null>(null);
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
 
   // countdown for resend
   useEffect(() => {
@@ -455,18 +444,11 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
 
   const sendOTP = async () => {
     if (loading || resendTimer > 0) return;
-<<<<<<< HEAD
-
-    const payload = parseIdentifier();
-    if (!payload.email && !payload.phone) {
-      toast.error('Enter a valid phone number or email');
-=======
     setError(null);
 
     const payload = parseIdentifier();
     if (!payload.email && !payload.phone) {
       setError('Enter a valid phone number or email');
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
       return;
     }
 
@@ -485,11 +467,7 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
       setOtp('');
       setResendTimer(30);
     } catch (err: any) {
-<<<<<<< HEAD
-      toast.error(err.message || 'Error sending OTP');
-=======
       setError(err.message || 'Error sending OTP');
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
     } finally {
       setLoading(false);
     }
@@ -497,16 +475,10 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
 
   const verifyOTP = async () => {
     if (loading) return;
-<<<<<<< HEAD
-
-    if (!otp.trim() || otp.length !== 6) {
-      toast.error('Enter a valid 6-digit OTP');
-=======
     setError(null);
 
     if (!otp.trim() || otp.length !== 6) {
       setError('Enter a valid 6-digit OTP');
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
       return;
     }
 
@@ -526,11 +498,7 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
       router.push('/dashboard');
       onClose();
     } catch (err: any) {
-<<<<<<< HEAD
-      toast.error(err.message || 'Error verifying OTP');
-=======
       setError(err.message || 'Error verifying OTP');
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
     } finally {
       setLoading(false);
     }
@@ -539,11 +507,7 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
   // auto-submit OTP when 6 digits entered
   useEffect(() => {
     if (otp.length === 6 && !loading) verifyOTP();
-<<<<<<< HEAD
-  
-=======
     // eslint-disable-next-line react-hooks/exhaustive-deps
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
   }, [otp]);
 
   if (loadingGuard) return null;
@@ -562,8 +526,6 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
           </button>
         </div>
 
-<<<<<<< HEAD
-=======
         {/* error */}
         {error && (
           <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">
@@ -571,7 +533,6 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
           </div>
         )}
 
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
         {!otpSent ? (
           <>
             <label className="block mb-2 text-sm font-medium text-gray-700">
