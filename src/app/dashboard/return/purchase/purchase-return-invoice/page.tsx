@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { AddItemModal, ItemData } from "../../../../../components/AddItem";
 import { AddParty, Party } from "../../../../../components/AddParty";
-import { LinkToInvoice, Invoice, mockPurchaseInvoices } from '../../../../../components/LinkToInvoice';
+import { LinkToInvoice, Invoice } from '../../../../../components/LinkToInvoice';
 import { ScanBarcodeModal } from '../../../../../components/ScanBarcode';
 
 const formatCurrency = (amount: number) => {
@@ -73,6 +73,8 @@ interface InvoiceItem {
     lastDiscountInput: 'percent' | 'flat'; // Which discount input was last used
     taxPercentStr: string; // The selected tax percentage
     taxAmountStr: string; // The calculated tax amount
+    numericStock?: number | null;
+    unit?: string | null;
 }
 
 const GST_OPTIONS = ['0', '0.1', '0.25', '3', '5', '6', '12', '18', '28'];
@@ -100,6 +102,7 @@ const CreatePurchaseReturnInvoicePage = () => {
     const [autoRoundOff, setAutoRoundOff] = useState(false);
     const [amountReceivedStr, setAmountReceivedStr] = useState('');
     const [isFullyPaid, setIsFullyPaid] = useState(false);
+    const [paymentMode, setPaymentMode] = useState<'unpaid' | 'cash' | 'upi' | 'card' | 'netbanking' | 'bank_transfer' | 'cheque' | 'online'>('unpaid');
     const amountReceivedBeforePaid = useRef(0); // To store the value before marking as fully paid
     const [showNotesInput, setShowNotesInput] = useState(false);
 
@@ -115,11 +118,140 @@ const CreatePurchaseReturnInvoicePage = () => {
     // --- MODAL STATE ---
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
     const [isScanBarcodeModalOpen, setIsScanBarcodeModalOpen] = useState(false);
+    const [businessName, setBusinessName] = useState<string>('Business Name');
+    const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
 
     // --- Invoice Linking State ---
     const [searchInvoiceTerm, setSearchInvoiceTerm] = useState('');
+    const [fetchedInvoices, setFetchedInvoices] = useState<Invoice[]>([]);
+    const [returnInvoiceNo, setReturnInvoiceNo] = useState<string>('');
+    const [returnInvoiceNumber, setReturnInvoiceNumber] = useState<number>(1);
+
+    useEffect(() => {
+        const fetchInvoices = async () => {
+            try {
+                const res = await fetch('/api/new_purchase');
+                const data = await res.json();
+                if (data && data.success && Array.isArray(data.data)) {
+                    const mapped: Invoice[] = data.data.map((d: any) => ({
+                        id: d._id,
+                        date: d.invoiceDate ? (new Date(d.invoiceDate)).toISOString().split('T')[0] : (d.savedAt ? new Date(d.savedAt).toISOString().split('T')[0] : ''),
+                        invoiceNo: d.invoiceNo || d.invoiceNoFormatted || (d.invoiceNumber ? `PUR-${String(d.invoiceNumber).padStart(5, '0')}` : '') || '',
+                        invoiceNumber: d.invoiceNumber,
+                        amount: Number(d.totalAmount || d.totalAmount || 0),
+                    }));
+                    setFetchedInvoices(mapped);
+                } else {
+                    console.warn('Failed to fetch purchase invoices', data);
+                }
+            } catch (e) {
+                console.error('Error fetching purchase invoices', e);
+            }
+        };
+        fetchInvoices();
+        // Preview next return invoice number for new returns
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const editId = params.get('editId');
+            if (!editId) {
+                fetch('/api/new_purchase_return/preview', { credentials: 'include' })
+                    .then(async (res) => res.ok ? res.json() : null)
+                    .then(data => {
+                        const preview = data?.data;
+                        if (preview && preview.invoiceNo) {
+                            setReturnInvoiceNo(preview.invoiceNo);
+                            setReturnInvoiceNumber(preview.invoiceNumber || returnInvoiceNumber);
+                        }
+                    }).catch(() => {});
+            }
+        } catch (e) {}
+    }, []);
+
+    // Fetch business settings (name and signatureUrl)
+    useEffect(() => {
+        let cancelled = false;
+        const fetchSettings = async () => {
+            try {
+                const res = await fetch('/api/business/settings', { credentials: 'include' });
+                if (!res.ok) return;
+                const body = await res.json().catch(() => ({}));
+                if (cancelled) return;
+                if (body?.data) {
+                    if (body.data.name) setBusinessName(body.data.name);
+                    if (body.data.signatureUrl) setSignatureUrl(body.data.signatureUrl);
+                } else {
+                    if (body?.name) setBusinessName(body.name);
+                    if (body?.signatureUrl) setSignatureUrl(body.signatureUrl);
+                }
+            } catch (err) {
+                console.debug('Failed to fetch business settings', err);
+            }
+        };
+        fetchSettings();
+        return () => { cancelled = true; };
+    }, []);
+
+    const handleSelectInvoice = async (invoice: Invoice) => {
+        if (!invoice?.id) return;
+        try { setSearchInvoiceTerm(invoice.invoiceNo || (invoice.invoiceNumber ? String(invoice.invoiceNumber) : '')); } catch(e) {}
+        try {
+            const res = await fetch(`/api/new_purchase/${invoice.id}`);
+            const data = await res.json();
+            if (data && data.success && data.data) {
+                const d = data.data as any;
+                setInvoiceNumber(d.invoiceNumber || invoiceNumber);
+                setInvoiceDate(d.invoiceDate ? (new Date(d.invoiceDate)).toISOString().split('T')[0] : invoiceDate);
+                setNotes(d.notes || '');
+                setAdditionalCharges(Array.isArray(d.additionalCharges) ? d.additionalCharges.map((c: any, i: number) => ({ id: c.id ?? i, name: c.name || '', amount: String(c.amount || '') })) : []);
+                if (Array.isArray(d.items)) {
+                    nextItemId.current = 0;
+                    const loadedItems = d.items.map((it: any, idx: number) => ({
+                        id: nextItemId.current++,
+                        name: it.name || '',
+                        hsn: it.hsn || it.hsnCode || '',
+                        qty: Number(it.qty || 0),
+                        price: Number(it.price || 0),
+                        discountPercentStr: it.discountPercentStr || '',
+                        discountAmountStr: it.discountAmountStr || '',
+                        lastDiscountInput: (it.lastDiscountInput === 'flat' ? 'flat' : 'percent'),
+                        taxPercentStr: it.taxPercentStr || '0',
+                        taxAmountStr: it.taxAmountStr || '',
+                    }));
+                    setItems(loadedItems);
+                }
+                if (d.selectedParty) {
+                    const sp = d.selectedParty;
+                    setSelectedParty({
+                        id: sp._id || sp.id,
+                        name: sp.partyName || sp.name || '',
+                        balance: sp.balance || 0,
+                        phone: sp.mobileNumber || sp.mobile || '',
+                        address: sp.billingAddress || sp.address || ''
+                    });
+                }
+                // discount and payment fields
+                if (typeof d.discountPercentStr !== 'undefined') setDiscountPercentStr(String(d.discountPercentStr || ''));
+                if (typeof d.discountFlatStr !== 'undefined') setDiscountFlatStr(String(d.discountFlatStr || ''));
+                if (d.discountOption) setDiscountOption(d.discountOption);
+                if ((d.discountPercentStr && String(d.discountPercentStr).trim() !== '') || (d.discountFlatStr && String(d.discountFlatStr).trim() !== '') || d.discountOption) {
+                    setShowDiscountInput(true);
+                }
+                if (d.amountReceived !== undefined) setAmountReceivedStr(String(d.amountReceived));
+                if (d.paymentStatus) setPaymentMode(d.paymentStatus as any);
+                if (d.balanceAmount !== undefined) {
+                    setIsFullyPaid(Number(d.balanceAmount) === 0);
+                }
+            } else {
+                console.warn('Failed to fetch purchase invoice details', data);
+            }
+        } catch (e) {
+            console.error('Error fetching purchase invoice details', e);
+        }
+    };
 
     const [selectedParty, setSelectedParty] = useState<Party | null>(null);
+    const [isAddingParty, setIsAddingParty] = useState(false);
+    const [partySearchTerm, setPartySearchTerm] = useState('');
 
     
     // --- CALCULATIONS ---
@@ -131,11 +263,26 @@ const CreatePurchaseReturnInvoicePage = () => {
     const totalAdditionalCharges = additionalCharges.reduce((acc, charge) => acc + (parseFloat(charge.amount) || 0), 0);
     const taxableAmount = subtotalAfterItemDiscounts;
 
+    // Compute GST breakdown grouped by tax percent (used for display)
+    const gstMap = items.reduce((acc: Record<string, { taxable: number; tax: number }>, item) => {
+        const tp = String(item.taxPercentStr || '0');
+        const itemTotal = (item.qty || 0) * (item.price || 0);
+        const itemDiscount = parseFloat(item.discountAmountStr) || 0;
+        const taxable = Math.max(0, itemTotal - itemDiscount);
+        const tax = parseFloat(item.taxAmountStr) || 0;
+        if (!acc[tp]) acc[tp] = { taxable: 0, tax: 0 };
+        acc[tp].taxable += taxable;
+        acc[tp].tax += tax;
+        return acc;
+    }, {} as Record<string, { taxable: number; tax: number }>);
+    const gstBreakdown = Object.keys(gstMap).map(k => ({ percent: Number(k), taxable: gstMap[k].taxable, tax: gstMap[k].tax })).sort((a, b) => a.percent - b.percent);
+
     const overallDiscountAmount = parseFloat(discountFlatStr) || 0;
     const discountBase = discountOption === 'before-tax' ? subtotalAfterItemDiscounts : (subtotalAfterItemDiscounts + totalTax);
 
     useEffect(() => {
-        if (lastDiscountInput !== 'flat') {
+        // Only update flat amount when the last user input was percent.
+        if (lastDiscountInput === 'percent') {
             const percent = parseFloat(discountPercentStr) || 0;
             const newFlat = (discountBase * percent) / 100;
             setDiscountFlatStr(newFlat > 0 ? newFlat.toFixed(2) : '');
@@ -153,7 +300,8 @@ const CreatePurchaseReturnInvoicePage = () => {
 
 
     useEffect(() => {
-        if (lastDiscountInput !== 'percent') {
+        // Only update percent when the last user input was flat.
+        if (lastDiscountInput === 'flat') {
             const flat = parseFloat(discountFlatStr) || 0;
             if (discountBase > 0) {
                 const newPercent = (flat / discountBase) * 100;
@@ -355,7 +503,42 @@ const CreatePurchaseReturnInvoicePage = () => {
                             <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2">
                                 <Settings className="h-4 w-4 mr-2" /> Settings
                             </Button>
-                            <Button className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2">
+                            <Button onClick={async () => {
+                                try {
+                                    const numericAmountReceived = parseFloat(amountReceivedStr) || 0;
+                                    const payload: any = {
+                                        originalPurchase: undefined,
+                                        returnDate: invoiceDate,
+                                        reason: '',
+                                        items,
+                                        additionalCharges,
+                                        terms,
+                                        notes,
+                                        autoRoundOff,
+                                        adjustmentType,
+                                        manualAdjustment: autoRoundOff ? 0 : committedAdjustment,
+                                        totalAmount: finalAmountForBalance,
+                                        amountRefunded: numericAmountReceived,
+                                        balanceAmount: finalAmountForBalance - numericAmountReceived,
+                                        savedAt: new Date().toISOString(),
+                                    };
+                                    try {
+                                        const match = searchInvoiceTerm && fetchedInvoices.find(f => (f.invoiceNo === searchInvoiceTerm) || (String(f.invoiceNumber) === searchInvoiceTerm));
+                                        if (match) payload.originalPurchase = match.id;
+                                    } catch (e) {}
+
+                                    const res = await fetch('/api/new_purchase_return', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                                    if (!res.ok) {
+                                        const err = await res.json().catch(() => ({}));
+                                        console.error('Failed to save purchase return', err);
+                                    } else {
+                                        const body = await res.json().catch(() => ({}));
+                                        try { router.push('/dashboard/return/purchase/purchase-return-data'); } catch (e) {}
+                                    }
+                                } catch (e) {
+                                    console.error('Save purchase return failed', e);
+                                }
+                            }} className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2">
                                 Save Purchase Return
                             </Button>
                         </div>
@@ -378,10 +561,20 @@ const CreatePurchaseReturnInvoicePage = () => {
                         />
                         <div className="flex flex-col items-end gap-4">
                              <div className="flex flex-col sm:flex-row gap-4">
-                                 <div className="w-full sm:w-64">
-                                     <label htmlFor="invoiceNo" className="text-sm font-medium text-gray-700 mb-1 block text-right">Purchase Return No:</label>
-                                     <Input id="invoiceNo" type="number" value={invoiceNumber} onChange={e => setInvoiceNumber(parseInt(e.target.value))} className="text-right"/>
-                                 </div>
+                                <div className="w-full sm:w-64">
+                                    <label htmlFor="invoiceNo" className="text-sm font-medium text-gray-700 mb-1 block text-right">Purchase Return No:</label>
+                                    <div className="flex items-center gap-2 justify-end">
+                                        <Input id="invoiceNo" type="text" value={returnInvoiceNo || `PUR-${String(invoiceNumber).padStart(5, '0')}`} onChange={(e) => {
+                                            const v = e.target.value;
+                                            setReturnInvoiceNo(v);
+                                            const match = v.match(/(\d+)/);
+                                            if (match) {
+                                                const num = parseInt(match[1]);
+                                                if (!isNaN(num)) setInvoiceNumber(num);
+                                            }
+                                        }} className="text-right w-44"/>
+                                    </div>
+                                </div>
                                  <div className="w-full sm:w-64">
                                     <label htmlFor="invoiceDate" className="text-sm font-medium text-gray-700 mb-1 block text-right">Purchase Return Date:</label>
                                     <div className="relative">
@@ -391,9 +584,10 @@ const CreatePurchaseReturnInvoicePage = () => {
                                  </div>
                              </div>
                             <LinkToInvoice
-                                invoiceList={mockPurchaseInvoices}
+                                invoiceList={fetchedInvoices}
                                 searchTerm={searchInvoiceTerm}
                                 onSearchTermChange={setSearchInvoiceTerm}
+                                onSelectInvoice={handleSelectInvoice}
                             />
                         </div>
                     </div>
@@ -584,6 +778,28 @@ const CreatePurchaseReturnInvoicePage = () => {
                                 <span className="text-gray-500">Taxable Amount</span>
                                 <span className="font-medium text-gray-800">₹ {formatCurrency(taxableAmount)}</span>
                             </div>
+                            {/* GST Breakdown */}
+                            {gstBreakdown.length > 0 && (
+                                <div className="mt-2 space-y-1 text-sm">
+                                    {gstBreakdown.map(g => {
+                                        const halfTax = g.tax / 2;
+                                        const sgstLabel = `SGST@${(g.percent / 2) % 1 === 0 ? String(g.percent / 2) : (g.percent / 2).toFixed(2)}`;
+                                        const cgstLabel = `CGST@${(g.percent / 2) % 1 === 0 ? String(g.percent / 2) : (g.percent / 2).toFixed(2)}`;
+                                        return (
+                                            <React.Fragment key={g.percent}>
+                                                <div className="flex justify-between items-center text-sm">
+                                                    <span className="text-gray-500">{sgstLabel}</span>
+                                                    <span className="font-medium text-gray-800">₹ {formatCurrency(halfTax)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-sm">
+                                                    <span className="text-gray-500">{cgstLabel}</span>
+                                                    <span className="font-medium text-gray-800">₹ {formatCurrency(halfTax)}</span>
+                                                </div>
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </div>
+                            )}
                             <div className="flex justify-between items-center text-sm">
                                 {!showDiscountInput ? (
                                     <>
@@ -640,7 +856,15 @@ const CreatePurchaseReturnInvoicePage = () => {
                             </div>
                             <div className="flex justify-between items-center text-sm">
                                 <label htmlFor="autoRoundOff" className="flex items-center gap-2 text-gray-600 cursor-pointer">
-                                    <Checkbox id="autoRoundOff" checked={autoRoundOff} onChange={(e) => setAutoRoundOff(e.target.checked)} /> Auto Round Off
+                                    <Checkbox id="autoRoundOff" checked={autoRoundOff} onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        setAutoRoundOff(checked);
+                                        if (checked) {
+                                            setCommittedAdjustment(0);
+                                            setManualAdjustmentStr('');
+                                            setAdjustmentType('add');
+                                        }
+                                    }} /> Auto Round Off
                                 </label>
                                 
                                 {!autoRoundOff ? (
@@ -712,10 +936,15 @@ const CreatePurchaseReturnInvoicePage = () => {
                                         }}
                                         className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0"
                                     />
-                                    <select className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
-                                            <option>Cash</option>
-                                            <option>Bank</option>
-                                    </select>
+                    <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any)} className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
+                        <option value="cash">Cash</option>
+                        <option value="upi">UPI</option>
+                        <option value="card">Card</option>
+                        <option value="netbanking">Netbanking</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="online">Online</option>
+                    </select>
                                 </div>
                             </div>
 
@@ -731,8 +960,15 @@ const CreatePurchaseReturnInvoicePage = () => {
                         <div className="w-64 text-right">
                             <div className="border-b border-gray-400 pb-2 mb-2">
                             </div>
-                            <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">Business Name</span></p>
-                            <div className="ml-auto mt-4 h-25 w-45 border bg-white">{/* Signature will be loaded here */}</div>
+                            <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">{businessName}</span></p>
+                            <div className="ml-auto mt-4 h-25 w-45 border bg-white flex items-center justify-center overflow-hidden">
+                                {signatureUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={signatureUrl} alt="Signature" className="max-h-24 max-w-full object-contain" />
+                                ) : (
+                                    <span className="text-gray-400 text-sm">No signature</span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

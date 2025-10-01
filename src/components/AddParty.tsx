@@ -115,7 +115,8 @@ export const AddParty = ({ selectedParty, onSelectParty, onClearParty, partyType
 
     const filteredParties = partyList.filter(party =>
         party.name.toLowerCase().includes(partySearchTerm.toLowerCase()) ||
-        (party.phone && party.phone.includes(partySearchTerm))
+        (party.phone && party.phone.includes(partySearchTerm)) ||
+        (party.address && party.address.toLowerCase().includes(partySearchTerm.toLowerCase()))
     );
 
     const label = partyType === 'Customer' ? 'Bill To' : 'Bill From';
@@ -177,12 +178,18 @@ export const AddParty = ({ selectedParty, onSelectParty, onClearParty, partyType
                             {loading ? (
                                 <li className="p-2 text-center text-gray-500">Loading...</li>
                             ) : filteredParties.length > 0 ? filteredParties.map(party => (
-                                <li key={party.id} onClick={() => handleInternalSelect(party)} className="p-2 hover:bg-gray-100 rounded cursor-pointer flex justify-between items-center">
-                                    <span>{party.name}</span>
-                                    <span className={`text-xs flex items-center ${party.balance < 0 ? 'text-red-500' : 'text-green-500'}`}>
-                                        {party.balance !== 0 ? `₹${formatCurrency(Math.abs(party.balance))}` : '₹0.00'}
-                                        {party.balance < 0 && <ArrowUp className="h-3 w-3 ml-1" />}
-                                    </span>
+                                <li key={party.id} onClick={() => handleInternalSelect(party)} className="p-2 hover:bg-gray-100 rounded cursor-pointer flex flex-col">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <div className="font-medium text-sm">{party.name}</div>
+                                            {party.address && <div className="text-xs text-gray-500">{party.address}</div>}
+                                            {party.phone && <div className="text-xs text-gray-500">{party.phone}</div>}
+                                        </div>
+                                        <div className={`text-xs flex items-center ${party.balance < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                            {party.balance !== 0 ? `₹${formatCurrency(Math.abs(party.balance))}` : '₹0.00'}
+                                            {party.balance < 0 && <ArrowUp className="h-3 w-3 ml-1" />}
+                                        </div>
+                                    </div>
                                 </li>
                             )) : <li className="p-2 text-center text-gray-500">No {partyType.toLowerCase()}s found.</li>}
                         </ul>

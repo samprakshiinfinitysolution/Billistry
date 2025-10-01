@@ -66,12 +66,17 @@ interface InvoiceItem {
     name: string;
     hsn: string;
     qty: number;
+    originalQty?: number;
     price: number;
     discountPercentStr: string; // The user-inputted discount percentage
     discountAmountStr: string; // The calculated discount amount
     lastDiscountInput: 'percent' | 'flat'; // Which discount input was last used
     taxPercentStr: string; // The selected tax percentage
     taxAmountStr: string; // The calculated tax amount
+    // Optional numeric stock and unit provided when item comes from AddItem modal
+    numericStock?: number | null;
+    unit?: string | null;
+    productId?: string | null;
 }
 
 const GST_OPTIONS = ['0', '0.1', '0.25', '3', '5', '6', '12', '18', '28'];
@@ -85,6 +90,7 @@ interface Charge {
 const CreatePurchaseInvoicePage = () => {
     const router = useRouter();
     const [invoiceNumber, setInvoiceNumber] = useState(1);
+    const [invoiceNo, setInvoiceNo] = useState<string>(''); // server-assigned formatted string (PUR-00001)
     const nextItemId = useRef(0);
     const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
     const [items, setItems] = useState<InvoiceItem[]>([]);
@@ -100,6 +106,7 @@ const CreatePurchaseInvoicePage = () => {
     const [autoRoundOff, setAutoRoundOff] = useState(false);
     const [amountReceivedStr, setAmountReceivedStr] = useState('');
     const [isFullyPaid, setIsFullyPaid] = useState(false);
+    const [paymentMode, setPaymentMode] = useState<'unpaid' | 'cash' | 'upi' | 'card' | 'netbanking' | 'bank_transfer' | 'cheque' | 'online'>('unpaid');
     const amountReceivedBeforePaid = useRef(0); // To store the value before marking as fully paid
     const [showNotesInput, setShowNotesInput] = useState(false);
 
@@ -123,22 +130,51 @@ const CreatePurchaseInvoicePage = () => {
     const [isScanBarcodeModalOpen, setIsScanBarcodeModalOpen] = useState(false);
 
     const [selectedParty, setSelectedParty] = useState<Party | null>(null);
+    const [isAddingParty, setIsAddingParty] = useState(false);
+    const [partySearchTerm, setPartySearchTerm] = useState('');
+    const [editId, setEditId] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [savedMessage, setSavedMessage] = useState('');
+    // Business settings (fetched from API)
+    const [businessName, setBusinessName] = useState<string>('Business Name');
+    const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+    const [productsCache, setProductsCache] = useState<any[]>([]);
 
     
     // --- CALCULATIONS ---
     const subtotal = items.reduce((acc, item) => acc + (item.qty || 0) * (item.price || 0), 0);
     const totalItemDiscount = items.reduce((acc, item) => acc + (parseFloat(item.discountAmountStr) || 0), 0);
     const subtotalAfterItemDiscounts = subtotal - totalItemDiscount;
-    const totalTax = items.reduce((acc, item) => acc + (parseFloat(item.taxAmountStr) || 0), 0);
-    const itemsGrandTotal = subtotalAfterItemDiscounts + totalTax;
     const totalAdditionalCharges = additionalCharges.reduce((acc, charge) => acc + (parseFloat(charge.amount) || 0), 0);
     const taxableAmount = subtotalAfterItemDiscounts;
 
-    const overallDiscountAmount = parseFloat(discountFlatStr) || 0;
-    const discountBase = discountOption === 'before-tax' ? subtotalAfterItemDiscounts : (subtotalAfterItemDiscounts + totalTax);
+    // Compute GST breakdown grouped by tax percent across items
+
+        // Compute GST breakdown grouped by tax percent across items (sales-like behavior)
+        const overallDiscountAmount = parseFloat(discountFlatStr) || 0;
+        const gstMap = items.reduce((acc: Record<string, { taxable: number; tax: number }>, item) => {
+            const taxPercent = item.taxPercentStr ? String(item.taxPercentStr).trim() : '';
+            const itemTotal = (item.qty || 0) * (item.price || 0);
+            const itemDiscount = parseFloat(item.discountAmountStr) || 0;
+            const taxableForItem = Math.max(0, itemTotal - itemDiscount);
+            const taxAmount = parseFloat(item.taxAmountStr) || 0;
+
+            if (!taxPercent || Number(taxPercent) === 0) return acc;
+            if (!acc[taxPercent]) acc[taxPercent] = { taxable: 0, tax: 0 };
+            acc[taxPercent].taxable += taxableForItem;
+            acc[taxPercent].tax += taxAmount;
+            return acc;
+        }, {} as Record<string, { taxable: number; tax: number }>);
+
+        const gstBreakdown = Object.keys(gstMap).map(k => ({ percent: Number(k), taxable: gstMap[k].taxable, tax: gstMap[k].tax })).sort((a, b) => a.percent - b.percent);
+        const totalTax = gstBreakdown.reduce((s, g) => s + g.tax, 0);
+        const itemsGrandTotal = subtotalAfterItemDiscounts + totalTax;
+        const discountBase = discountOption === 'before-tax' ? subtotalAfterItemDiscounts : (subtotalAfterItemDiscounts + totalTax);
 
     useEffect(() => {
-        if (lastDiscountInput !== 'flat') {
+        // Only update flat amount when the last user input was percent.
+        // Prevent running when lastDiscountInput is null or 'flat' to avoid mutual-effect loops.
+        if (lastDiscountInput === 'percent') {
             const percent = parseFloat(discountPercentStr) || 0;
             const newFlat = (discountBase * percent) / 100;
             setDiscountFlatStr(newFlat > 0 ? newFlat.toFixed(2) : '');
@@ -152,6 +188,23 @@ const CreatePurchaseInvoicePage = () => {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
+    }, []);
+
+    useEffect(() => {
+        let mounted = true;
+        const fetchProducts = async () => {
+            try {
+                const res = await fetch('/api/product', { credentials: 'include' });
+                if (!res.ok) return;
+                const body = await res.json().catch(() => ({}));
+                const products = Array.isArray(body.products) ? body.products : [];
+                if (mounted) setProductsCache(products);
+            } catch (e) {}
+        };
+        fetchProducts();
+        const onUpd = () => fetchProducts();
+        try { window.addEventListener('productsUpdated', onUpd as any); } catch (e) {}
+        return () => { mounted = false; try { window.removeEventListener('productsUpdated', onUpd as any); } catch (e) {} };
     }, []);
 
     // Auto-calculate Due Date or Payment Terms based on which was last edited
@@ -185,7 +238,9 @@ const CreatePurchaseInvoicePage = () => {
 
 
     useEffect(() => {
-        if (lastDiscountInput !== 'percent') {
+        // Only update percent when the last user input was flat.
+        // This avoids the two-effects toggling each other when lastDiscountInput is null.
+        if (lastDiscountInput === 'flat') {
             const flat = parseFloat(discountFlatStr) || 0;
             if (discountBase > 0) {
                 const newPercent = (flat / discountBase) * 100;
@@ -203,9 +258,11 @@ const CreatePurchaseInvoicePage = () => {
     // This effect syncs the base total to the input field, but only if the user hasn't typed in it.
     useEffect(() => {
         if (!totalAmountManuallySet) {
-            setTotalAmountStr(baseTotal > 0 ? baseTotal.toFixed(2) : '');
+            // Include additional charges in the displayed Total Amount so the input matches final payable
+            const displayedTotal = baseTotal + totalAdditionalCharges;
+            setTotalAmountStr(displayedTotal > 0 ? displayedTotal.toFixed(2) : '');
         }
-    }, [baseTotal, totalAmountManuallySet]);
+    }, [baseTotal, totalAmountManuallySet, totalAdditionalCharges]);
 
     // This is the total that will be used for the final balance calculation.
     // It starts with the value in the input field (or the base total if empty), then applies the manual adjustment and rounding.
@@ -245,6 +302,7 @@ const CreatePurchaseInvoicePage = () => {
         const newItem: InvoiceItem = {
             id: nextItemId.current++,
             name: itemToAdd.name,
+            productId: itemToAdd.id || null,
             hsn: itemToAdd.hsnCode || '', // Use hsnCode from modal
             qty: quantity,
             price: price,
@@ -361,6 +419,233 @@ const CreatePurchaseInvoicePage = () => {
         setPartySearchTerm('');
     };
 
+    // Load existing NewPurchase in edit mode when ?editId= is present
+    useEffect(() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('editId');
+            if (!id) return;
+            setEditId(id);
+            fetch(`/api/new_purchase/${id}`, { credentials: 'include' })
+                .then(async res => { if (!res.ok) throw new Error('Failed to fetch'); return res.json(); })
+                .then(data => {
+                    const doc = data?.data || data;
+                    if (!doc) return;
+                    if (doc.invoiceNumber) setInvoiceNumber(doc.invoiceNumber);
+                    if (doc.invoiceNo) setInvoiceNo(doc.invoiceNo);
+                    if (doc.invoiceDate) setInvoiceDate(new Date(doc.invoiceDate).toISOString().split('T')[0]);
+                    if (doc.dueDate) {
+                        try { setDueDate(new Date(doc.dueDate).toISOString().split('T')[0]); } catch (e) { /* ignore */ }
+                        // Show the due date form in edit mode when a due date exists and prefer 'date' as the last input source
+                        setShowDueDateForm(true);
+                        setLastDueDateInput('date');
+                    }
+                    if (doc.items && Array.isArray(doc.items)) {
+                        const mapped = doc.items.map((it: any, idx: number) => ({
+                            id: idx,
+                            name: it.name || it.itemName || '',
+                            hsn: it.hsn || '',
+                            qty: it.qty || it.quantity || 1,
+                            originalQty: it.qty || it.quantity || 1,
+                            price: it.price || it.rate || 0,
+                            discountPercentStr: it.discountPercentStr || '',
+                            discountAmountStr: it.discountAmountStr || '',
+                            lastDiscountInput: it.lastDiscountInput || 'percent',
+                            taxPercentStr: it.taxPercentStr || it.taxPercent || '',
+                            taxAmountStr: it.taxAmountStr || '',
+                            productId: (it.productId || it.product_id) || null,
+                            numericStock: null,
+                            unit: it.unit || null,
+                        }));
+                        // Fetch current products to enrich stock/unit info for loaded items
+                        (async () => {
+                            try {
+                                const resP = await fetch('/api/product', { credentials: 'include' });
+                                if (!resP.ok) throw new Error('Failed to fetch products');
+                                const bodyP = await resP.json().catch(() => ({}));
+                                const products = Array.isArray(bodyP.products) ? bodyP.products : [];
+                                const mappedAny = mapped as InvoiceItem[];
+                                const enriched: InvoiceItem[] = mappedAny.map((mi: InvoiceItem) => {
+                                    const p = (products as any[]).find((pp: any) => (mi.productId && String(pp._id) === String(mi.productId)) || String(pp.name || '').trim() === String(mi.name || '').trim());
+                                    if (!p) return mi;
+                                    return {
+                                        ...mi,
+                                        productId: String(p._id),
+                                        numericStock: (typeof p.currentStock !== 'undefined' && p.currentStock !== null) ? Number(p.currentStock) : ((typeof p.openingStock !== 'undefined' && p.openingStock !== null) ? Number(p.openingStock) : null),
+                                        unit: p.unit || mi.unit || null,
+                                        originalQty: mi.originalQty ?? (mi.qty || 0),
+                                    };
+                                });
+                                setItems(enriched);
+                                try { nextItemId.current = enriched.length; } catch (e) {}
+                            } catch (err) {
+                                console.warn('Failed to fetch products to enrich invoice items', err);
+                                setItems(mapped);
+                                try { nextItemId.current = mapped.length; } catch (e) {}
+                            }
+                        })();
+                    }
+                    // Populate additional charges if present on the saved doc
+                    if (doc.additionalCharges && Array.isArray(doc.additionalCharges)) {
+                        const mappedCharges = doc.additionalCharges.map((ch: any, idx: number) => ({
+                            id: Date.now() + idx,
+                            name: ch.name || ch.title || '',
+                            amount: String(typeof ch.amount !== 'undefined' ? ch.amount : (ch.value || ''))
+                        }));
+                        setAdditionalCharges(mappedCharges);
+                    }
+                    if (doc.selectedParty) {
+                        // normalize into Party shape conservatively and include address if present
+                        const sp = typeof doc.selectedParty === 'string' ? { id: doc.selectedParty, name: '' } : doc.selectedParty;
+                        const partyObj = {
+                            id: sp.id || sp._id || '',
+                            name: sp.partyName || sp.name || '',
+                            balance: sp.balance || 0,
+                            phone: sp.mobileNumber || sp.phone || sp.mobile || '',
+                            address: sp.address || sp.billingAddress || sp.shippingAddress || ''
+                        } as Party;
+                        setSelectedParty(partyObj);
+                    }
+                    if (doc.discountPercentStr) setDiscountPercentStr(String(doc.discountPercentStr));
+                    if (doc.discountFlatStr) setDiscountFlatStr(String(doc.discountFlatStr));
+                    // If discount fields or option exist on saved doc, open the discount UI (same behavior as sales)
+                    if ((doc.discountPercentStr && String(doc.discountPercentStr).trim() !== '') || (doc.discountFlatStr && String(doc.discountFlatStr).trim() !== '') || doc.discountOption) {
+                        setShowDiscountInput(true);
+                        if (doc.discountOption) setDiscountOption(doc.discountOption);
+                    }
+                    // If the saved doc has totalAmount, populate and mark as manually set so input shows value
+                    if (typeof doc.totalAmount !== 'undefined') {
+                        setTotalAmountStr(String(doc.totalAmount));
+                        // do NOT mark as manually set so the UI will continue to auto-sync like sales
+                    }
+                    // Populate terms and notes from saved doc (open Notes UI if notes exist)
+                    if (typeof doc.terms !== 'undefined' && doc.terms !== null) setTerms(String(doc.terms || ''));
+                    if (doc.notes && String(doc.notes).trim() !== '') { setNotes(doc.notes); setShowNotesInput(true); }
+                    // If a due date was saved, show the due date form
+                    if (doc.dueDate) {
+                        try { setDueDate(new Date(doc.dueDate).toISOString().split('T')[0]); } catch (e) { /* ignore */ }
+                        setShowDueDateForm(true);
+                    }
+                    if (doc.amountReceived !== undefined) setAmountReceivedStr(String(doc.amountReceived));
+                    // paymentStatus in saved doc maps to paymentMode; fall back to 'unpaid'
+                    if (doc.paymentStatus) setPaymentMode(doc.paymentStatus as any);
+                    if (doc.balanceAmount !== undefined) setIsFullyPaid(Number(doc.balanceAmount) === 0);
+                })
+                .catch(err => console.error('Failed to load purchase for edit', err));
+        } catch (e) { /* ignore */ }
+    }, []);
+
+    // Fetch preview invoiceNo for new invoices (do not reserve)
+    useEffect(() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('editId');
+            if (id) return; // don't fetch preview when editing
+            if (invoiceNo) return; // don't override if already present
+            fetch('/api/new_purchase/preview', { credentials: 'include' })
+                .then(async res => { if (!res.ok) return null; return res.json(); })
+                .then(data => {
+                    const preview = data?.data || data;
+                    if (preview && preview.invoiceNo) {
+                        setInvoiceNo(preview.invoiceNo);
+                        setInvoiceNumber(preview.invoiceNumber || invoiceNumber);
+                    }
+                })
+                .catch(() => {});
+        } catch (e) {}
+    }, []);
+
+    // Fetch business settings (name and signatureUrl)
+    useEffect(() => {
+        let cancelled = false;
+        const fetchSettings = async () => {
+            try {
+                const res = await fetch('/api/business/settings', { credentials: 'include' });
+                if (!res.ok) return;
+                const body = await res.json().catch(() => ({}));
+                if (cancelled) return;
+                if (body?.data) {
+                    if (body.data.name) setBusinessName(body.data.name);
+                    if (body.data.signatureUrl) setSignatureUrl(body.data.signatureUrl);
+                } else {
+                    if (body?.name) setBusinessName(body.name);
+                    if (body?.signatureUrl) setSignatureUrl(body.signatureUrl);
+                }
+            } catch (err) {
+                console.debug('Failed to fetch business settings', err);
+            }
+        };
+        fetchSettings();
+        return () => { cancelled = true; };
+    }, []);
+
+    // Save handler (create or update)
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+            let selectedPartyToSend: any = undefined;
+            if (selectedParty) {
+                if ((selectedParty as any).id) selectedPartyToSend = (selectedParty as any).id;
+                else if ((selectedParty as any)._id) selectedPartyToSend = (selectedParty as any)._id;
+                else selectedPartyToSend = selectedParty as any;
+            }
+
+            // Determine whether invoice is paid and map to paymentStatus (same logic as sales)
+            const numericAmountReceived = parseFloat(amountReceivedStr) || 0;
+            const isPaid = isFullyPaid || numericAmountReceived >= finalAmountForBalance;
+            const paymentStatusToSend = isPaid ? paymentMode : 'unpaid';
+
+            const payload: any = {
+                invoiceDate,
+                dueDate,
+                paymentTerms,
+                selectedParty: selectedPartyToSend,
+                items,
+                additionalCharges,
+                discountOption,
+                discountPercentStr,
+                discountFlatStr,
+                terms,
+                notes,
+                autoRoundOff,
+                adjustmentType,
+                                manualAdjustment: autoRoundOff ? 0 : committedAdjustment,
+                totalAmount: finalAmountForBalance,
+                amountReceived: amountReceived,
+                balanceAmount,
+                paymentStatus: paymentStatusToSend,
+                savedAt: new Date().toISOString(),
+            };
+
+            let res: Response;
+            if (editId) {
+                res = await fetch(`/api/new_purchase/${editId}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            } else {
+                // creating - do not send invoiceNumber (server assigns it)
+                try { delete (payload as any).invoiceNumber; } catch (e) {}
+                res = await fetch('/api/new_purchase', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            }
+
+            if (!res.ok) {
+                const errBody = await res.json().catch(() => ({}));
+                setSavedMessage(errBody?.error || errBody?.message || 'Failed to save');
+            } else {
+                const body = await res.json().catch(() => ({}));
+                setSavedMessage(body?.message || 'Saved');
+                // If created, set editId and invoiceNo from server response
+                if (!editId && body?.data?._id) setEditId(body.data._id);
+                if (body?.data?.invoiceNo) setInvoiceNo(body.data.invoiceNo);
+                // keep saved message visible briefly like sales page
+                setTimeout(() => setSavedMessage(''), 3000);
+                    // notify other UI that products' currentStock may have changed
+                    try { window.dispatchEvent(new Event('productsUpdated')); } catch (e) {}
+            }
+        } catch (e) {
+            console.error('Save failed', e);
+            setSavedMessage('Save failed');
+        } finally { setSaving(false); setTimeout(() => setSavedMessage(''), 3000); }
+    };
+
     return (
         <div className="bg-gray-50 min-h-screen">
             <AddItemModal 
@@ -381,15 +666,21 @@ const CreatePurchaseInvoicePage = () => {
                             <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100 rounded-full p-2" onClick={() => router.push('/dashboard/purchase/purchase-data')}>
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
-                            <h1 className="text-xl font-semibold text-gray-800">Create Purchase Invoice</h1>
+                            <h1 className="text-xl font-semibold text-gray-800">{editId ? 'Update Purchase Invoice' : 'Create Purchase Invoice'}</h1>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2">
                                 <Settings className="h-4 w-4 mr-2" /> Settings
                             </Button>
-                            <Button className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2">
-                                Save Purchase Invoice
+
+                            <Button
+                                className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2"
+                                onClick={handleSave}
+                            >
+                                {saving ? 'Saving…' : (editId ? 'Save Changes' : 'Save Purchase Invoice')}
                             </Button>
+
+                            {savedMessage && <div className="text-sm text-green-600 ml-2">{savedMessage}</div>}
                         </div>
                     </div>
                 </div>
@@ -412,7 +703,8 @@ const CreatePurchaseInvoicePage = () => {
                              <div className="flex flex-col sm:flex-row gap-4">
                                  <div className="w-full sm:w-64">
                                      <label htmlFor="invoiceNo" className="text-sm font-medium text-gray-700 mb-1 block text-right">Purchase Invoice No:</label>
-                                     <Input id="invoiceNo" type="number" value={invoiceNumber} onChange={e => setInvoiceNumber(parseInt(e.target.value))} className="text-right"/>
+                                     {/* Show server-formatted invoiceNo (PUR-00001) when available; otherwise show numeric preview or placeholder */}
+                                     <Input id="invoiceNo" type="text" value={invoiceNo || (editId ? (invoiceNumber ? String(invoiceNumber) : '') : 'Will be assigned on save')} readOnly className="text-right bg-gray-100 cursor-not-allowed" />
                                  </div>
                                  <div className="w-full sm:w-64">
                                     <label htmlFor="invoiceDate" className="text-sm font-medium text-gray-700 mb-1 block text-right">Purchase Invoice Date:</label>
@@ -484,7 +776,28 @@ const CreatePurchaseInvoicePage = () => {
                                         <td className="px-2 py-2 text-sm text-gray-500">{index + 1}</td>
                                         <td className="px-2 py-2"><Input type="text" placeholder="Item Name" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} /></td>
                                         <td className="px-2 py-2"><Input type="text" placeholder="HSN" value={item.hsn} onChange={e => handleItemChange(item.id, 'hsn', e.target.value)} /></td>
-                                        <td className="px-2 py-2"><Input type="number" placeholder="1" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} /></td>
+                                                                                <td className="px-2 py-2">
+                                                                                    <div className="flex flex-col">
+                                                                                        <Input type="number" placeholder="1" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} />
+                                                                                        {(() => {
+                                                                                            // prefer live currentStock from productsCache when available
+                                                                                            const p = (item.productId && productsCache.length) ? productsCache.find(pp => String(pp._id) === String(item.productId)) : null;
+                                                                                            const liveStock = p ? (typeof p.currentStock !== 'undefined' && p.currentStock !== null ? Number(p.currentStock) : (typeof p.openingStock !== 'undefined' && p.openingStock !== null ? Number(p.openingStock) : null)) : item.numericStock;
+                                                                                            if (typeof liveStock !== 'number') return null;
+                                                                                            // Compute live available while editing: if the item was part of
+                                                                                            // the original invoice, we subtract only the delta (newQty - originalQty)
+                                                                                            // from liveStock so the display updates as user changes qty but still
+                                                                                            // reflects the DB's current stock.
+                                                                                            const orig = typeof item.originalQty === 'number' ? item.originalQty : 0;
+                                                                                            const delta = (item.qty || 0) - orig;
+                                                                                            const raw = (liveStock || 0) - delta; // how many would remain after applying the edited qty
+                                                                                            const cls = raw <= 0 ? 'text-red-600' : 'text-gray-500';
+                                                                                            const unitLabel = item.unit || (p && p.unit) || 'pcs';
+                                                                                            if (raw <= 0) return <span className={`text-xs ${cls}`}>{`Out of stock ${unitLabel}`}</span>;
+                                                                                            return <span className={`text-xs ${cls}`}>{`Available: ${raw} ${unitLabel}`}</span>;
+                                                                                        })()}
+                                                                                    </div>
+                                                                                </td>
                                         <td className="px-2 py-2"><Input type="number" placeholder="0.00" value={item.price} onChange={e => handleItemChange(item.id, 'price', e.target.value)} /></td>
                                         <td className="px-2 py-2 w-32">
                                             <div className="flex flex-col gap-1">
@@ -648,6 +961,28 @@ const CreatePurchaseInvoicePage = () => {
                                 <span className="text-gray-500">Taxable Amount</span>
                                 <span className="font-medium text-gray-800">₹ {formatCurrency(taxableAmount)}</span>
                             </div>
+                            {/* GST Breakdown */}
+                            {gstBreakdown.length > 0 && (
+                                <div className="mt-2 space-y-1 text-sm">
+                                    {gstBreakdown.map(g => {
+                                        const halfTax = g.tax / 2;
+                                        const sgstLabel = `SGST@${(g.percent / 2) % 1 === 0 ? String(g.percent / 2) : (g.percent / 2).toFixed(2)}`;
+                                        const cgstLabel = `CGST@${(g.percent / 2) % 1 === 0 ? String(g.percent / 2) : (g.percent / 2).toFixed(2)}`;
+                                        return (
+                                            <React.Fragment key={g.percent}>
+                                                <div className="flex justify-between items-center text-sm">
+                                                    <span className="text-gray-500">{sgstLabel}</span>
+                                                    <span className="font-medium text-gray-800">₹ {formatCurrency(halfTax)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-sm">
+                                                    <span className="text-gray-500">{cgstLabel}</span>
+                                                    <span className="font-medium text-gray-800">₹ {formatCurrency(halfTax)}</span>
+                                                </div>
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </div>
+                            )}
                             <div className="flex justify-between items-center text-sm">
                                 {!showDiscountInput ? (
                                     <>
@@ -704,7 +1039,15 @@ const CreatePurchaseInvoicePage = () => {
                             </div>
                             <div className="flex justify-between items-center text-sm">
                                 <label htmlFor="autoRoundOff" className="flex items-center gap-2 text-gray-600 cursor-pointer">
-                                    <Checkbox id="autoRoundOff" checked={autoRoundOff} onChange={(e) => setAutoRoundOff(e.target.checked)} /> Auto Round Off
+                                    <Checkbox id="autoRoundOff" checked={autoRoundOff} onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        setAutoRoundOff(checked);
+                                        if (checked) {
+                                            setCommittedAdjustment(0);
+                                            setManualAdjustmentStr('');
+                                            setAdjustmentType('add');
+                                        }
+                                    }} /> Auto Round Off
                                 </label>
                                 
                                 {!autoRoundOff ? (
@@ -776,10 +1119,15 @@ const CreatePurchaseInvoicePage = () => {
                                         }}
                                         className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0"
                                     />
-                                    <select className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
-                                            <option>Cash</option>
-                                            <option>Bank</option>
-                                    </select>
+                    <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any)} className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
+                        <option value="cash">Cash</option>
+                        <option value="upi">UPI</option>
+                        <option value="card">Card</option>
+                        <option value="netbanking">Netbanking</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="online">Online</option>
+                    </select>
                                 </div>
                             </div>
 
@@ -795,8 +1143,15 @@ const CreatePurchaseInvoicePage = () => {
                         <div className="w-64 text-right">
                             <div className="border-b border-gray-400 pb-2 mb-2">
                             </div>
-                            <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">Business Name</span></p>
-                            <div className="ml-auto mt-4 h-25 w-45 border bg-white">{/* Signature will be loaded here */}</div>
+                            <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">{businessName}</span></p>
+                            <div className="ml-auto mt-4 h-25 w-45 border bg-white flex items-center justify-center overflow-hidden">
+                                {signatureUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={signatureUrl} alt="Signature" className="max-h-20 object-contain" />
+                                ) : (
+                                    <div className="text-xs text-gray-400">Signature will be shown here</div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

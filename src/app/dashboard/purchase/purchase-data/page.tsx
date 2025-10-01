@@ -3,6 +3,7 @@
 import axios from 'axios';
 import Link from 'next/link';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     BadgeIndianRupee,
     CalendarIcon,
@@ -38,7 +39,7 @@ const TableHeader = ({ children, ...props }: React.HTMLAttributes<HTMLTableSecti
 const TableRow = ({ children, ...props }: React.HTMLAttributes<HTMLTableRowElement>) => <tr {...props}>{children}</tr>;
 const TableHead = ({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) => <th {...props}>{children}</th>;
 const TableBody = ({ children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => <tbody {...props}>{children}</tbody>;
-const TableCell = ({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) => <td {...props}>{children}</td>;
+const TableCell = ({ children, ...props }: any) => <td {...props}>{children}</td>;
 const DropdownMenu = ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className="relative inline-block text-left" {...props}>{children}</div>;
 const DropdownMenuTrigger = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
 const DropdownMenuContent = ({ children }: { children: React.ReactNode }) => <div className="origin-top-left absolute left-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 max-h-80 overflow-y-auto">{children}</div>;
@@ -113,14 +114,15 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
 
 interface Purchase {
     _id: string;
-    invoiceNo: string;
-    billTo: {
-        name: string;
-    };
-    invoiceAmount: number;
-    paymentStatus: 'unpaid' | 'cash' | 'online';
-    date: string;
-    dueDate?: string;
+    invoiceNo?: string;
+    invoiceNumber?: number;
+    date?: string | Date; // mapped from invoiceDate or createdAt
+    dueDate?: string | Date;
+    invoiceAmount?: number; // mapped from totalAmount
+    totalAmount?: number;
+    paymentStatus?: 'unpaid' | 'cash' | 'online' | string;
+    billTo?: { name?: string } | string; // mapped from selectedParty
+    isDeleted?: boolean;
 }
 
 
@@ -171,9 +173,13 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
 
 
 const PurchaseDataPage = () => {
+    const router = useRouter();
     const [purchases, setPurchases] = useState<Purchase[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showArchived, setShowArchived] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
     const [selectedCard, setSelectedCard] = useState('Total Purchases');
     const [selectedDateRange, setSelectedDateRange] = useState('Last 365 Days');
     const [hoveredDateRange, setHoveredDateRange] = useState<string | null>(null);
@@ -191,11 +197,33 @@ const PurchaseDataPage = () => {
             setLoading(true);
             setError(null);
             try {
-                const res = await axios.get('/api/purchase', { withCredentials: true });
+                const res = await axios.get('/api/new_purchase' + (showArchived ? '?includeDeleted=true' : ''), { withCredentials: true });
                 const data = res.data;
 
                 if (data.success) {
-                    setPurchases(data.data || []);
+                    // Normalize server shape to UI-friendly fields
+                    const normalized = (data.data || []).map((d: any) => {
+                        const rawNum = (d.invoiceNumber !== undefined && d.invoiceNumber !== null) ? Number(d.invoiceNumber) : undefined;
+                        // accept 0 as a valid stored sequence (will render as PUR-00000). We'll still ignore placeholder invoiceNo like PUR-00000
+                        const invoiceNum = (typeof rawNum === 'number' && !isNaN(rawNum)) ? rawNum : undefined;
+                        const rawInvoiceNo = d.invoiceNo ? String(d.invoiceNo).trim() : undefined;
+                        // Ignore placeholder invoice strings like PUR-00000
+                        const invoiceNoIsPlaceholder = rawInvoiceNo ? /^PUR-0+$/.test(rawInvoiceNo) : false;
+                        const invoiceNoComputed = (!invoiceNoIsPlaceholder && rawInvoiceNo) ? rawInvoiceNo : (typeof invoiceNum === 'number' ? `PUR-${String(invoiceNum).padStart(5, '0')}` : undefined);
+                        return {
+                            _id: d._id,
+                            invoiceNo: invoiceNoComputed,
+                            invoiceNumber: invoiceNum,
+                            date: d.invoiceDate || d.savedAt || d.createdAt,
+                            dueDate: d.dueDate,
+                            invoiceAmount: typeof d.totalAmount !== 'undefined' ? d.totalAmount : d.amount || 0,
+                            totalAmount: d.totalAmount,
+                            paymentStatus: d.paymentStatus || 'unpaid',
+                            billTo: d.selectedParty || d.billTo || null,
+                            isDeleted: Boolean(d.isDeleted),
+                        } as Purchase;
+                    });
+                    setPurchases(normalized);
                 } else {
                     throw new Error(data.error || 'Failed to fetch purchase data.');
                 }
@@ -206,15 +234,16 @@ const PurchaseDataPage = () => {
             }
         };
         fetchPurchases();
-    }, []);
+    }, [showArchived]);
 
     const { totalPurchases, paidAmount, unpaidAmount } = useMemo(() => {
         return purchases.reduce((acc, purchase) => {
-            acc.totalPurchases += purchase.invoiceAmount;
+            const amt = purchase.totalAmount || 0;
+            acc.totalPurchases += amt;
             if (purchase.paymentStatus === 'unpaid') {
-                acc.unpaidAmount += purchase.invoiceAmount;
+                acc.unpaidAmount += amt;
             } else {
-                acc.paidAmount += purchase.invoiceAmount;
+                acc.paidAmount += amt;
             }
             return acc;
         }, { totalPurchases: 0, paidAmount: 0, unpaidAmount: 0 });
@@ -246,13 +275,17 @@ const PurchaseDataPage = () => {
 
         if (selectedDateRange === 'Custom Date Range' && customDate) {
             dateFilteredPurchases = purchases.filter(purchase => {
-                const purchaseDate = new Date(purchase.date);
+                if (!purchase.date) return false;
+                const purchaseDate = new Date(purchase.date as any);
                 return purchaseDate.toDateString() === customDate.toDateString();
             });
         } else if (selectedDateRange !== 'All Time') {
             const startDate = getStartDate(selectedDateRange);
             if (startDate) {
-                 dateFilteredPurchases = purchases.filter(purchase => new Date(purchase.date) >= startDate);
+                 dateFilteredPurchases = purchases.filter(purchase => {
+                     if (!purchase.date) return false;
+                     return new Date(purchase.date as any) >= startDate;
+                 });
             }
         }
 
@@ -267,10 +300,14 @@ const PurchaseDataPage = () => {
             const lowercasedTerm = searchTerm.toLowerCase();
             if (lowercasedTerm === '') return true;
 
+            const invoiceNoStr = (purchase.invoiceNo || '').toString().toLowerCase();
+            const partyName = (typeof purchase.billTo === 'string') ? purchase.billTo : (purchase.billTo?.name || '');
+            const partyNameStr = (partyName || '').toString().toLowerCase();
+            const amountStr = typeof purchase.invoiceAmount === 'number' ? String(purchase.invoiceAmount) : String(purchase.totalAmount || '');
             return (
-                (purchase.invoiceNo).toLowerCase().includes(lowercasedTerm) ||
-                (purchase.billTo?.name || '').toLowerCase().includes(lowercasedTerm) ||
-                String(purchase.invoiceAmount).includes(lowercasedTerm)
+                invoiceNoStr.includes(lowercasedTerm) ||
+                partyNameStr.includes(lowercasedTerm) ||
+                amountStr.includes(lowercasedTerm)
             );
         });
     }, [purchases, selectedCard, searchTerm, selectedDateRange, customDate]);
@@ -326,6 +363,33 @@ const PurchaseDataPage = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [openDropdownId]);
 
+    const handleDeleteClick = (id: string) => {
+        setDeletingId(id);
+        setShowDeleteConfirm(true);
+        setOpenDropdownId(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingId) return;
+        try {
+            await axios.delete(`/api/new_purchase/${deletingId}`, { withCredentials: true });
+            setPurchases(prev => prev.filter(p => p._id !== deletingId));
+        } catch (err: any) {
+            alert(err?.response?.data?.error || err?.message || 'Failed to delete');
+        } finally {
+            setShowDeleteConfirm(false);
+            setDeletingId(null);
+        }
+    };
+
+    const restorePurchase = async (id: string) => {
+        try {
+            await axios.put(`/api/new_purchase/${id}`, { isDeleted: false }, { withCredentials: true });
+            setPurchases(prev => prev.map(p => p._id === id ? { ...p, isDeleted: false } : p));
+            setOpenDropdownId(null);
+        } catch (err: any) { alert(err?.response?.data?.error || err?.message || 'Restore failed'); }
+    };
+
     const handleDateButtonClick = () => {
         if (isDatePickerOpen) {
             setIsDatePickerOpen(false);
@@ -335,6 +399,33 @@ const PurchaseDataPage = () => {
     };
 
     return (
+        <>
+        {showDeleteConfirm && (
+            <div 
+                className={`fixed inset-0 bg-black/40 z-50 flex justify-center items-center p-4 transition-opacity duration-300 ${showDeleteConfirm ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                onClick={() => setShowDeleteConfirm(false)}
+            >
+                <div className="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                    <h2 className="text-lg font-semibold text-gray-900">Are you sure you want to delete this Purchase Invoice?</h2>
+                    <div className="mt-6 flex justify-end gap-3">
+                        <Button
+                            variant="outline"
+                            className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2"
+                            onClick={() => setShowDeleteConfirm(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            className="bg-red-600 text-white hover:bg-red-700 px-4 py-2"
+                            onClick={confirmDelete}
+                        >
+                            Yes, Delete
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        )}
+
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-6">
             <header className="flex items-center justify-between pb-4 border-b">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Purchase Invoices</h1>
@@ -457,19 +548,19 @@ const PurchaseDataPage = () => {
                             ) : (
                                 filteredPurchases.map(purchase => (
                                     <TableRow key={purchase._id} className="border-b dark:border-gray-700">
-                                        <TableCell className="p-4">{new Date(purchase.date).toLocaleDateString()}</TableCell>
-                                        <TableCell className="p-4">{purchase.invoiceNo}</TableCell>
-                                        <TableCell className="p-4">{purchase.billTo?.name || 'N/A'}</TableCell>
-                                        <TableCell className="p-4">{purchase.dueDate ? new Date(purchase.dueDate).toLocaleDateString() : 'N/A'}</TableCell>
-                                        <TableCell className="p-4">₹{formatDisplayCurrency(purchase.invoiceAmount)}</TableCell>
+                                        <TableCell className="p-4">{purchase.date ? new Date(purchase.date as any).toLocaleDateString() : 'N/A'}</TableCell>
+                                        <TableCell className="p-4">{purchase.invoiceNo ?? (purchase.invoiceNumber !== undefined && purchase.invoiceNumber !== null ? `PUR-${String(purchase.invoiceNumber).padStart(5,'0')}` : 'N/A')}</TableCell>
+                                        <TableCell className="p-4">{(typeof purchase.billTo === 'string') ? purchase.billTo : (purchase.billTo?.name || 'N/A')}</TableCell>
+                                        <TableCell className="p-4">{purchase.dueDate ? new Date(purchase.dueDate as any).toLocaleDateString() : 'N/A'}</TableCell>
+                                        <TableCell className="p-4">₹{formatDisplayCurrency(purchase.invoiceAmount || purchase.totalAmount || 0)}</TableCell>
                                         <TableCell className="p-4">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                                                 purchase.paymentStatus === 'unpaid' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
                                             }`}>
-                                                {purchase.paymentStatus.charAt(0).toUpperCase() + purchase.paymentStatus.slice(1)}
+                                                {(purchase.paymentStatus || 'unpaid').charAt(0).toUpperCase() + (purchase.paymentStatus || 'unpaid').slice(1)}
                                             </span>
                                         </TableCell>
-                                        <TableCell ref={el => dropdownRefs.current[purchase._id] = el} className="p-4 text-right relative">
+                                        <td ref={el => { dropdownRefs.current[purchase._id] = el as any; }} className="p-4 text-right relative">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -480,15 +571,21 @@ const PurchaseDataPage = () => {
                                             </Button>
                                             {openDropdownId === purchase._id && (
                                                 <div className="absolute right-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10">
-                                                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
-                                                        <Edit className="h-4 w-4 mr-2" /> Edit
-                                                    </button>
-                                                    <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center">
-                                                        <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                                    </button>
+                                                        <button
+                                                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                                            onClick={() => { setOpenDropdownId(null); router.push(`/dashboard/purchase/purchase-invoice?editId=${purchase._id}`); }}
+                                                        >
+                                                            <Edit className="h-4 w-4 mr-2" /> Edit
+                                                        </button>
+                                                        <button
+                                                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
+                                                            onClick={() => { handleDeleteClick(purchase._id); }}
+                                                        >
+                                                            <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                                        </button>
                                                 </div>
                                             )}
-                                        </TableCell>
+                                        </td>
                                     </TableRow>
                                 ))
                             )
@@ -497,6 +594,7 @@ const PurchaseDataPage = () => {
                 </div>
             </main>
         </div>
+        </>
     );
 };
 

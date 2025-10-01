@@ -186,6 +186,8 @@ export default function ProductPage() {
         setFormData(defaultForm);
         setEditingProduct(null);
         setOpen(false);
+        // Notify other UI components (AddItem modal) that products updated so they can refetch
+        try { window.dispatchEvent(new Event('productsUpdated')); } catch (e) { /* ignore */ }
       } else {
         toast.error(data.error || "Something went wrong");
       }

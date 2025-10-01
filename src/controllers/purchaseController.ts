@@ -4,7 +4,7 @@ import Product from "@/models/Product";
 import Counter from "@/models/Counter";
 
 //  new code
-import "@/models/Supplier"; // Import Supplier model to register it
+import "@/models/Party"; // Import Supplier model to register it
 
 
 import { connectDB } from "@/lib/db";

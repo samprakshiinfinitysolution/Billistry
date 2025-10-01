@@ -245,7 +245,7 @@ import Product from '@/models/Product';
 import Counter from '@/models/Counter';
 
 //this is new file
-import '@/models/Customer'; // Import Customer model to register it
+import '@/models/Party'; // Import Customer model to register it
 
 import { connectDB } from '@/lib/db';
 import { UserPayload } from '@/lib/middleware/auth';

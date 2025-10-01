@@ -3,6 +3,7 @@
 import axios from 'axios';
 import Link from 'next/link';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     BadgeIndianRupee,
     CalendarIcon,
@@ -38,7 +39,10 @@ const TableHeader = ({ children, ...props }: React.HTMLAttributes<HTMLTableSecti
 const TableRow = ({ children, ...props }: React.HTMLAttributes<HTMLTableRowElement>) => <tr {...props}>{children}</tr>;
 const TableHead = ({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) => <th {...props}>{children}</th>;
 const TableBody = ({ children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => <tbody {...props}>{children}</tbody>;
-const TableCell = ({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) => <td {...props}>{children}</td>;
+const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(({ children, ...props }, ref) => (
+    <td ref={ref} {...props}>{children}</td>
+));
+TableCell.displayName = 'TableCell';
 const DropdownMenu = ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className="relative inline-block text-left" {...props}>{children}</div>;
 const DropdownMenuTrigger = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
 const DropdownMenuContent = ({ children }: { children: React.ReactNode }) => <div className="origin-top-left absolute left-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 max-h-80 overflow-y-auto">{children}</div>;
@@ -113,14 +117,14 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
 
 interface Sale {
     _id: string;
-    invoiceNo: string;
-    billTo: { // Updated to match API response
-        name: string;
-    }; 
-    invoiceAmount: number;
-    paymentStatus: 'unpaid' | 'cash' | 'online';
-    date: string;
-    dueDate?: string;
+    invoiceNo?: string; // formatted invoice string from NewSale (INV-00001)
+    invoiceNumber?: number;
+    invoiceDate?: string | Date;
+    dueDate?: string | Date;
+    totalAmount?: number; // renamed from invoiceAmount
+    paymentStatus?: 'unpaid' | 'cash' | 'upi' | 'card' | 'netbanking' | 'bank' | 'bank_transfer' | 'cheque' | 'online';
+    selectedParty?: { name?: string; partyName?: string; mobileNumber?: string; billingAddress?: string; balance?: number; } | string;
+    isDeleted?: boolean;
 }
 
 
@@ -181,7 +185,12 @@ const SalesInvoicePage = () => {
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [customDate, setCustomDate] = useState<Date | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [showArchived, setShowArchived] = useState(false);
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const router = useRouter();
+    const [isCreating, setIsCreating] = useState(false);
     
     const dropdownRefs = useRef<{ [key: string]: HTMLTableCellElement | null }>({});
     const datePickerRef = useRef<HTMLDivElement>(null);
@@ -191,8 +200,8 @@ const SalesInvoicePage = () => {
             setLoading(true);
             setError(null);
             try {
-                // Using axios to be consistent with the working `sale/page.tsx`
-                const res = await axios.get('/api/sale', { withCredentials: true });
+                // Using axios to fetch NewSale resource
+                const res = await axios.get('/api/new_sale' + (showArchived ? '?includeDeleted=true' : ''), { withCredentials: true });
                 const data = res.data;
 
                 if (data.success) {
@@ -210,13 +219,50 @@ const SalesInvoicePage = () => {
         fetchSales();
     }, []);
 
+    useEffect(() => {
+        // refetch when toggling archived view
+        const fetchSales = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await axios.get('/api/new_sale' + (showArchived ? '?includeDeleted=true' : ''), { withCredentials: true });
+                const data = res.data;
+                if (data.success) setSales(data.data || []);
+                else throw new Error(data.error || 'Failed to fetch');
+            } catch (err: any) {
+                setError(err.message);
+            } finally { setLoading(false); }
+        };
+        fetchSales();
+    }, [showArchived]);
+
+    const handleDeleteClick = (id: string) => {
+        setDeletingId(id);
+        setShowDeleteConfirm(true);
+        setOpenDropdownId(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingId) return;
+        try {
+            await axios.delete(`/api/new_sale/${deletingId}`, { withCredentials: true });
+            setSales(prev => prev.filter(s => s._id !== deletingId));
+        } catch (err: any) {
+            alert(err?.response?.data?.error || err?.message || 'Failed to delete');
+        } finally {
+            setShowDeleteConfirm(false);
+            setDeletingId(null);
+        }
+    };
+
     const { totalSales, paidAmount, unpaidAmount } = useMemo(() => {
         return sales.reduce((acc, sale) => {
-            acc.totalSales += sale.invoiceAmount;
+            const amt = sale.totalAmount || 0;
+            acc.totalSales += amt;
             if (sale.paymentStatus === 'unpaid') {
-                acc.unpaidAmount += sale.invoiceAmount;
+                acc.unpaidAmount += amt;
             } else {
-                acc.paidAmount += sale.invoiceAmount;
+                acc.paidAmount += amt;
             }
             return acc;
         }, { totalSales: 0, paidAmount: 0, unpaidAmount: 0 });
@@ -246,19 +292,22 @@ const SalesInvoicePage = () => {
 
         let dateFilteredSales = sales;
 
-        if (selectedDateRange === 'Custom Date Range' && customDate) {
+            if (selectedDateRange === 'Custom Date Range' && customDate) {
             dateFilteredSales = sales.filter(sale => {
-                const saleDate = new Date(sale.date);
-                return saleDate.toDateString() === customDate.toDateString();
+                const saleDate = sale.invoiceDate ? new Date(sale.invoiceDate) : null;
+                return saleDate ? saleDate.toDateString() === customDate.toDateString() : false;
             });
         } else if (selectedDateRange !== 'All Time') {
             const startDate = getStartDate(selectedDateRange);
             if (startDate) {
-                 dateFilteredSales = sales.filter(sale => new Date(sale.date) >= startDate);
+                 dateFilteredSales = sales.filter(sale => {
+                     const saleDate = sale.invoiceDate ? new Date(sale.invoiceDate) : null;
+                     return saleDate ? saleDate >= startDate : false;
+                 });
             }
         }
 
-        return dateFilteredSales.filter(sale => {
+                return dateFilteredSales.filter(sale => {
             const matchesStatus =
                 selectedCard === 'Total Sales' ||
                 (selectedCard === 'Paid' && (sale.paymentStatus === 'cash' || sale.paymentStatus === 'online')) ||
@@ -270,9 +319,9 @@ const SalesInvoicePage = () => {
             if (lowercasedTerm === '') return true;
 
             return (
-                (sale.invoiceNoFormatted || sale.invoiceNo).toLowerCase().includes(lowercasedTerm) ||
-                (sale.billTo?.name || '').toLowerCase().includes(lowercasedTerm) ||
-                String(sale.invoiceAmount).includes(lowercasedTerm)
+                (String(sale.invoiceNo || sale.invoiceNumber || '')).toLowerCase().includes(lowercasedTerm) ||
+                (typeof sale.selectedParty === 'string' ? sale.selectedParty.toLowerCase() : (sale.selectedParty?.name || '').toLowerCase()).includes(lowercasedTerm) ||
+                String(sale.totalAmount || '').includes(lowercasedTerm)
             );
         });
     }, [sales, selectedCard, searchTerm, selectedDateRange, customDate]);
@@ -340,6 +389,33 @@ const SalesInvoicePage = () => {
     };
 
     return (
+        <>
+        {showDeleteConfirm && (
+            <div 
+                className={`fixed inset-0 bg-black/40 z-50 flex justify-center items-center p-4 transition-opacity duration-300 ${showDeleteConfirm ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                onClick={() => setShowDeleteConfirm(false)}
+            >
+                <div className="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                    <h2 className="text-lg font-semibold text-gray-900">Are you sure you want to delete this Sales Invoice?</h2>
+                    {/* <p className="mt-2 text-sm text-gray-600">Once deleted, it cannot be recovered.</p> */}
+                    <div className="mt-6 flex justify-end gap-3">
+                        <Button
+                            variant="outline"
+                            className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2"
+                            onClick={() => setShowDeleteConfirm(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            className="bg-red-600 text-white hover:bg-red-700 px-4 py-2"
+                            onClick={confirmDelete}
+                        >
+                            Yes, Delete
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        )}
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-6">
             <header className="flex items-center justify-between pb-4 border-b">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Sales Invoices</h1>
@@ -424,11 +500,15 @@ const SalesInvoicePage = () => {
                                 </Button>
                             </DropdownMenuTrigger>
                         </DropdownMenu>
-                        <Link href="/dashboard/sale/sales-invoice">
-    <Button className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2">
-        Create Sales Invoice
-    </Button>
-</Link>
+                        <Button
+                            className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2"
+                            onClick={() => {
+                                // Open the editor in NEW mode (no editId) — editor will fetch a preview invoiceNo if needed
+                                router.push('/dashboard/sale/sales-invoice');
+                            }}
+                        >
+                            Create Sales Invoice
+                        </Button>
                     </div>
                 </div>
 
@@ -462,19 +542,19 @@ const SalesInvoicePage = () => {
                             ) : (
                                 filteredSales.map(sale => (
                                     <TableRow key={sale._id} className="border-b dark:border-gray-700">
-                                        <TableCell className="p-4">{new Date(sale.date).toLocaleDateString()}</TableCell>
-                                        <TableCell className="p-4">{sale.invoiceNoFormatted || sale.invoiceNo}</TableCell>
-                                        <TableCell className="p-4">{sale.billTo?.name || 'N/A'}</TableCell>
+                                        <TableCell className="p-4">{sale.invoiceDate ? new Date(sale.invoiceDate).toLocaleDateString() : 'N/A'}</TableCell>
+                                        <TableCell className="p-4">{sale.invoiceNo || (sale.invoiceNumber ? String(sale.invoiceNumber) : 'N/A')}</TableCell>
+                                        <TableCell className="p-4">{typeof sale.selectedParty === 'string' ? sale.selectedParty : (sale.selectedParty?.name || sale.selectedParty?.partyName || 'N/A')}</TableCell>
                                         <TableCell className="p-4">{sale.dueDate ? new Date(sale.dueDate).toLocaleDateString() : 'N/A'}</TableCell>
-                                        <TableCell className="p-4">₹{formatDisplayCurrency(sale.invoiceAmount)}</TableCell>
+                                        <TableCell className="p-4">₹{formatDisplayCurrency(sale.totalAmount || 0)}</TableCell>
                                         <TableCell className="p-4">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                                                 sale.paymentStatus === 'unpaid' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
                                             }`}>
-                                                {sale.paymentStatus.charAt(0).toUpperCase() + sale.paymentStatus.slice(1)}
+                                                {sale.paymentStatus ? (sale.paymentStatus.charAt(0).toUpperCase() + sale.paymentStatus.slice(1)) : 'Unknown'}
                                             </span>
                                         </TableCell>
-                                        <TableCell ref={el => dropdownRefs.current[sale._id] = el} className="p-4 text-right relative">
+                                        <TableCell ref={(el) => { dropdownRefs.current[sale._id] = el; }} className="p-4 text-right relative">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -485,12 +565,31 @@ const SalesInvoicePage = () => {
                                             </Button>
                                             {openDropdownId === sale._id && ( 
                                                 <div className="absolute right-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10">
-                                                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                                                    <button
+                                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                                        onClick={() => {
+                                                            setOpenDropdownId(null);
+                                                            router.push(`/dashboard/sale/sales-invoice?editId=${sale._id}`);
+                                                        }}
+                                                    >
                                                         <Edit className="h-4 w-4 mr-2" /> Edit
                                                     </button>
-                                                    <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center">
-                                                        <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                                    </button>
+                                                        {sale.isDeleted ? (
+                                                            <button className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-100 flex items-center" onClick={async () => {
+                                                                if (!confirm('Restore this invoice?')) return;
+                                                                try {
+                                                                    await axios.put(`/api/new_sale/${sale._id}`, { isDeleted: false }, { withCredentials: true });
+                                                                    setSales(prev => prev.map(s => s._id === sale._id ? { ...s, isDeleted: false } : s));
+                                                                    setOpenDropdownId(null);
+                                                                } catch (e: any) { alert(e?.response?.data?.error || e?.message || 'Restore failed'); }
+                                                            }}>
+                                                                <Edit className="h-4 w-4 mr-2" /> Restore
+                                                            </button>
+                                                        ) : (
+                                                            <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center" onClick={() => handleDeleteClick(sale._id)}>
+                                                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                                            </button>
+                                                        )}
                                                 </div>
                                             )}
                                         </TableCell>
@@ -502,6 +601,7 @@ const SalesInvoicePage = () => {
                 </div>
             </main>
         </div>
+        </>
     );
 };
 

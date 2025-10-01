@@ -45,7 +45,7 @@ const saleSchema = new Schema<ISale>(
   {
     business: {type: mongoose.Schema.Types.ObjectId,ref: "Business",required: true},
     invoiceNo: {type: String,required: true,trim: true},
-    billTo: {type: mongoose.Schema.Types.ObjectId,ref: "Customer",required: true},
+    billTo: {type: mongoose.Schema.Types.ObjectId,ref: "Party",required: true},
     items: [
       {
         item: {type: mongoose.Schema.Types.ObjectId,ref: "Product",required: true},
