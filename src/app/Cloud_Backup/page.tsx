@@ -11,13 +11,13 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, RefObject } from "react";
 
 export default function OtherServicesManage() {
-  const qrRef = useRef<HTMLDivElement>(null);
-  const notificationsRef = useRef<HTMLDivElement>(null);
-  const integrationRef = useRef<HTMLDivElement>(null);
-  const cloudRef = useRef<HTMLDivElement>(null);
+  const qrRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const notificationsRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const integrationRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const cloudRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
 
   const sections = [
     { id: "qr", ref: qrRef, icon: <QrCode className="text-[#7B53A6]" />, label: "QR Code Generation" },
@@ -179,14 +179,21 @@ export default function OtherServicesManage() {
   );
 }
 
-function Section({ id, ref, title, items }: any) {
+type SectionProps = {
+  id: string;
+  ref: React.RefObject<HTMLDivElement>;
+  title: string;
+  items: { icon: React.ReactNode; title: string; description: string }[];
+};
+
+const Section = ({ id, ref, title, items }: SectionProps) => {
   return (
     <section id={id} ref={ref} className="scroll-mt-25 md:scroll-mt-35">
       <h2 className="text-2xl md:text-3xl font-extrabold mb-6 font-roboto" style={{ color: "#460F58" }}>
         {title}
       </h2>
       <div className="grid md:grid-cols-2 gap-6">
-        {items.map((item: any, i: number) => (
+        {items.map((item, i) => (
           <div key={i} className="flex flex-col space-y-3 p-4 rounded-lg border hover:border-[#7B53A6] transition-all hover:shadow-lg" style={{ backgroundColor: "#F7FBFB", boxShadow: "0 4px 6px rgba(123,83,166,0.25)" }}>
             {item.icon}
             <h3 className="text-lg font-bold font-roboto" style={{ color: "#460F58" }}>{item.title}</h3>
@@ -196,5 +203,5 @@ function Section({ id, ref, title, items }: any) {
       </div>
     </section>
   );
-}
+};
 

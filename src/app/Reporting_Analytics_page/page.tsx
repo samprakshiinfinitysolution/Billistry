@@ -186,13 +186,13 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, RefObject } from "react";
 
 export default function ReportingAnalytics() {
-  const inventoryRef = useRef<HTMLDivElement>(null);
-  const salesRef = useRef<HTMLDivElement>(null);
-  const financialRef = useRef<HTMLDivElement>(null);
-  const customRef = useRef<HTMLDivElement>(null);
+  const inventoryRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const salesRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const financialRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const customRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
 
   const sections = [
     { id: "inventory", ref: inventoryRef, icon: <Archive className="text-[#7B53A6]" />, label: "Inventory Reports" },

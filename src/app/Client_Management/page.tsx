@@ -157,11 +157,11 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, RefObject } from "react";
 
 export default function CustomerVendorServices() {
-  const customerRef = useRef<HTMLDivElement>(null);
-  const vendorRef = useRef<HTMLDivElement>(null);
+  const customerRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const vendorRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
 
   const sections = [
     {

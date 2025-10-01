@@ -175,12 +175,12 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, RefObject } from "react";
 
 export default function SalesPurchaseServices() {
-  const salesRef = useRef<HTMLDivElement>(null);
-  const purchaseRef = useRef<HTMLDivElement>(null);
-  const returnRef = useRef<HTMLDivElement>(null);
+  const salesRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const purchaseRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const returnRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
 
   const sections = [
     {

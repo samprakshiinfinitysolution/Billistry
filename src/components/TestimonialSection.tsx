@@ -1,7 +1,7 @@
 // src/components/TestimonialSection.tsx
-<<<<<<< HEAD
-import Image from 'next/image';
-=======
+
+// import Image from 'next/image';
+
 // export default function TestimonialSection() {
 //   const testimonials = [
 //     {
@@ -152,7 +152,7 @@ import Image from 'next/image';
 
 
  import { AiFillStar } from "react-icons/ai";
->>>>>>> c8ea2d5 (irfan)
+ import Image from "next/image";
 
 export default function TestimonialSection() {
   const testimonials = [
@@ -180,107 +180,84 @@ export default function TestimonialSection() {
   ];
 
   return (
-<<<<<<< HEAD
-    <section className="bg-white py-20 px-6">
-      <div className="max-w-6xl mx-auto text-center">
-        <h2 className="text-3xl font-bold text-gray-800 mb-12">What Our Customers Say</h2>
+    <section
+      className="relative py-20 px-6 font-['Poppins'] bg-cover bg-center footer-animate-bg bg-fixed"
+      style={{ backgroundImage: `url('/images/cta-bg.jpg')` }}
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/50"></div>
+
+      <div className="relative max-w-7xl mx-auto text-center text-white">
+        <h2
+          className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-4 drop-shadow-lg"
+          style={{ fontFamily: "Roboto, sans-serif" }}
+        >
+          What Our Customers Say
+        </h2>
+        <p className="mb-12 max-w-2xl mx-auto drop-shadow-md">
+          Hear from our clients who transformed their business with{" "}
+          <span className="font-semibold text-[#7B53A6]">Used Our Mind</span>.
+        </p>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {testimonials.map((t, idx) => (
             <div
               key={idx}
-              className="bg-gray-50 p-6 rounded-2xl shadow hover:shadow-lg transition flex flex-col items-center"
+              className="flex flex-col p-6 text-left rounded-xl hover:border-[#7B53A6] border border-gray-600"
             >
-              <Image
-                src={t.image}
-                alt={t.name}
-                width={56}
-                height={56}
-                className="w-14 h-14 rounded-full object-cover border-2 border-pink-500"
-              />
-              <div className="text-left mt-4">
-                <h4 className="text-lg font-semibold text-gray-800">{t.name}</h4>
-                <p className="text-sm text-gray-500">{t.role}</p>
+              <div className="flex items-center gap-4 mb-4">
+                <Image
+                  src={t.image}
+                  alt={t.name}
+                  width={56}
+                  height={56}
+                  className="w-14 h-14 rounded-full object-cover border-2 border-[#7B53A6]"
+                />
+                <div className="hover:text-[#7B53A6]">
+                  <h4
+                    className="text-lg font-semibold drop-shadow-md"
+                    style={{ fontFamily: "Roboto, sans-serif" }}
+                  >
+                    {t.name}
+                  </h4>
+                  <p className="text-sm text-gray-200 drop-shadow-sm">
+                    {t.role}
+                  </p>
+                </div>
               </div>
-              <p className="text-gray-600 text-left mt-4">“{t.text}”</p>
-=======
-    <section
-  className="relative py-20 px-6 font-['Poppins'] bg-cover bg-center footer-animate-bg bg-fixed"
-  style={{ backgroundImage: `url('/images/cta-bg.jpg')` }}
->
-  {/* Overlay */}
-  <div className="absolute inset-0 bg-black/50"></div>
 
-  <div className="relative max-w-7xl mx-auto text-center text-white">
-    <h2
-      className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-4 drop-shadow-lg"
-      style={{ fontFamily: "Roboto, sans-serif" }} // ✅ Roboto for heading
-    >
-      What Our Customers Say
-    </h2>
-    <p className="mb-12 max-w-2xl mx-auto drop-shadow-md">
-      Hear from our clients who transformed their business with{" "}
-      <span className="font-semibold text-[#7B53A6]">Used Our Mind</span>.
-    </p>
+              {/* Rating */}
+              <div className="flex mb-3">
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const ratingDiff = t.rating - i;
+                  if (ratingDiff >= 1) {
+                    return <AiFillStar key={i} className="w-5 h-5 mr-1 text-yellow-400" />;
+                  } else if (ratingDiff > 0) {
+                    return (
+                      <div key={i} className="relative w-5 h-5 mr-1">
+                        <AiFillStar className="w-5 h-5 text-gray-400 absolute top-0 left-0" />
+                        <div
+                          className="overflow-hidden absolute top-0 left-0 h-full"
+                          style={{ width: `${ratingDiff * 100}%` }}
+                        >
+                          <AiFillStar className="w-5 h-5 text-yellow-400" />
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    return <AiFillStar key={i} className="w-5 h-5 mr-1 text-gray-400" />;
+                  }
+                })}
+              </div>
 
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-      {testimonials.map((t, idx) => (
-        <div
-          key={idx}
-          className="flex flex-col p-6 text-left rounded-xl hover:border-[#7B53A6] border border-gray-600"
-        >
-          <div className="flex items-center gap-4 mb-4">
-            <img
-              src={t.image}
-              alt={t.name}
-              className="w-14 h-14 rounded-full object-cover border-2 border-[#7B53A6]"
-            />
-            <div className="hover:text-[#7B53A6]">
-              <h4
-                className="text-lg font-semibold drop-shadow-md"
-                style={{ fontFamily: "Roboto, sans-serif" }} // ✅ Roboto for testimonial name
-              >
-                {t.name}
-              </h4>
-              <p className="text-sm text-gray-200 drop-shadow-sm">
-                {t.role}
+              <p className="italic drop-shadow-md">
+                “{t.text}”
               </p>
->>>>>>> c8ea2d5 (irfan)
             </div>
-          </div>
-
-          {/* Rating */}
-          <div className="flex mb-3">
-            {Array.from({ length: 5 }).map((_, i) => {
-              const ratingDiff = t.rating - i;
-              if (ratingDiff >= 1) {
-                return <AiFillStar key={i} className="w-5 h-5 mr-1 text-yellow-400" />;
-              } else if (ratingDiff > 0) {
-                return (
-                  <div key={i} className="relative w-5 h-5 mr-1">
-                    <AiFillStar className="w-5 h-5 text-gray-400 absolute top-0 left-0" />
-                    <div
-                      className="overflow-hidden absolute top-0 left-0 h-full"
-                      style={{ width: `${ratingDiff * 100}%` }}
-                    >
-                      <AiFillStar className="w-5 h-5 text-yellow-400" />
-                    </div>
-                  </div>
-                );
-              } else {
-                return <AiFillStar key={i} className="w-5 h-5 mr-1 text-gray-400" />;
-              }
-            })}
-          </div>
-
-          <p className="italic drop-shadow-md">
-            “{t.text}”
-          </p>
+          ))}
         </div>
-      ))}
-    </div>
-  </div>
-</section>
-
+      </div>
+    </section>
   );
 }
 

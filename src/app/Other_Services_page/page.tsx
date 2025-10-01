@@ -181,13 +181,13 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, RefObject } from "react";
 
 export default function OtherServicesManage() {
-  const qrRef = useRef<HTMLDivElement>(null);
-  const notificationsRef = useRef<HTMLDivElement>(null);
-  const integrationRef = useRef<HTMLDivElement>(null);
-  const cloudRef = useRef<HTMLDivElement>(null);
+  const qrRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const notificationsRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const integrationRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const cloudRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
 
   const sections = [
     { id: "qr", ref: qrRef, icon: <QrCode className="text-[#7B53A6]" />, label: "QR Code Generation" },

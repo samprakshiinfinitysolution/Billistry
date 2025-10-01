@@ -194,13 +194,13 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, RefObject } from "react";
 
 export default function InventoryManagementServices() {
-  const productRef = useRef<HTMLDivElement>(null);
-  const stockRef = useRef<HTMLDivElement>(null);
-  const warehouseRef = useRef<HTMLDivElement>(null);
-  const supplierRef = useRef<HTMLDivElement>(null);
+  const productRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const stockRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const warehouseRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const supplierRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
 
   const sections = [
     { id: "product", ref: productRef, icon: <Package className="text-[#7B53A6]" />, label: "Product Management" },

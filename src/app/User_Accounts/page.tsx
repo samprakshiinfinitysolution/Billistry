@@ -158,11 +158,11 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, RefObject } from "react";
 
 export default function UserRoleManagement() {
-  const userAccountsRef = useRef<HTMLDivElement>(null);
-  const permissionRef = useRef<HTMLDivElement>(null);
+  const userAccountsRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const permissionRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
 
   const sections = [
     {
