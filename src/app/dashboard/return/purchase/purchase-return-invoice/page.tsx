@@ -11,7 +11,11 @@ import {
 } from "@/components/ui/select";
 import { AddItemModal, ItemData } from "../../../../../components/AddItem";
 import { AddParty, Party } from "../../../../../components/AddParty";
+<<<<<<< HEAD
 import { LinkToInvoice, Invoice } from '../../../../../components/LinkToInvoice';
+=======
+import { LinkToInvoice, Invoice, mockPurchaseInvoices } from '../../../../../components/LinkToInvoice';
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 import { ScanBarcodeModal } from '../../../../../components/ScanBarcode';
 
 const formatCurrency = (amount: number) => {
@@ -73,8 +77,11 @@ interface InvoiceItem {
     lastDiscountInput: 'percent' | 'flat'; // Which discount input was last used
     taxPercentStr: string; // The selected tax percentage
     taxAmountStr: string; // The calculated tax amount
+<<<<<<< HEAD
     numericStock?: number | null;
     unit?: string | null;
+=======
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 }
 
 const GST_OPTIONS = ['0', '0.1', '0.25', '3', '5', '6', '12', '18', '28'];
@@ -102,7 +109,10 @@ const CreatePurchaseReturnInvoicePage = () => {
     const [autoRoundOff, setAutoRoundOff] = useState(false);
     const [amountReceivedStr, setAmountReceivedStr] = useState('');
     const [isFullyPaid, setIsFullyPaid] = useState(false);
+<<<<<<< HEAD
     const [paymentMode, setPaymentMode] = useState<'unpaid' | 'cash' | 'upi' | 'card' | 'netbanking' | 'bank_transfer' | 'cheque' | 'online'>('unpaid');
+=======
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     const amountReceivedBeforePaid = useRef(0); // To store the value before marking as fully paid
     const [showNotesInput, setShowNotesInput] = useState(false);
 
@@ -118,6 +128,7 @@ const CreatePurchaseReturnInvoicePage = () => {
     // --- MODAL STATE ---
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
     const [isScanBarcodeModalOpen, setIsScanBarcodeModalOpen] = useState(false);
+<<<<<<< HEAD
     const [businessName, setBusinessName] = useState<string>('Business Name');
     const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
 
@@ -252,6 +263,13 @@ const CreatePurchaseReturnInvoicePage = () => {
     const [selectedParty, setSelectedParty] = useState<Party | null>(null);
     const [isAddingParty, setIsAddingParty] = useState(false);
     const [partySearchTerm, setPartySearchTerm] = useState('');
+=======
+
+    // --- Invoice Linking State ---
+    const [searchInvoiceTerm, setSearchInvoiceTerm] = useState('');
+
+    const [selectedParty, setSelectedParty] = useState<Party | null>(null);
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 
     
     // --- CALCULATIONS ---
@@ -263,6 +281,7 @@ const CreatePurchaseReturnInvoicePage = () => {
     const totalAdditionalCharges = additionalCharges.reduce((acc, charge) => acc + (parseFloat(charge.amount) || 0), 0);
     const taxableAmount = subtotalAfterItemDiscounts;
 
+<<<<<<< HEAD
     // Compute GST breakdown grouped by tax percent (used for display)
     const gstMap = items.reduce((acc: Record<string, { taxable: number; tax: number }>, item) => {
         const tp = String(item.taxPercentStr || '0');
@@ -277,12 +296,18 @@ const CreatePurchaseReturnInvoicePage = () => {
     }, {} as Record<string, { taxable: number; tax: number }>);
     const gstBreakdown = Object.keys(gstMap).map(k => ({ percent: Number(k), taxable: gstMap[k].taxable, tax: gstMap[k].tax })).sort((a, b) => a.percent - b.percent);
 
+=======
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     const overallDiscountAmount = parseFloat(discountFlatStr) || 0;
     const discountBase = discountOption === 'before-tax' ? subtotalAfterItemDiscounts : (subtotalAfterItemDiscounts + totalTax);
 
     useEffect(() => {
+<<<<<<< HEAD
         // Only update flat amount when the last user input was percent.
         if (lastDiscountInput === 'percent') {
+=======
+        if (lastDiscountInput !== 'flat') {
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             const percent = parseFloat(discountPercentStr) || 0;
             const newFlat = (discountBase * percent) / 100;
             setDiscountFlatStr(newFlat > 0 ? newFlat.toFixed(2) : '');
@@ -300,8 +325,12 @@ const CreatePurchaseReturnInvoicePage = () => {
 
 
     useEffect(() => {
+<<<<<<< HEAD
         // Only update percent when the last user input was flat.
         if (lastDiscountInput === 'flat') {
+=======
+        if (lastDiscountInput !== 'percent') {
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             const flat = parseFloat(discountFlatStr) || 0;
             if (discountBase > 0) {
                 const newPercent = (flat / discountBase) * 100;
@@ -503,6 +532,7 @@ const CreatePurchaseReturnInvoicePage = () => {
                             <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2">
                                 <Settings className="h-4 w-4 mr-2" /> Settings
                             </Button>
+<<<<<<< HEAD
                             <Button onClick={async () => {
                                 try {
                                     const numericAmountReceived = parseFloat(amountReceivedStr) || 0;
@@ -539,6 +569,9 @@ const CreatePurchaseReturnInvoicePage = () => {
                                     console.error('Save purchase return failed', e);
                                 }
                             }} className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2">
+=======
+                            <Button className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2">
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                 Save Purchase Return
                             </Button>
                         </div>
@@ -561,6 +594,7 @@ const CreatePurchaseReturnInvoicePage = () => {
                         />
                         <div className="flex flex-col items-end gap-4">
                              <div className="flex flex-col sm:flex-row gap-4">
+<<<<<<< HEAD
                                 <div className="w-full sm:w-64">
                                     <label htmlFor="invoiceNo" className="text-sm font-medium text-gray-700 mb-1 block text-right">Purchase Return No:</label>
                                     <div className="flex items-center gap-2 justify-end">
@@ -575,6 +609,12 @@ const CreatePurchaseReturnInvoicePage = () => {
                                         }} className="text-right w-44"/>
                                     </div>
                                 </div>
+=======
+                                 <div className="w-full sm:w-64">
+                                     <label htmlFor="invoiceNo" className="text-sm font-medium text-gray-700 mb-1 block text-right">Purchase Return No:</label>
+                                     <Input id="invoiceNo" type="number" value={invoiceNumber} onChange={e => setInvoiceNumber(parseInt(e.target.value))} className="text-right"/>
+                                 </div>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                  <div className="w-full sm:w-64">
                                     <label htmlFor="invoiceDate" className="text-sm font-medium text-gray-700 mb-1 block text-right">Purchase Return Date:</label>
                                     <div className="relative">
@@ -584,10 +624,16 @@ const CreatePurchaseReturnInvoicePage = () => {
                                  </div>
                              </div>
                             <LinkToInvoice
+<<<<<<< HEAD
                                 invoiceList={fetchedInvoices}
                                 searchTerm={searchInvoiceTerm}
                                 onSearchTermChange={setSearchInvoiceTerm}
                                 onSelectInvoice={handleSelectInvoice}
+=======
+                                invoiceList={mockPurchaseInvoices}
+                                searchTerm={searchInvoiceTerm}
+                                onSearchTermChange={setSearchInvoiceTerm}
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                             />
                         </div>
                     </div>
@@ -778,6 +824,7 @@ const CreatePurchaseReturnInvoicePage = () => {
                                 <span className="text-gray-500">Taxable Amount</span>
                                 <span className="font-medium text-gray-800">₹ {formatCurrency(taxableAmount)}</span>
                             </div>
+<<<<<<< HEAD
                             {/* GST Breakdown */}
                             {gstBreakdown.length > 0 && (
                                 <div className="mt-2 space-y-1 text-sm">
@@ -800,6 +847,8 @@ const CreatePurchaseReturnInvoicePage = () => {
                                     })}
                                 </div>
                             )}
+=======
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                             <div className="flex justify-between items-center text-sm">
                                 {!showDiscountInput ? (
                                     <>
@@ -856,6 +905,7 @@ const CreatePurchaseReturnInvoicePage = () => {
                             </div>
                             <div className="flex justify-between items-center text-sm">
                                 <label htmlFor="autoRoundOff" className="flex items-center gap-2 text-gray-600 cursor-pointer">
+<<<<<<< HEAD
                                     <Checkbox id="autoRoundOff" checked={autoRoundOff} onChange={(e) => {
                                         const checked = e.target.checked;
                                         setAutoRoundOff(checked);
@@ -865,6 +915,9 @@ const CreatePurchaseReturnInvoicePage = () => {
                                             setAdjustmentType('add');
                                         }
                                     }} /> Auto Round Off
+=======
+                                    <Checkbox id="autoRoundOff" checked={autoRoundOff} onChange={(e) => setAutoRoundOff(e.target.checked)} /> Auto Round Off
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                 </label>
                                 
                                 {!autoRoundOff ? (
@@ -936,6 +989,7 @@ const CreatePurchaseReturnInvoicePage = () => {
                                         }}
                                         className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0"
                                     />
+<<<<<<< HEAD
                     <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any)} className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
                         <option value="cash">Cash</option>
                         <option value="upi">UPI</option>
@@ -945,6 +999,12 @@ const CreatePurchaseReturnInvoicePage = () => {
                         <option value="cheque">Cheque</option>
                         <option value="online">Online</option>
                     </select>
+=======
+                                    <select className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
+                                            <option>Cash</option>
+                                            <option>Bank</option>
+                                    </select>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                 </div>
                             </div>
 
@@ -960,6 +1020,7 @@ const CreatePurchaseReturnInvoicePage = () => {
                         <div className="w-64 text-right">
                             <div className="border-b border-gray-400 pb-2 mb-2">
                             </div>
+<<<<<<< HEAD
                             <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">{businessName}</span></p>
                             <div className="ml-auto mt-4 h-25 w-45 border bg-white flex items-center justify-center overflow-hidden">
                                 {signatureUrl ? (
@@ -969,6 +1030,10 @@ const CreatePurchaseReturnInvoicePage = () => {
                                     <span className="text-gray-400 text-sm">No signature</span>
                                 )}
                             </div>
+=======
+                            <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">Business Name</span></p>
+                            <div className="ml-auto mt-4 h-25 w-45 border bg-white">{/* Signature will be loaded here */}</div>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                         </div>
                     </div>
                 </div>

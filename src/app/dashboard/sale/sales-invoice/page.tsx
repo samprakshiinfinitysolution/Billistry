@@ -21,6 +21,7 @@ const formatCurrency = (amount: number) => {
         maximumFractionDigits: 2,
     }).format(amount);
 };
+<<<<<<< HEAD
 // Normalize various party shapes (API, local draft, AddParty) into the UI Party shape
 const normalizePartyForUI = (p: any): Party | null => {
     if (!p) return null;
@@ -32,6 +33,8 @@ const normalizePartyForUI = (p: any): Party | null => {
     const address = p.address || p.billingAddress || p.address || p.shippingAddress || '';
     return { id: String(id || ''), name, balance, phone, address } as Party;
 };
+=======
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 // Helper Button and Input from main component
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
     <button
@@ -77,11 +80,15 @@ interface InvoiceItem {
     name: string;
     hsn: string;
     qty: number;
+<<<<<<< HEAD
     originalQty?: number;
     price: number;
     numericStock?: number | null;
     unit?: string | null;
     productId?: string | null;
+=======
+    price: number;
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     discountPercentStr: string; // The user-inputted discount percentage
     discountAmountStr: string; // The calculated discount amount
     lastDiscountInput: 'percent' | 'flat'; // Which discount input was last used
@@ -100,8 +107,11 @@ interface Charge {
 const CreateSalesInvoicePage = () => {
     const router = useRouter();
     const [invoiceNumber, setInvoiceNumber] = useState(1);
+<<<<<<< HEAD
     // Server-assigned formatted invoice string, e.g. INV-00016
     const [invoiceNo, setInvoiceNo] = useState<string>('');
+=======
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     const nextItemId = useRef(0);
     const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
     const [items, setItems] = useState<InvoiceItem[]>([]);
@@ -140,6 +150,7 @@ const CreateSalesInvoicePage = () => {
     const [isScanBarcodeModalOpen, setIsScanBarcodeModalOpen] = useState(false);
 
     const [selectedParty, setSelectedParty] = useState<Party | null>(null);
+<<<<<<< HEAD
     const [editId, setEditId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [savedMessage, setSavedMessage] = useState('');
@@ -151,6 +162,8 @@ const CreateSalesInvoicePage = () => {
     const [productsCache, setProductsCache] = useState<any[]>([]);
     const [paymentMode, setPaymentMode] = useState<'unpaid' | 'cash' | 'upi' | 'card' | 'netbanking' | 'bank_transfer' | 'cheque' | 'online'>('unpaid');
     // drafts UI removed
+=======
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     
     // --- CALCULATIONS ---
     const subtotal = items.reduce((acc, item) => acc + (item.qty || 0) * (item.price || 0), 0);
@@ -161,6 +174,7 @@ const CreateSalesInvoicePage = () => {
     const totalAdditionalCharges = additionalCharges.reduce((acc, charge) => acc + (parseFloat(charge.amount) || 0), 0);
     const taxableAmount = subtotalAfterItemDiscounts;
 
+<<<<<<< HEAD
     // Compute GST breakdown grouped by tax percent across items
     // We'll compute for each taxPercent: { taxable: number, tax: number }
     const gstMap = items.reduce((acc: Record<string, { taxable: number; tax: number }>, item) => {
@@ -180,6 +194,8 @@ const CreateSalesInvoicePage = () => {
     // Convert gstMap to sorted array by numeric tax percent ascending
     const gstBreakdown = Object.keys(gstMap).map(k => ({ percent: Number(k), taxable: gstMap[k].taxable, tax: gstMap[k].tax })).sort((a, b) => a.percent - b.percent);
 
+=======
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     const overallDiscountAmount = parseFloat(discountFlatStr) || 0;
     const discountBase = discountOption === 'before-tax' ? subtotalAfterItemDiscounts : (subtotalAfterItemDiscounts + totalTax);
 
@@ -192,6 +208,7 @@ const CreateSalesInvoicePage = () => {
         };
     }, []);
 
+<<<<<<< HEAD
     // Fetch product list into cache so invoice editor always shows live currentStock
     useEffect(() => {
         let mounted = true;
@@ -216,6 +233,10 @@ const CreateSalesInvoicePage = () => {
         // Only update flat amount when the last user input was percent.
         // Prevent running when lastDiscountInput is null or 'flat' to avoid mutual-effect loops.
         if (lastDiscountInput === 'percent') {
+=======
+    useEffect(() => {
+        if (lastDiscountInput !== 'flat') {
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             const percent = parseFloat(discountPercentStr) || 0;
             const newFlat = (discountBase * percent) / 100;
             setDiscountFlatStr(newFlat > 0 ? newFlat.toFixed(2) : '');
@@ -253,9 +274,13 @@ const CreateSalesInvoicePage = () => {
 
 
     useEffect(() => {
+<<<<<<< HEAD
         // Only update percent when the last user input was flat.
         // This avoids the two-effects toggling each other when lastDiscountInput is null.
         if (lastDiscountInput === 'flat') {
+=======
+        if (lastDiscountInput !== 'percent') {
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             const flat = parseFloat(discountFlatStr) || 0;
             if (discountBase > 0) {
                 const newPercent = (flat / discountBase) * 100;
@@ -273,11 +298,17 @@ const CreateSalesInvoicePage = () => {
     // This effect syncs the base total to the input field, but only if the user hasn't typed in it.
     useEffect(() => {
         if (!totalAmountManuallySet) {
+<<<<<<< HEAD
             // Include additional charges in the displayed Total Amount so the input matches final payable
             const displayedTotal = baseTotal + totalAdditionalCharges;
             setTotalAmountStr(displayedTotal > 0 ? displayedTotal.toFixed(2) : '');
         }
     }, [baseTotal, totalAmountManuallySet, totalAdditionalCharges]);
+=======
+            setTotalAmountStr(baseTotal > 0 ? baseTotal.toFixed(2) : '');
+        }
+    }, [baseTotal, totalAmountManuallySet]);
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 
     // This is the total that will be used for the final balance calculation.
     // It starts with the value in the input field (or the base total if empty), then applies the manual adjustment and rounding.
@@ -317,11 +348,16 @@ const CreateSalesInvoicePage = () => {
         const newItem: InvoiceItem = {
             id: nextItemId.current++,
             name: itemToAdd.name,
+<<<<<<< HEAD
             productId: itemToAdd.id || null,
             hsn: itemToAdd.hsnCode || '', // Use hsnCode from modal
             qty: quantity,
             numericStock: (itemToAdd as any).numericStock ?? null,
             unit: itemToAdd.unit || null,
+=======
+            hsn: itemToAdd.hsnCode || '', // Use hsnCode from modal
+            qty: quantity,
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             price: price,
             discountPercentStr: '',
             discountAmountStr: '',
@@ -431,11 +467,16 @@ const CreateSalesInvoicePage = () => {
     };
 
     const handleSelectParty = (party: Party) => {
+<<<<<<< HEAD
         setSelectedParty(normalizePartyForUI(party) as any);
+=======
+        setSelectedParty(party);
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
         setIsAddingParty(false);
         setPartySearchTerm('');
     };
 
+<<<<<<< HEAD
     // Fetch business settings (name and signatureUrl)
     useEffect(() => {
         let cancelled = false;
@@ -605,6 +646,8 @@ const CreateSalesInvoicePage = () => {
         }
     }, []);
 
+=======
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     return (
         <div className="bg-gray-50 min-h-screen">
             <AddItemModal 
@@ -625,13 +668,19 @@ const CreateSalesInvoicePage = () => {
                             <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100 rounded-full p-2" onClick={() => router.push('/dashboard/sale/sales-data')}>
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
+<<<<<<< HEAD
                             <h1 className="text-xl font-semibold text-gray-800">{editId ? 'Update Sales Invoice' : 'Create Sales Invoice'}</h1>
                         </div>
 
+=======
+                            <h1 className="text-xl font-semibold text-gray-800">Create Sales Invoice</h1>
+                        </div>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                         <div className="flex items-center gap-2">
                             <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2">
                                 <Settings className="h-4 w-4 mr-2" /> Settings
                             </Button>
+<<<<<<< HEAD
 
                             {/* Drafts feature removed */}
 
@@ -747,6 +796,14 @@ const CreateSalesInvoicePage = () => {
                 </div>
 
                 {/* Drafts UI removed */}
+=======
+                            <Button className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2">
+                                Save Sales Invoice
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             </header>
 
             {/* Main Content */}
@@ -765,8 +822,12 @@ const CreateSalesInvoicePage = () => {
                              <div className="flex flex-col sm:flex-row gap-4">
                                  <div className="w-full sm:w-64">
                                      <label htmlFor="invoiceNo" className="text-sm font-medium text-gray-700 mb-1 block text-right">Sales Invoice No:</label>
+<<<<<<< HEAD
                                      {/* Invoice number is assigned by the server on create and cannot be edited here */}
                                      <Input id="invoiceNo" type="text" value={invoiceNo || (editId ? (invoiceNumber ? String(invoiceNumber) : '') : 'Will be assigned on save')} readOnly className="text-right bg-gray-100 cursor-not-allowed"/>
+=======
+                                     <Input id="invoiceNo" type="number" value={invoiceNumber} onChange={e => setInvoiceNumber(parseInt(e.target.value))} className="text-right"/>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                  </div>
                                  <div className="w-full sm:w-64">
                                     <label htmlFor="invoiceDate" className="text-sm font-medium text-gray-700 mb-1 block text-right">Sales Invoice Date:</label>
@@ -838,6 +899,7 @@ const CreateSalesInvoicePage = () => {
                                         <td className="px-2 py-2 text-sm text-gray-500">{index + 1}</td>
                                         <td className="px-2 py-2"><Input type="text" placeholder="Item Name" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} /></td>
                                         <td className="px-2 py-2"><Input type="text" placeholder="HSN" value={item.hsn} onChange={e => handleItemChange(item.id, 'hsn', e.target.value)} /></td>
+<<<<<<< HEAD
                                                                                 <td className="px-2 py-2">
                                                                                     <div className="flex flex-col">
                                                                                         <Input type="number" placeholder="1" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} />
@@ -861,6 +923,9 @@ const CreateSalesInvoicePage = () => {
                                                                                         })()}
                                                                                     </div>
                                                                                 </td>
+=======
+                                        <td className="px-2 py-2"><Input type="number" placeholder="1" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} /></td>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                         <td className="px-2 py-2"><Input type="number" placeholder="0.00" value={item.price} onChange={e => handleItemChange(item.id, 'price', e.target.value)} /></td>
                                         <td className="px-2 py-2 w-32">
                                             <div className="flex flex-col gap-1">
@@ -978,7 +1043,11 @@ const CreateSalesInvoicePage = () => {
                                     <X className="h-4 w-4" />
                                </Button>
                            </div>
+<<<<<<< HEAD
                            {/* <Button variant="link" className="text-blue-600 p-0 hover:underline"><Plus className="mr-1 h-4 w-4" /> Add New Account</Button> */}
+=======
+                           <Button variant="link" className="text-blue-600 p-0 hover:underline"><Plus className="mr-1 h-4 w-4" /> Add New Account</Button>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                         </div>
 
                         {/* Right side - FINAL CORRECTED LOGIC */}
@@ -990,6 +1059,7 @@ const CreateSalesInvoicePage = () => {
                                             type="text"
                                             placeholder="Enter Charge Ex: transport charge"
                                             value={charge.name}
+<<<<<<< HEAD
                                                 onChange={(e) => handleChargeChange(charge.id, 'name', e.target.value)}
                                                 className="flex-grow"
                                             />
@@ -1047,6 +1117,43 @@ const CreateSalesInvoicePage = () => {
                                     })}
                                 </div>
                             )}
+=======
+                                            onChange={(e) => handleChargeChange(charge.id, 'name', e.target.value)}
+                                            className="flex-grow"
+                                        />
+                                        <div className="relative w-40">
+                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
+                                            <Input
+                                                type="number"
+                                                placeholder="0.00"
+                                                value={charge.amount}
+                                                onChange={(e) => handleChargeChange(charge.id, 'amount', e.target.value)}
+                                                className="w-full pl-6 pr-2 text-right"
+                                            />
+                                        </div>
+                                        <select className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500">
+                                            <option>No Tax Applicable</option>
+                                        </select>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-9 w-9 p-1 text-gray-500 hover:text-red-500 rounded-full flex-shrink-0"
+                                            onClick={() => handleRemoveCharge(charge.id)}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button variant="link" className="text-blue-600 p-0 hover:underline" onClick={handleAddCharge}>
+                                    <Plus className="mr-1 h-4 w-4" /> Add Another Charge
+                                </Button>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-gray-500">Taxable Amount</span>
+                                <span className="font-medium text-gray-800">₹ {formatCurrency(taxableAmount)}</span>
+                            </div>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                             <div className="flex justify-between items-center text-sm">
                                 {!showDiscountInput ? (
                                     <>
@@ -1103,6 +1210,7 @@ const CreateSalesInvoicePage = () => {
                             </div>
                             <div className="flex justify-between items-center text-sm">
                                 <label htmlFor="autoRoundOff" className="flex items-center gap-2 text-gray-600 cursor-pointer">
+<<<<<<< HEAD
                                     <Checkbox id="autoRoundOff" checked={autoRoundOff} onChange={(e) => {
                                         const checked = e.target.checked;
                                         setAutoRoundOff(checked);
@@ -1112,6 +1220,9 @@ const CreateSalesInvoicePage = () => {
                                             setAdjustmentType('add');
                                         }
                                     }} /> Auto Round Off
+=======
+                                    <Checkbox id="autoRoundOff" checked={autoRoundOff} onChange={(e) => setAutoRoundOff(e.target.checked)} /> Auto Round Off
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                 </label>
                                 
                                 {!autoRoundOff ? (
@@ -1168,7 +1279,11 @@ const CreateSalesInvoicePage = () => {
 
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-gray-500">Amount Received</span>
+<<<<<<< HEAD
                                 <div className="flex items-center gap-1 w-56 bg-gray-100 rounded-md border border-gray-200 p-1">
+=======
+                                <div className="flex items-center gap-1 w-48 bg-gray-100 rounded-md border border-gray-200 p-1">
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                     <span className="pl-2 text-gray-500 text-sm">₹</span>
                                     <Input 
                                         id="amountReceived" 
@@ -1181,6 +1296,7 @@ const CreateSalesInvoicePage = () => {
                                                 setIsFullyPaid(false);
                                             }
                                         }}
+<<<<<<< HEAD
                                         className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0 "
                                     />
                     <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any) } className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
@@ -1192,6 +1308,14 @@ const CreateSalesInvoicePage = () => {
                         <option value="cheque">Cheque</option>
                         <option value="online">Online</option>
                     </select>
+=======
+                                        className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0"
+                                    />
+                                    <select className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
+                                            <option>Cash</option>
+                                            <option>Bank</option>
+                                    </select>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                 </div>
                             </div>
 
@@ -1207,6 +1331,7 @@ const CreateSalesInvoicePage = () => {
                         <div className="w-64 text-right">
                             <div className="border-b border-gray-400 pb-2 mb-2">
                             </div>
+<<<<<<< HEAD
                             <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">{businessName}</span></p>
                             <div className="ml-auto mt-4 h-25 w-45 border bg-white flex items-center justify-center overflow-hidden">
                                 {signatureUrl ? (
@@ -1217,6 +1342,10 @@ const CreateSalesInvoicePage = () => {
                                     <div className="text-xs text-gray-400">Signature will be shown here</div>
                                 )}
                             </div>
+=======
+                            <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">Business Name</span></p>
+                            <div className="ml-auto mt-4 h-25 w-45 border bg-white">{/* Signature will be loaded here */}</div>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                         </div>
                     </div>
                 </div>

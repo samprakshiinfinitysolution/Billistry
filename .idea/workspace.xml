@@ -4,7 +4,19 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
+<<<<<<< HEAD
     <list default="true" id="c6e9e63b-0aec-43e0-b9b1-5e71f3c3053f" name="Changes" comment="" />
+=======
+    <list default="true" id="c6e9e63b-0aec-43e0-b9b1-5e71f3c3053f" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/purchase/purchase-invoice/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/purchase/purchase-invoice/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/return/purchase/purchase-return-invoice/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/return/purchase/purchase-return-invoice/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/return/sale/sales-return-invoice/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/return/sale/sales-return-invoice/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/sale/sales-data/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/sale/sales-data/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/dashboard/sale/sales-invoice/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/dashboard/sale/sales-invoice/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/AddParty.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/AddParty.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/CreateParty.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/CreateParty.tsx" afterDir="false" />
+    </list>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -74,8 +86,11 @@
       <updated>1758695634021</updated>
       <workItem from="1758695636422" duration="743000" />
       <workItem from="1758777354666" duration="106000" />
+<<<<<<< HEAD
       <workItem from="1758800023764" duration="1014000" />
       <workItem from="1759121436125" duration="4000" />
+=======
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     </task>
     <servers />
   </component>

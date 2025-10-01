@@ -4,10 +4,15 @@ import { Search, ClipboardX } from 'lucide-react';
 
 // Interfaces and Types
 export interface Invoice {
+<<<<<<< HEAD
     id?: string;
     date: string;
     invoiceNo: string;
     invoiceNumber?: number;
+=======
+    date: string;
+    invoiceNo: string;
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     amount: number;
 }
 
@@ -48,11 +53,18 @@ const formatCurrency = (amount: number) => {
 interface LinkToInvoiceProps {
     invoiceList: Invoice[];
     searchTerm: string;
+<<<<<<< HEAD
     onSearchTermChange?: (term: string) => void;
     onSelectInvoice?: (invoice: Invoice) => void;
 }
 
 export const LinkToInvoice = ({ invoiceList, searchTerm, onSearchTermChange, onSelectInvoice }: LinkToInvoiceProps) => {
+=======
+    onSearchTermChange: (term: string) => void;
+}
+
+export const LinkToInvoice = ({ invoiceList, searchTerm, onSearchTermChange }: LinkToInvoiceProps) => {
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     const [showSearchedInvoices, setShowSearchedInvoices] = useState(false);
     const invoiceSearchRef = useRef<HTMLDivElement>(null);
 
@@ -69,6 +81,7 @@ export const LinkToInvoice = ({ invoiceList, searchTerm, onSearchTermChange, onS
         };
     }, []);
 
+<<<<<<< HEAD
     const handleSelectInvoice = (invoice: Invoice) => {
         if (onSelectInvoice) onSelectInvoice(invoice);
         else if (onSearchTermChange) onSearchTermChange(invoice.invoiceNo || String(invoice.invoiceNumber || invoice.id || ''));
@@ -80,6 +93,18 @@ export const LinkToInvoice = ({ invoiceList, searchTerm, onSearchTermChange, onS
         const term = (searchTerm || '').toLowerCase();
         return invNo.includes(term) || invoice.date.includes(searchTerm) || String(invoice.amount).includes(searchTerm) || (invoice.id && invoice.id.includes(searchTerm));
     });
+=======
+    const handleSelectInvoice = (invoiceNo: string) => {
+        onSearchTermChange(invoiceNo);
+        setShowSearchedInvoices(false);
+    };
+
+    const filteredInvoices = invoiceList.filter(invoice =>
+        invoice.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.date.includes(searchTerm) ||
+        String(invoice.amount).includes(searchTerm)
+    );
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 
     return (
         <div className="w-full sm:w-[calc(32rem+1rem)] border rounded-lg p-4 bg-gray-50 space-y-3">
@@ -93,7 +118,11 @@ export const LinkToInvoice = ({ invoiceList, searchTerm, onSearchTermChange, onS
                     placeholder="Search invoices"
                     className="pl-10 bg-white"
                     value={searchTerm}
+<<<<<<< HEAD
                     onChange={(e) => onSearchTermChange && onSearchTermChange(e.target.value)}
+=======
+                    onChange={(e) => onSearchTermChange(e.target.value)}
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                     onFocus={() => setShowSearchedInvoices(true)}
                 />
                 {showSearchedInvoices && (
@@ -109,9 +138,15 @@ export const LinkToInvoice = ({ invoiceList, searchTerm, onSearchTermChange, onS
                             <tbody>
                                 {filteredInvoices.length > 0 ? (
                                     filteredInvoices.map((invoice, index) => (
+<<<<<<< HEAD
                                         <tr key={index} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleSelectInvoice(invoice)}>
                                             <td className="p-2">{invoice.date}</td>
                                             <td className="p-2">{invoice.invoiceNo || (invoice.invoiceNumber ? String(invoice.invoiceNumber) : invoice.id)}</td>
+=======
+                                        <tr key={index} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleSelectInvoice(invoice.invoiceNo)}>
+                                            <td className="p-2">{invoice.date}</td>
+                                            <td className="p-2">{invoice.invoiceNo}</td>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                             <td className="p-2 text-right">{formatCurrency(invoice.amount)}</td>
                                         </tr>
                                     ))

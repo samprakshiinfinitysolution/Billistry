@@ -287,7 +287,10 @@ export default function AddProduct() {
         setFormData(defaultForm);
         setEditingProduct(null);
         setOpen(false);
+<<<<<<< HEAD
         try { window.dispatchEvent(new Event('productsUpdated')); } catch (e) { /* ignore */ }
+=======
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
       } else {
         toast.error(data.error || "Something went wrong");
       }

@@ -279,7 +279,7 @@ const navLinks = [
 
   {
     label: 'Sales', icon: FileText, section: 'SALES', children: [
-      { href: '/dashboard/sale-invoice', label: 'Sales Invoices' },
+      { href: '/dashboard/sale/sales-data', label: 'Sales Invoices' },
       // { href: '/dashboard/quotation-estimate', label: 'Quotation / Estimate' }, // Added
       // { href: '/dashboard/payment-in', label: 'Payment In' }, // Added
       { href: '/dashboard/return/sale', label: 'Sales Return' }, // Renamed Sale Return
@@ -291,7 +291,7 @@ const navLinks = [
   {
     label: 'Purchases', icon: Package, section: 'PURCHASES', children: [ // New Section
       // { href: '/dashboard/purchase', label: 'Purchase' },
-      { href: '/dashboard/purchase-invoice', label: 'Purchase Invoices' },
+      { href: '/dashboard/purchase/purchase-data', label: 'Purchase Invoices' },
       { href: '/dashboard/return/purchase', label: 'Purchase Return' }
     ]
   },

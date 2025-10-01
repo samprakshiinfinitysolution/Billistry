@@ -110,6 +110,22 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+<<<<<<< HEAD
+=======
+
+
+
+body {
+  font-family: 'Poppins', sans-serif;
+  color: #390F59;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Roboto', sans-serif;
+}
+
+
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -118,3 +134,42 @@
     @apply bg-background text-foreground;
   }
 }
+<<<<<<< HEAD
+=======
+
+
+
+
+
+  /* Hide scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+
+
+
+
+
+@keyframes footerBgMove {
+  0% {
+    background-position: center;
+  }
+  50% {
+    background-position: top;
+  }
+  100% {
+    background-position: center;
+  }
+}
+
+.footer-animate-bg {
+  animation: footerBgMove 25s ease-in-out infinite;
+  background-size: cover;
+}
+
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b

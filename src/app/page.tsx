@@ -14,14 +14,26 @@ import HowItWorksSection from "@/components/HowItWorksSection";
 import IntegrationSection from "@/components/IntegrationSection";
 import BlogSection from "@/components/BlogSection";
 import ContactSection from "@/components/ContactSection";
+<<<<<<< HEAD
+=======
+import VideoPlayer from "@/components/VideoPlayer";
+import AnyTime from "@/components/AnyTime";
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 
 export default function Home() {
   return (
     <>
       <HeroSection />
       <StatsSection />
+<<<<<<< HEAD
       <FeaturesSection />
       <HowItWorksSection />
+=======
+      <VideoPlayer/>
+      <FeaturesSection />
+      <HowItWorksSection />
+      <AnyTime/>
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
       <AboutSection />
       <IntegrationSection />
       <TestimonialSection />
@@ -29,8 +41,13 @@ export default function Home() {
       <CTASection />
       <FAQSection />
       <BlogSection />
+<<<<<<< HEAD
       <SecuritySection />
       <ContactSection />
+=======
+      {/* <SecuritySection /> */}
+      {/* <ContactSection /> */}
+>>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     </>
   );
 }
