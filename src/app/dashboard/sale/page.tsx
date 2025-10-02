@@ -764,11 +764,7 @@ import {
 } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-<<<<<<< HEAD
-import * as XLSX from "xlsx"; 
-=======
 import * as XLSX from "xlsx";
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
 
 interface Customer {
   _id: string;
@@ -893,17 +889,10 @@ export default function SalePage() {
     setForm({ ...form, items: updated });
   };
 
-<<<<<<< HEAD
-  const handleItemChange = <K extends keyof SaleItemForm>(
-    index: number,
-    key: K,
-    value: SaleItemForm[K]
-=======
   const handleItemChange = (
     index: number,
     key: keyof SaleItemForm,
     value: any
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
   ) => {
     const updated = [...form.items];
     updated[index][key] = value;
@@ -927,11 +916,7 @@ export default function SalePage() {
   };
 
   const calcTotal = useMemo(() => {
-<<<<<<< HEAD
-    const subtotal = form.items.reduce((acc, it) => {
-=======
     let subtotal = form.items.reduce((acc, it) => {
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
       const itemData = items.find((i) => i._id === it.item);
       if (!itemData) return acc;
       let amount = (Number(it.rate) || 0) * (Number(it.quantity) || 0);

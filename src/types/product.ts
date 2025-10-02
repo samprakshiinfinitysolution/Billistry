@@ -4,12 +4,15 @@ export type Product = {
   name: string;
   sku: string;
   hsnCode: string;
-  taxPercent: number;
+  taxPercent: string | number;
   category: string;
   openingStock: string | number | null;
   unit: string;
-  lowStockAlert: number;
-  purchasePrice: number | null;
-  sellingPrice: number | null;
+  lowStockAlert: string | number | null ;
+  purchasePrice: string | number | null;
+  purchasePriceWithTax: boolean;
+  sellingPrice: string | number | null;
+  sellingPriceWithTax: boolean;
+  createdAt: Date;
 };
 

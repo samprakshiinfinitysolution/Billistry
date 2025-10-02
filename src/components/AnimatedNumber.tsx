@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface AnimatedNumberProps {
   value: number;
@@ -6,24 +6,32 @@ interface AnimatedNumberProps {
   className?: string;
 }
 
-export default function AnimatedNumber({ value, duration = 1000, className }: AnimatedNumberProps) {
-  const [displayValue, setDisplayValue] = useState(0);
+export default function AnimatedNumber({
+  value,
+  duration = 1000,
+  className,
+}: AnimatedNumberProps) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValueRef = useRef(value);
 
   useEffect(() => {
-    let start: number | null = null;
+    const startValue = prevValueRef.current;
+    const change = value - startValue;
+    const startTime = performance.now();
 
-    const step = (timestamp: number) => {
-      if (!start) start = timestamp;
-      const progress = Math.min((timestamp - start) / duration, 1);
-      setDisplayValue(Math.floor(progress * value));
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      setDisplayValue(Math.floor(startValue + change * progress));
+
       if (progress < 1) {
-        requestAnimationFrame(step);
+        requestAnimationFrame(animate);
+      } else {
+        prevValueRef.current = value; // update previous value
       }
     };
 
-    requestAnimationFrame(step);
-
-    return () => setDisplayValue(0); // cleanup if component unmounts
+    requestAnimationFrame(animate);
   }, [value, duration]);
 
   return <span className={className}>{displayValue.toLocaleString("en-IN")}</span>;

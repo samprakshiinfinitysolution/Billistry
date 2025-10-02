@@ -1,6 +1,5 @@
 import HSN from "@/models/HSN";
 
-<<<<<<< HEAD
 // // ✅ Add new HSN
 // export const createHSN = async (data: any) => {
 //   const hsn = new HSN(data);
@@ -38,15 +37,6 @@ export const createHSN = async (data: any | any[]) => {
 };
 
 // ✅ Search HSN (by code or name, limit 20)
-=======
-// ✅ Add new HSN
-export const createHSN = async (data: any) => {
-  const hsn = new HSN(data);
-  return await hsn.save();
-};
-
-// ✅ Search HSN (by code or name)
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
 export const searchHSN = async (search?: string) => {
   const query: any = {};
   if (search) {
@@ -62,7 +52,6 @@ export const searchHSN = async (search?: string) => {
 export const getHSNById = async (id: string) => {
   return await HSN.findById(id);
 };
-<<<<<<< HEAD
 
 // ✅ Update HSN by ID
 export const updateHSN = async (id: string, data: any) => {
@@ -73,5 +62,3 @@ export const updateHSN = async (id: string, data: any) => {
 export const deleteHSN = async (id: string) => {
   return await HSN.findByIdAndDelete(id);
 };
-=======
->>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1

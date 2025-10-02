@@ -1,5 +1,6 @@
 "use client";
 
+import { calculateSubtotal } from "@/utils/productCalculations";
 import { Button } from "@/components/ui/button"; // Assuming shadcn/ui setup
 import { Product } from "@/types/product";
 import AnimatedNumber from "@/components/AnimatedNumber";
@@ -7,6 +8,7 @@ import { useRef } from "react";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import autoTable from "jspdf-autotable";
+
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -45,49 +47,69 @@ export default function StockSummaryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [loading, setLoading] = useState(true);
-  
+
   const router = useRouter();
+  // Initialize sortConfig with default ascending for 'name'
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof Product;
+    direction: "asc" | "desc";
+  }>({
+    key: "name",
+    direction: "asc",
+  });
+  const [taxFilter, setTaxFilter] = useState<"all" | "with" | "without">("all");
 
   useEffect(() => {
     setDate(new Date()); // client pe hi run hoga
   }, []);
   //Fetching Products
   useEffect(() => {
-  async function fetchProducts() {
-    setLoading(true); // start loading
-    try {
-      const res = await fetch("/api/product", { credentials: "include" });
-      const data = await res.json();
-      if (data.success) setProducts(data.products ?? []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false); // stop loading
+    async function fetchProducts() {
+      setLoading(true); // start loading
+      try {
+        const res = await fetch("/api/product", { credentials: "include" });
+        const data = await res.json();
+        if (data.success) setProducts(data.products ?? []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false); // stop loading
+      }
     }
-  }
-  fetchProducts();
-}, []);
-
+    fetchProducts();
+  }, []);
 
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
-      return selectedCategory === "all" || p.category === selectedCategory;
-    });
-  }, [products, selectedCategory]);
+    return products
+      .filter(
+        (p) => selectedCategory === "all" || p.category === selectedCategory
+      )
+      .filter((p) => {
+        if (taxFilter === "all") return true;
+        if (taxFilter === "with") return p.purchasePriceWithTax === true;
+        if (taxFilter === "without") return !p.purchasePriceWithTax;
+        return true;
+      })
+      .sort((a, b) => {
+        if (!sortConfig?.key) return 0;
+        const key = sortConfig.key;
+        const aVal = a[key] ?? "";
+        const bVal = b[key] ?? "";
+        if (typeof aVal === "number" && typeof bVal === "number") {
+          return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+        }
+        return sortConfig.direction === "asc"
+          ? String(aVal).localeCompare(String(bVal))
+          : String(bVal).localeCompare(String(aVal));
+      });
+  }, [products, selectedCategory, taxFilter, sortConfig]);
 
   // Category-wise totals for table display (GST adjusted)
   const categoryTotals = useMemo(() => {
     return filteredProducts.reduce<Record<string, number>>((totals, p) => {
       const cat = p.category || "Uncategorized";
 
-      const purchasePrice = Number(p.purchasePrice ?? 0);
-      const openingStock = Number(p.openingStock ?? 0);
-      const gstPercent = Number(p.taxPercent ?? 0);
-
-      const gstAmount = (purchasePrice * gstPercent) / 100;
-      const subtotal = (purchasePrice - gstAmount) * openingStock;
-
-      totals[cat] = (totals[cat] || 0) + subtotal;
+      totals[cat] = (totals[cat] || 0) + calculateSubtotal(p);
       return totals;
     }, {});
   }, [filteredProducts]);
@@ -100,15 +122,6 @@ export default function StockSummaryPage() {
     return Array.from(new Set(cats)).sort((a, b) => a.localeCompare(b)); // sorted alphabetically
   }, [products]);
 
-  // Initialize sortConfig with default ascending for 'name'
-  const [sortConfig, setSortConfig] = useState<{
-    key: keyof Product;
-    direction: "asc" | "desc";
-  }>({
-    key: "name",
-    direction: "asc",
-  });
-
   // Total stock value
   const totalStockValue = useMemo(() => {
     return products.reduce((acc, p) => {
@@ -119,7 +132,6 @@ export default function StockSummaryPage() {
   }, [products]);
 
   const pdfRef = useRef<HTMLDivElement>(null);
-
   const exportPDF = () => {
     const doc = new jsPDF();
     const title = "Low Stock Summary";
@@ -137,9 +149,6 @@ export default function StockSummaryPage() {
       const openingStock = Number(p.openingStock ?? 0);
       const gstPercent = Number(p.taxPercent ?? 0);
 
-      const gstAmount = (purchasePrice * gstPercent) / 100; // GST in currency
-      const subtotal = (purchasePrice - gstAmount) * openingStock;
-
       return [
         index + 1,
         p.name,
@@ -147,7 +156,7 @@ export default function StockSummaryPage() {
         purchasePrice.toFixed(2),
         Number(p.sellingPrice ?? 0).toFixed(2),
         openingStock,
-        subtotal.toFixed(2),
+        calculateSubtotal(p).toFixed(2),
       ];
     });
 
@@ -181,12 +190,7 @@ export default function StockSummaryPage() {
           {
             content: `₹${filteredProducts
               .reduce((sum, p) => {
-                const purchasePrice = Number(p.purchasePrice ?? 0);
-                const openingStock = Number(p.openingStock ?? 0);
-                const gstPercent = Number(p.taxPercent ?? 0);
-                const gstAmount = (purchasePrice * gstPercent) / 100;
-                const subtotal = (purchasePrice - gstAmount) * openingStock;
-                return sum + subtotal;
+                return sum + calculateSubtotal(p);
               }, 0)
               .toFixed(2)}`,
             styles: { halign: "right" },
@@ -206,8 +210,6 @@ export default function StockSummaryPage() {
       const purchasePrice = Number(p.purchasePrice ?? 0);
       const openingStock = Number(p.openingStock ?? 0);
       const gstPercent = Number(p.taxPercent ?? 0);
-      const gstAmount = (purchasePrice * gstPercent) / 100;
-      const subtotal = (purchasePrice - gstAmount) * openingStock;
 
       return {
         "S. No.": index + 1,
@@ -217,7 +219,7 @@ export default function StockSummaryPage() {
         "Purchase Price (₹)": purchasePrice.toFixed(2),
         "Selling Price (₹)": Number(p.sellingPrice ?? 0).toFixed(2),
         "Current Stock": `${openingStock} ${p.unit || ""}`,
-        "Stock Value (₹)": subtotal.toFixed(2),
+        "Stock Value (₹)": calculateSubtotal(p).toFixed(2),
         Category: p.category || "Uncategorized",
       };
     });
@@ -227,12 +229,7 @@ export default function StockSummaryPage() {
 
     // Add a total row at the end
     const totalStockValue = filteredProducts.reduce((acc, p) => {
-      const purchasePrice = Number(p.purchasePrice ?? 0);
-      const openingStock = Number(p.openingStock ?? 0);
-      const gstPercent = Number(p.taxPercent ?? 0);
-      const gstAmount = (purchasePrice * gstPercent) / 100;
-      const subtotal = (purchasePrice - gstAmount) * openingStock;
-      return acc + subtotal;
+      return acc + calculateSubtotal(p);
     }, 0);
 
     XLSX.utils.sheet_add_aoa(
@@ -357,6 +354,41 @@ export default function StockSummaryPage() {
                   />
                 </PopoverContent>
               </Popover>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 font-medium text-sm">
+                  Tax Filter:
+                </span>
+                <Select
+                  value={taxFilter}
+                  onValueChange={(value: "all" | "with" | "without") =>
+                    setTaxFilter(value)
+                  }
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select Tax Filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full" /> All
+                      Products
+                    </SelectItem>
+                    <SelectItem
+                      value="with"
+                      className="flex items-center gap-2"
+                    >
+                      <span className="w-2 h-2 bg-blue-500 rounded-full" /> With
+                      Tax
+                    </SelectItem>
+                    <SelectItem
+                      value="without"
+                      className="flex items-center gap-2"
+                    >
+                      <span className="w-2 h-2 bg-red-500 rounded-full" />{" "}
+                      Without Tax
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
@@ -454,6 +486,7 @@ export default function StockSummaryPage() {
                     <TableHead>SELLING PRICE (₹)</TableHead>
                     <TableHead>CURRENT STOCK</TableHead>
                     <TableHead>STOCK VALUE</TableHead>
+                    <TableHead>Restock Product</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -496,12 +529,7 @@ export default function StockSummaryPage() {
                     </TableRow>
                   ) : (
                     filteredProducts.map((p, index) => {
-                      const purchasePrice = Number(p.purchasePrice || 0);
-                      const openingStock = Number(p.openingStock || 0);
-                      const gstPercent = Number(p.taxPercent || 0);
-                      const gstAmount = (purchasePrice * gstPercent) / 100;
-                      const subtotal =
-                        (purchasePrice - gstAmount) * openingStock;
+                      const subtotal = calculateSubtotal(p);
 
                       return (
                         <TableRow key={p._id}>
@@ -509,7 +537,19 @@ export default function StockSummaryPage() {
                           <TableCell>{p.name}</TableCell>
                           <TableCell>{p.sku || "-"}</TableCell>
                           <TableCell>{p.taxPercent || "-"}</TableCell>
-                          <TableCell>₹{p.purchasePrice || "-"}</TableCell>
+                          <TableCell className="flex items-center gap-2">
+                            <span>₹{p.purchasePrice || "-"}</span>
+                            {p.purchasePriceWithTax && (
+                              <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                With Tax
+                              </span>
+                            )}
+                            {!p.purchasePriceWithTax && (
+                              <span className="bg-red-100 text-red-500 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                Without Tax
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell>₹{p.sellingPrice || "-"}</TableCell>
                           <TableCell>
                             {p.openingStock || 0} {p.unit || ""}

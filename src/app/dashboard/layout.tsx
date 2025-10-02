@@ -22,6 +22,7 @@
 
 import Sidebar from '@/components/Sidebar';
 import useAuthGuard from '@/hooks/useAuthGuard';
+import { Toaster } from "@/components/ui/sonner";
 import { Spinner } from '@/components/ui/spinner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -30,7 +31,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Spinner />
+        {/* <Spinner /> */}
       </div>
     );
   }
@@ -40,6 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar user={user} />
       <main className="flex-1 overflow-y-auto bg-white">
         {children}
+        <Toaster richColors position="top-right" />
       </main>
     </div>
   );

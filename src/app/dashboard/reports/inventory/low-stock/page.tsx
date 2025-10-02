@@ -1,5 +1,6 @@
 "use client";
 
+import { calculateSubtotal } from "@/utils/productCalculations";
 import { Button } from "@/components/ui/button"; // Assuming shadcn/ui setup
 import { Product } from "@/types/product";
 import AnimatedNumber from "@/components/AnimatedNumber";
@@ -8,8 +9,8 @@ import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import Link from "next/link";
 
-import html2canvas from "html2canvas";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -47,8 +48,19 @@ export default function StockSummaryPage() {
   const [date, setDate] = React.useState(new Date());
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [taxFilter, setTaxFilter] = useState<"all" | "with" | "without">("all");
+  const [dateRange, setDateRange] = useState<
+    "tillToday" | "today" | "week" | "month" | "custom"
+  >("tillToday");
   const router = useRouter();
+  // Initialize sortConfig with default ascending for 'name'
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof Product;
+    direction: "asc" | "desc";
+  }>({
+    key: "name",
+    direction: "asc",
+  });
 
   useEffect(() => {
     setDate(new Date());
@@ -76,40 +88,79 @@ export default function StockSummaryPage() {
   // Total Low Stock Value (dynamic, GST adjusted)
   const totalLowStockValue = useMemo(() => {
     return allLowStockProducts.reduce((acc, p) => {
-      const purchasePrice = Number(p.purchasePrice ?? 0);
-      const openingStock = Number(p.openingStock ?? 0);
-      const gstPercent = Number(p.taxPercent ?? 0);
-
-      const gstAmount = (purchasePrice * gstPercent) / 100; // GST in currency
-      const subtotal = (purchasePrice - gstAmount) * openingStock;
-
-      return acc + subtotal;
+      return acc + calculateSubtotal(p);
     }, 0);
   }, [allLowStockProducts]);
 
+  const now = new Date();
+
+  const dateFiltered = products.filter((p) => {
+    if (!p.createdAt) return true;
+    const productDate = new Date(p.createdAt);
+
+    if (dateRange === "today") {
+      return productDate.toDateString() === now.toDateString();
+    }
+
+    if (dateRange === "week") {
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      return productDate >= startOfWeek && productDate <= now;
+    }
+
+    if (dateRange === "month") {
+      return (
+        productDate.getMonth() === now.getMonth() &&
+        productDate.getFullYear() === now.getFullYear()
+      );
+    }
+
+    if (dateRange === "custom" && date) {
+      return productDate.toDateString() === date.toDateString();
+    }
+
+    return true;
+  });
+
   // Filtered products for table display (low stock + category filter)
   const filteredProducts = useMemo(() => {
-    return allLowStockProducts.filter(
-      (p) => selectedCategory === "all" || p.category === selectedCategory
+    const now = new Date();
+
+    return (
+      dateFiltered
+        // Existing category, tax, low stock, sorting filters here...
+        .filter(
+          (p) => selectedCategory === "all" || p.category === selectedCategory
+        )
+        .filter((p) => {
+          if (taxFilter === "all") return true;
+          if (taxFilter === "with") return p.purchasePriceWithTax === true;
+          if (taxFilter === "without") return !p.purchasePriceWithTax;
+          return true;
+        })
+        .filter(
+          (p) => Number(p.openingStock ?? 0) <= Number(p.lowStockAlert ?? 0)
+        )
+        .sort((a, b) => {
+          if (!sortConfig?.key) return 0;
+          const key = sortConfig.key;
+          const aVal = a[key] ?? "";
+          const bVal = b[key] ?? "";
+
+          if (typeof aVal === "number" && typeof bVal === "number") {
+            return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+          }
+          return sortConfig.direction === "asc"
+            ? String(aVal).localeCompare(String(bVal))
+            : String(bVal).localeCompare(String(aVal));
+        })
     );
-  }, [allLowStockProducts, selectedCategory]);
-
-  // Category-wise totals for table display (GST adjusted)
-  const categoryTotals = useMemo(() => {
-    return filteredProducts.reduce<Record<string, number>>((totals, p) => {
-      const cat = p.category || "Uncategorized";
-
-      const purchasePrice = Number(p.purchasePrice ?? 0);
-      const openingStock = Number(p.openingStock ?? 0);
-      const gstPercent = Number(p.taxPercent ?? 0);
-
-      const gstAmount = (purchasePrice * gstPercent) / 100;
-      const subtotal = (purchasePrice - gstAmount) * openingStock;
-
-      totals[cat] = (totals[cat] || 0) + subtotal;
-      return totals;
-    }, {});
-  }, [filteredProducts]);
+  }, [
+    selectedCategory,
+    taxFilter,
+    sortConfig,
+    dateFiltered,
+  ]);
 
   // Only categories with low stock products
   const categories = useMemo(() => {
@@ -127,38 +178,19 @@ export default function StockSummaryPage() {
     return Array.from(new Set(cats)).sort((a, b) => a.localeCompare(b));
   }, [products]);
 
-  // Initialize sortConfig with default ascending for 'name'
-  const [sortConfig, setSortConfig] = useState<{
-    key: keyof Product;
-    direction: "asc" | "desc";
-  }>({
-    key: "name",
-    direction: "asc",
-  });
+  // Category-wise totals for table display (low stock + GST adjusted)
+  const categoryTotals = useMemo(() => {
+    // Use filtered low-stock products only
+    const lowStockProducts = products.filter(
+      (p) => Number(p.openingStock ?? 0) <= Number(p.lowStockAlert ?? 0)
+    );
 
-  // Memoized sorted products
-  const sortedProducts = useMemo(() => {
-    if (!sortConfig) return products;
-
-    const sorted = [...products].sort((a, b) => {
-      const aValue = a[sortConfig.key] ?? "";
-      const bValue = b[sortConfig.key] ?? "";
-
-      // Convert to string and compare case-insensitive
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        return sortConfig.direction === "asc"
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-
-      // Numeric comparison
-      return sortConfig.direction === "asc"
-        ? Number(aValue) - Number(bValue)
-        : Number(bValue) - Number(aValue);
-    });
-
-    return sorted;
-  }, [products, sortConfig]);
+    return lowStockProducts.reduce<Record<string, number>>((totals, p) => {
+      const cat = p.category || "Uncategorized";
+      totals[cat] = (totals[cat] || 0) + calculateSubtotal(p);
+      return totals;
+    }, {});
+  }, [products]);
 
   const pdfRef = useRef<HTMLDivElement>(null);
 
@@ -179,9 +211,6 @@ export default function StockSummaryPage() {
       const openingStock = Number(p.openingStock ?? 0);
       const gstPercent = Number(p.taxPercent ?? 0);
 
-      const gstAmount = (purchasePrice * gstPercent) / 100; // GST in currency
-      const subtotal = (purchasePrice - gstAmount) * openingStock;
-
       return [
         index + 1,
         p.name,
@@ -189,7 +218,7 @@ export default function StockSummaryPage() {
         purchasePrice.toFixed(2),
         Number(p.sellingPrice ?? 0).toFixed(2),
         openingStock,
-        subtotal.toFixed(2),
+        calculateSubtotal(p).toFixed(2),
       ];
     });
 
@@ -223,12 +252,7 @@ export default function StockSummaryPage() {
           {
             content: `₹${filteredProducts
               .reduce((sum, p) => {
-                const purchasePrice = Number(p.purchasePrice ?? 0);
-                const openingStock = Number(p.openingStock ?? 0);
-                const gstPercent = Number(p.taxPercent ?? 0);
-                const gstAmount = (purchasePrice * gstPercent) / 100;
-                const subtotal = (purchasePrice - gstAmount) * openingStock;
-                return sum + subtotal;
+                return sum + calculateSubtotal(p);
               }, 0)
               .toFixed(2)}`,
             styles: { halign: "right" },
@@ -248,8 +272,6 @@ export default function StockSummaryPage() {
       const purchasePrice = Number(p.purchasePrice ?? 0);
       const openingStock = Number(p.openingStock ?? 0);
       const gstPercent = Number(p.taxPercent ?? 0);
-      const gstAmount = (purchasePrice * gstPercent) / 100;
-      const subtotal = (purchasePrice - gstAmount) * openingStock;
 
       return {
         "S. No.": index + 1,
@@ -259,7 +281,7 @@ export default function StockSummaryPage() {
         "Purchase Price (₹)": purchasePrice.toFixed(2),
         "Selling Price (₹)": Number(p.sellingPrice ?? 0).toFixed(2),
         "Current Stock": `${openingStock} ${p.unit || ""}`,
-        "Stock Value (₹)": subtotal.toFixed(2),
+        "Stock Value (₹)": calculateSubtotal(p).toFixed(2),
         Category: p.category || "Uncategorized",
       };
     });
@@ -269,12 +291,7 @@ export default function StockSummaryPage() {
 
     // Add a total row at the end
     const totalStockValue = filteredProducts.reduce((acc, p) => {
-      const purchasePrice = Number(p.purchasePrice ?? 0);
-      const openingStock = Number(p.openingStock ?? 0);
-      const gstPercent = Number(p.taxPercent ?? 0);
-      const gstAmount = (purchasePrice * gstPercent) / 100;
-      const subtotal = (purchasePrice - gstAmount) * openingStock;
-      return acc + subtotal;
+      return acc + calculateSubtotal(p);
     }, 0);
 
     XLSX.utils.sheet_add_aoa(
@@ -371,28 +388,119 @@ export default function StockSummaryPage() {
               </Select>
 
               {/* Date Picker */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-max justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Today</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    required
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 w-[180px]"
+                    >
+                      <CalendarIcon className="h-4 w-4" />
+                      {dateRange === "custom"
+                        ? date
+                          ? format(date, "PPP")
+                          : "Select Date"
+                        : dateRange === "today"
+                        ? "Today"
+                        : dateRange === "week"
+                        ? "This Week"
+                        : dateRange === "month"
+                        ? "This Month"
+                        : dateRange === "tillToday"
+                        ? "Till Today"
+                        : "Select Range"}
+
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 ml-auto"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </Button>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent className="w-56">
+                    <DropdownMenuItem onClick={() => setDateRange("tillToday")}>
+                      Till Today
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem onClick={() => setDateRange("today")}>
+                      Today
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setDateRange("week")}>
+                      This Week
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setDateRange("month")}>
+                      This Month
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div className="w-full cursor-pointer px-2 py-1.5 rounded hover:bg-gray-100 text-sm">
+                            Custom Date...
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={(d) => {
+                              if (d) {
+                                setDate(d);
+                                setDateRange("custom");
+                              }
+                            }}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 font-medium text-sm">
+                  Tax Filter:
+                </span>
+                <Select
+                  value={taxFilter}
+                  onValueChange={(value: "all" | "with" | "without") =>
+                    setTaxFilter(value)
+                  }
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select Tax Filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full" /> All
+                      Products
+                    </SelectItem>
+                    <SelectItem
+                      value="with"
+                      className="flex items-center gap-2"
+                    >
+                      <span className="w-2 h-2 bg-blue-500 rounded-full" /> With
+                      Tax
+                    </SelectItem>
+                    <SelectItem
+                      value="without"
+                      className="flex items-center gap-2"
+                    >
+                      <span className="w-2 h-2 bg-red-500 rounded-full" />{" "}
+                      Without Tax
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
@@ -461,21 +569,19 @@ export default function StockSummaryPage() {
                 </span>
               </h2>
 
-              {/* Category-wise Subtotals */}
-              {selectedCategory !== "all" && (
-                <div className="mt-4 space-y-1">
-                  {Object.entries(categoryTotals).map(
-                    ([category, catTotal]) => (
-                      <div
-                        key={category}
-                        className="text-gray-700 font-medium bg-gray-100 px-3 py-1 rounded"
-                      >
-                        Total {category}: ₹{catTotal.toLocaleString()}
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
+              {/* Category-wise Subtotal for selected category only */}
+              {selectedCategory !== "all" &&
+                categoryTotals[selectedCategory] && (
+                  <div className="mt-4 text-gray-700 font-medium bg-gray-100 px-3 py-1 rounded flex justify-between items-center w-64">
+                    <span>{selectedCategory}</span>
+                    <span>
+                      ₹
+                      {Math.round(
+                        categoryTotals[selectedCategory]
+                      ).toLocaleString()}
+                    </span>
+                  </div>
+                )}
             </div>
 
             {/* Stock Summary Table */}
@@ -491,6 +597,7 @@ export default function StockSummaryPage() {
                     <TableHead>SELLING PRICE (₹)</TableHead>
                     <TableHead>CURRENT STOCK</TableHead>
                     <TableHead>STOCK VALUE</TableHead>
+                    <TableHead>Purchase Product</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -505,26 +612,33 @@ export default function StockSummaryPage() {
                     </TableRow>
                   ) : (
                     filteredProducts.map((p, index) => {
-                      const purchasePrice = Number(p.purchasePrice || 0);
-                      const openingStock = Number(p.openingStock || 0);
-                      const gstPercent = Number(p.taxPercent || 0); // stored as percentage
-
-                      const gstAmount = (purchasePrice * gstPercent) / 100; // GST in currency
-                      const subtotal =
-                        (purchasePrice - gstAmount) * openingStock;
-
                       return (
                         <TableRow key={p._id}>
                           <TableCell>{index + 1}</TableCell>
                           <TableCell>{p.name}</TableCell>
                           <TableCell>{p.sku || "-"}</TableCell>
                           <TableCell>{p.taxPercent || "-"}</TableCell>
-                          <TableCell>₹{p.purchasePrice || "-"}</TableCell>
+                          <TableCell className="flex items-center gap-2">
+                            <span>₹{p.purchasePrice || "-"}</span>
+                            {p.purchasePriceWithTax && (
+                              <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                With Tax
+                              </span>
+                            )}
+                            {!p.purchasePriceWithTax && (
+                              <span className="bg-red-100 text-red-500 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                Without Tax
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell>₹{p.sellingPrice || "-"}</TableCell>
                           <TableCell>
                             {p.openingStock || 0} {p.unit || ""}
                           </TableCell>
-                          <TableCell>₹{subtotal.toFixed(2)}</TableCell>
+                          <TableCell>
+                            ₹{Math.round(calculateSubtotal(p)).toLocaleString()}
+                          </TableCell>
+                          <TableCell><Link href="/dashboard/purchase" className="text-blue-600 hover:underline">Purchase</Link></TableCell>
                         </TableRow>
                       );
                     })

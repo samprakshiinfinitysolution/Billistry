@@ -43,6 +43,13 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
       console.error(err);
     }
   };
+  useEffect(() => {
+  if (value) {
+    setSelected(value);
+  } else {
+    setSelected(null);
+  }
+}, [value]);
 
   useEffect(() => {
     fetchCategories();
@@ -77,7 +84,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
           : data.categories;
         setCategories((prev) => [...prev, created]);
         setSelected(created);
-        onChange(created._id);
+        onChange(created);
         setNewCategory("");
         setOpen(false);
         setQuery("");

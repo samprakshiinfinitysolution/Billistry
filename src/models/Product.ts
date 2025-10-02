@@ -9,7 +9,9 @@ export interface IProduct extends Document {
   category?: string;
   description?: string;
   purchasePrice?: number;
+  purchasePriceWithTax: boolean;
   sellingPrice: number;
+  sellingPriceWithTax: boolean;
   taxPercent?: number;   // GST %
   hsnCode?: string;      // HSN Code for GST
   openingStock?: number; // Initial stock
@@ -30,7 +32,9 @@ const ProductSchema = new Schema<IProduct>(
     category: { type: String, index: true },
     description: { type: String },
     purchasePrice: { type: Number },
+    purchasePriceWithTax : { type: Boolean, default: true },
     sellingPrice: { type: Number, required: true },
+    sellingPriceWithTax: { type: Boolean, default: true },
     taxPercent: { type: Number, default: 0 }, // GST %
     hsnCode: { type: String, index: true },   // HSN code
     openingStock: { type: Number, default: 0 },
