@@ -1,18 +1,3 @@
-<<<<<<< HEAD
-// src/components/IntegrationSection.tsx
-export default function IntegrationSection() {
-  const tools = ['Shopify', 'Google Sheets', 'Slack', 'WhatsApp', 'Zapier', 'QuickBooks']
-  return (
-    <section className="bg-white py-20 px-6">
-      <div className="max-w-6xl mx-auto text-center">
-        <h2 className="text-3xl font-bold text-gray-800 mb-6">Works With Your Favorite Tools</h2>
-        <p className="text-gray-600 mb-12">Seamlessly connect your existing stack</p>
-        <div className="flex flex-wrap justify-center gap-6">
-          {tools.map((tool, idx) => (
-            <span key={idx} className="bg-gray-100 text-gray-800 px-6 py-3 rounded-full shadow text-sm font-medium">
-              {tool}
-            </span>
-=======
 // // src/components/IntegrationSection.tsx
 // export default function IntegrationSection() {
 //   const tools = ['Shopify', 'Google Sheets', 'Slack', 'WhatsApp', 'Zapier', 'QuickBooks']
@@ -165,15 +150,10 @@ export default function FeaturesSection() {
               </div>
               <p className="text-[#390F59] font-semibold text-sm sm:text-base">{feature.title}</p>
             </a>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
           ))}
         </div>
       </div>
     </section>
-<<<<<<< HEAD
-  )
-}
-=======
   );
 }
 
@@ -319,4 +299,3 @@ export default function FeaturesSection() {
 //     </section>
 //   );
 // }
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b

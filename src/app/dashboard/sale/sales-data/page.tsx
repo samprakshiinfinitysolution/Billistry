@@ -3,10 +3,7 @@
 import axios from 'axios';
 import Link from 'next/link';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-<<<<<<< HEAD
 import { useRouter } from 'next/navigation';
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 import {
     BadgeIndianRupee,
     CalendarIcon,
@@ -42,14 +39,10 @@ const TableHeader = ({ children, ...props }: React.HTMLAttributes<HTMLTableSecti
 const TableRow = ({ children, ...props }: React.HTMLAttributes<HTMLTableRowElement>) => <tr {...props}>{children}</tr>;
 const TableHead = ({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) => <th {...props}>{children}</th>;
 const TableBody = ({ children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => <tbody {...props}>{children}</tbody>;
-<<<<<<< HEAD
 const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(({ children, ...props }, ref) => (
     <td ref={ref} {...props}>{children}</td>
 ));
 TableCell.displayName = 'TableCell';
-=======
-const TableCell = ({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) => <td {...props}>{children}</td>;
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 const DropdownMenu = ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className="relative inline-block text-left" {...props}>{children}</div>;
 const DropdownMenuTrigger = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
 const DropdownMenuContent = ({ children }: { children: React.ReactNode }) => <div className="origin-top-left absolute left-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 max-h-80 overflow-y-auto">{children}</div>;
@@ -124,7 +117,6 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
 
 interface Sale {
     _id: string;
-<<<<<<< HEAD
     invoiceNo?: string; // formatted invoice string from NewSale (INV-00001)
     invoiceNumber?: number;
     invoiceDate?: string | Date;
@@ -133,16 +125,6 @@ interface Sale {
     paymentStatus?: 'unpaid' | 'cash' | 'upi' | 'card' | 'netbanking' | 'bank' | 'bank_transfer' | 'cheque' | 'online';
     selectedParty?: { name?: string; partyName?: string; mobileNumber?: string; billingAddress?: string; balance?: number; } | string;
     isDeleted?: boolean;
-=======
-    invoiceNo: string;
-    billTo: { // Updated to match API response
-        name: string;
-    }; 
-    invoiceAmount: number;
-    paymentStatus: 'unpaid' | 'cash' | 'online';
-    date: string;
-    dueDate?: string;
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 }
 
 
@@ -203,16 +185,12 @@ const SalesInvoicePage = () => {
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [customDate, setCustomDate] = useState<Date | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-<<<<<<< HEAD
     const [showArchived, setShowArchived] = useState(false);
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const router = useRouter();
     const [isCreating, setIsCreating] = useState(false);
-=======
-    const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     
     const dropdownRefs = useRef<{ [key: string]: HTMLTableCellElement | null }>({});
     const datePickerRef = useRef<HTMLDivElement>(null);
@@ -222,13 +200,8 @@ const SalesInvoicePage = () => {
             setLoading(true);
             setError(null);
             try {
-<<<<<<< HEAD
                 // Using axios to fetch NewSale resource
                 const res = await axios.get('/api/new_sale' + (showArchived ? '?includeDeleted=true' : ''), { withCredentials: true });
-=======
-                // Using axios to be consistent with the working `sale/page.tsx`
-                const res = await axios.get('/api/sale', { withCredentials: true });
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                 const data = res.data;
 
                 if (data.success) {
@@ -246,7 +219,6 @@ const SalesInvoicePage = () => {
         fetchSales();
     }, []);
 
-<<<<<<< HEAD
     useEffect(() => {
         // refetch when toggling archived view
         const fetchSales = async () => {
@@ -291,15 +263,6 @@ const SalesInvoicePage = () => {
                 acc.unpaidAmount += amt;
             } else {
                 acc.paidAmount += amt;
-=======
-    const { totalSales, paidAmount, unpaidAmount } = useMemo(() => {
-        return sales.reduce((acc, sale) => {
-            acc.totalSales += sale.invoiceAmount;
-            if (sale.paymentStatus === 'unpaid') {
-                acc.unpaidAmount += sale.invoiceAmount;
-            } else {
-                acc.paidAmount += sale.invoiceAmount;
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             }
             return acc;
         }, { totalSales: 0, paidAmount: 0, unpaidAmount: 0 });
@@ -329,22 +292,14 @@ const SalesInvoicePage = () => {
 
         let dateFilteredSales = sales;
 
-<<<<<<< HEAD
             if (selectedDateRange === 'Custom Date Range' && customDate) {
             dateFilteredSales = sales.filter(sale => {
                 const saleDate = sale.invoiceDate ? new Date(sale.invoiceDate) : null;
                 return saleDate ? saleDate.toDateString() === customDate.toDateString() : false;
-=======
-        if (selectedDateRange === 'Custom Date Range' && customDate) {
-            dateFilteredSales = sales.filter(sale => {
-                const saleDate = new Date(sale.date);
-                return saleDate.toDateString() === customDate.toDateString();
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             });
         } else if (selectedDateRange !== 'All Time') {
             const startDate = getStartDate(selectedDateRange);
             if (startDate) {
-<<<<<<< HEAD
                  dateFilteredSales = sales.filter(sale => {
                      const saleDate = sale.invoiceDate ? new Date(sale.invoiceDate) : null;
                      return saleDate ? saleDate >= startDate : false;
@@ -353,13 +308,6 @@ const SalesInvoicePage = () => {
         }
 
                 return dateFilteredSales.filter(sale => {
-=======
-                 dateFilteredSales = sales.filter(sale => new Date(sale.date) >= startDate);
-            }
-        }
-
-        return dateFilteredSales.filter(sale => {
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             const matchesStatus =
                 selectedCard === 'Total Sales' ||
                 (selectedCard === 'Paid' && (sale.paymentStatus === 'cash' || sale.paymentStatus === 'online')) ||
@@ -371,15 +319,9 @@ const SalesInvoicePage = () => {
             if (lowercasedTerm === '') return true;
 
             return (
-<<<<<<< HEAD
                 (String(sale.invoiceNo || sale.invoiceNumber || '')).toLowerCase().includes(lowercasedTerm) ||
                 (typeof sale.selectedParty === 'string' ? sale.selectedParty.toLowerCase() : (sale.selectedParty?.name || '').toLowerCase()).includes(lowercasedTerm) ||
                 String(sale.totalAmount || '').includes(lowercasedTerm)
-=======
-                (sale.invoiceNoFormatted || sale.invoiceNo).toLowerCase().includes(lowercasedTerm) ||
-                (sale.billTo?.name || '').toLowerCase().includes(lowercasedTerm) ||
-                String(sale.invoiceAmount).includes(lowercasedTerm)
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             );
         });
     }, [sales, selectedCard, searchTerm, selectedDateRange, customDate]);
@@ -447,7 +389,6 @@ const SalesInvoicePage = () => {
     };
 
     return (
-<<<<<<< HEAD
         <>
         {showDeleteConfirm && (
             <div 
@@ -475,8 +416,6 @@ const SalesInvoicePage = () => {
                 </div>
             </div>
         )}
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-6">
             <header className="flex items-center justify-between pb-4 border-b">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Sales Invoices</h1>
@@ -561,7 +500,6 @@ const SalesInvoicePage = () => {
                                 </Button>
                             </DropdownMenuTrigger>
                         </DropdownMenu>
-<<<<<<< HEAD
                         <Button
                             className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2"
                             onClick={() => {
@@ -571,13 +509,6 @@ const SalesInvoicePage = () => {
                         >
                             Create Sales Invoice
                         </Button>
-=======
-                        <Link href="/dashboard/sale/sales-invoice">
-    <Button className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2">
-        Create Sales Invoice
-    </Button>
-</Link>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                     </div>
                 </div>
 
@@ -611,34 +542,19 @@ const SalesInvoicePage = () => {
                             ) : (
                                 filteredSales.map(sale => (
                                     <TableRow key={sale._id} className="border-b dark:border-gray-700">
-<<<<<<< HEAD
                                         <TableCell className="p-4">{sale.invoiceDate ? new Date(sale.invoiceDate).toLocaleDateString() : 'N/A'}</TableCell>
                                         <TableCell className="p-4">{sale.invoiceNo || (sale.invoiceNumber ? String(sale.invoiceNumber) : 'N/A')}</TableCell>
                                         <TableCell className="p-4">{typeof sale.selectedParty === 'string' ? sale.selectedParty : (sale.selectedParty?.name || sale.selectedParty?.partyName || 'N/A')}</TableCell>
                                         <TableCell className="p-4">{sale.dueDate ? new Date(sale.dueDate).toLocaleDateString() : 'N/A'}</TableCell>
                                         <TableCell className="p-4">₹{formatDisplayCurrency(sale.totalAmount || 0)}</TableCell>
-=======
-                                        <TableCell className="p-4">{new Date(sale.date).toLocaleDateString()}</TableCell>
-                                        <TableCell className="p-4">{sale.invoiceNoFormatted || sale.invoiceNo}</TableCell>
-                                        <TableCell className="p-4">{sale.billTo?.name || 'N/A'}</TableCell>
-                                        <TableCell className="p-4">{sale.dueDate ? new Date(sale.dueDate).toLocaleDateString() : 'N/A'}</TableCell>
-                                        <TableCell className="p-4">₹{formatDisplayCurrency(sale.invoiceAmount)}</TableCell>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                         <TableCell className="p-4">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                                                 sale.paymentStatus === 'unpaid' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
                                             }`}>
-<<<<<<< HEAD
                                                 {sale.paymentStatus ? (sale.paymentStatus.charAt(0).toUpperCase() + sale.paymentStatus.slice(1)) : 'Unknown'}
                                             </span>
                                         </TableCell>
                                         <TableCell ref={(el) => { dropdownRefs.current[sale._id] = el; }} className="p-4 text-right relative">
-=======
-                                                {sale.paymentStatus.charAt(0).toUpperCase() + sale.paymentStatus.slice(1)}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell ref={el => dropdownRefs.current[sale._id] = el} className="p-4 text-right relative">
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -649,7 +565,6 @@ const SalesInvoicePage = () => {
                                             </Button>
                                             {openDropdownId === sale._id && ( 
                                                 <div className="absolute right-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10">
-<<<<<<< HEAD
                                                     <button
                                                         className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                                                         onClick={() => {
@@ -675,14 +590,6 @@ const SalesInvoicePage = () => {
                                                                 <Trash2 className="h-4 w-4 mr-2" /> Delete
                                                             </button>
                                                         )}
-=======
-                                                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
-                                                        <Edit className="h-4 w-4 mr-2" /> Edit
-                                                    </button>
-                                                    <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center">
-                                                        <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                                    </button>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                                 </div>
                                             )}
                                         </TableCell>
@@ -694,10 +601,7 @@ const SalesInvoicePage = () => {
                 </div>
             </main>
         </div>
-<<<<<<< HEAD
         </>
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     );
 };
 

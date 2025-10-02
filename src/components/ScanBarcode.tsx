@@ -122,21 +122,13 @@ export const ScanBarcodeModal = ({ isOpen, onClose, onAddItem }: ScanBarcodeModa
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             const data = await res.json();
             if (data.success && Array.isArray(data.products)) {
-<<<<<<< HEAD
-        const mappedItems: ItemData[] = data.products.map((p: any) => ({
-=======
                 const mappedItems: ItemData[] = data.products.map((p: any) => ({
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                     id: p._id,
                     name: p.name,
                     code: p.sku || null,
                     salesPrice: Number(p.sellingPrice) || 0,
                     purchasePrice: p.purchasePrice ? Number(p.purchasePrice) : null,
-<<<<<<< HEAD
-          currentStock: (typeof p.currentStock !== 'undefined' && p.currentStock !== null) ? `${p.currentStock} ${p.unit || ''}`.trim() : (p.openingStock ? `${p.openingStock} ${p.unit || ''}`.trim() : null),
-=======
                     currentStock: p.openingStock ? `${p.openingStock} ${p.unit || ''}`.trim() : null,
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                     category: p.category || 'Uncategorized',
                     unit: p.unit || null,
                     taxPercent: p.taxPercent ? Number(p.taxPercent) : null,
@@ -158,47 +150,6 @@ export const ScanBarcodeModal = ({ isOpen, onClose, onAddItem }: ScanBarcodeModa
     fetchItems();
   }, [isOpen]);
 
-<<<<<<< HEAD
-  // Re-fetch when other UI updates products
-  useEffect(() => {
-    const handler = () => {
-      if (!isOpen) return;
-      (async () => {
-        setLoading(true);
-        setError(null);
-        try {
-          const res = await fetch('http://localhost:3000/api/product');
-          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-          const data = await res.json();
-          if (data.success && Array.isArray(data.products)) {
-            const mappedItems: ItemData[] = data.products.map((p: any) => ({
-              id: p._id,
-              name: p.name,
-              code: p.sku || null,
-              salesPrice: Number(p.sellingPrice) || 0,
-              purchasePrice: p.purchasePrice ? Number(p.purchasePrice) : null,
-              currentStock: (typeof p.currentStock !== 'undefined' && p.currentStock !== null) ? `${p.currentStock} ${p.unit || ''}`.trim() : (p.openingStock ? `${p.openingStock} ${p.unit || ''}`.trim() : null),
-              category: p.category || 'Uncategorized',
-              unit: p.unit || null,
-              taxPercent: p.taxPercent ? Number(p.taxPercent) : null,
-              hsnCode: p.hsnCode || null,
-            }));
-            setAllItems(mappedItems);
-            setAllCategories(['All', ...Array.from(new Set(mappedItems.map(item => item.category)))]);
-          }
-        } catch (err: any) {
-          console.error('productsUpdated refetch failed', err);
-        } finally {
-          setLoading(false);
-        }
-      })();
-    };
-    window.addEventListener('productsUpdated', handler as EventListener);
-    return () => window.removeEventListener('productsUpdated', handler as EventListener);
-  }, [isOpen]);
-
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {

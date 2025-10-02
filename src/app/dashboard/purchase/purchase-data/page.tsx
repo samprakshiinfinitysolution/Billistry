@@ -3,10 +3,7 @@
 import axios from 'axios';
 import Link from 'next/link';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-<<<<<<< HEAD
 import { useRouter } from 'next/navigation';
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 import {
     BadgeIndianRupee,
     CalendarIcon,
@@ -42,11 +39,7 @@ const TableHeader = ({ children, ...props }: React.HTMLAttributes<HTMLTableSecti
 const TableRow = ({ children, ...props }: React.HTMLAttributes<HTMLTableRowElement>) => <tr {...props}>{children}</tr>;
 const TableHead = ({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) => <th {...props}>{children}</th>;
 const TableBody = ({ children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => <tbody {...props}>{children}</tbody>;
-<<<<<<< HEAD
 const TableCell = ({ children, ...props }: any) => <td {...props}>{children}</td>;
-=======
-const TableCell = ({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) => <td {...props}>{children}</td>;
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 const DropdownMenu = ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className="relative inline-block text-left" {...props}>{children}</div>;
 const DropdownMenuTrigger = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
 const DropdownMenuContent = ({ children }: { children: React.ReactNode }) => <div className="origin-top-left absolute left-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 max-h-80 overflow-y-auto">{children}</div>;
@@ -121,7 +114,6 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
 
 interface Purchase {
     _id: string;
-<<<<<<< HEAD
     invoiceNo?: string;
     invoiceNumber?: number;
     date?: string | Date; // mapped from invoiceDate or createdAt
@@ -131,16 +123,6 @@ interface Purchase {
     paymentStatus?: 'unpaid' | 'cash' | 'online' | string;
     billTo?: { name?: string } | string; // mapped from selectedParty
     isDeleted?: boolean;
-=======
-    invoiceNo: string;
-    billTo: {
-        name: string;
-    };
-    invoiceAmount: number;
-    paymentStatus: 'unpaid' | 'cash' | 'online';
-    date: string;
-    dueDate?: string;
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 }
 
 
@@ -191,7 +173,6 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
 
 
 const PurchaseDataPage = () => {
-<<<<<<< HEAD
     const router = useRouter();
     const [purchases, setPurchases] = useState<Purchase[]>([]);
     const [loading, setLoading] = useState(true);
@@ -199,11 +180,6 @@ const PurchaseDataPage = () => {
     const [showArchived, setShowArchived] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
-=======
-    const [purchases, setPurchases] = useState<Purchase[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     const [selectedCard, setSelectedCard] = useState('Total Purchases');
     const [selectedDateRange, setSelectedDateRange] = useState('Last 365 Days');
     const [hoveredDateRange, setHoveredDateRange] = useState<string | null>(null);
@@ -221,7 +197,6 @@ const PurchaseDataPage = () => {
             setLoading(true);
             setError(null);
             try {
-<<<<<<< HEAD
                 const res = await axios.get('/api/new_purchase' + (showArchived ? '?includeDeleted=true' : ''), { withCredentials: true });
                 const data = res.data;
 
@@ -249,13 +224,6 @@ const PurchaseDataPage = () => {
                         } as Purchase;
                     });
                     setPurchases(normalized);
-=======
-                const res = await axios.get('/api/purchase', { withCredentials: true });
-                const data = res.data;
-
-                if (data.success) {
-                    setPurchases(data.data || []);
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                 } else {
                     throw new Error(data.error || 'Failed to fetch purchase data.');
                 }
@@ -266,7 +234,6 @@ const PurchaseDataPage = () => {
             }
         };
         fetchPurchases();
-<<<<<<< HEAD
     }, [showArchived]);
 
     const { totalPurchases, paidAmount, unpaidAmount } = useMemo(() => {
@@ -277,17 +244,6 @@ const PurchaseDataPage = () => {
                 acc.unpaidAmount += amt;
             } else {
                 acc.paidAmount += amt;
-=======
-    }, []);
-
-    const { totalPurchases, paidAmount, unpaidAmount } = useMemo(() => {
-        return purchases.reduce((acc, purchase) => {
-            acc.totalPurchases += purchase.invoiceAmount;
-            if (purchase.paymentStatus === 'unpaid') {
-                acc.unpaidAmount += purchase.invoiceAmount;
-            } else {
-                acc.paidAmount += purchase.invoiceAmount;
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             }
             return acc;
         }, { totalPurchases: 0, paidAmount: 0, unpaidAmount: 0 });
@@ -319,25 +275,17 @@ const PurchaseDataPage = () => {
 
         if (selectedDateRange === 'Custom Date Range' && customDate) {
             dateFilteredPurchases = purchases.filter(purchase => {
-<<<<<<< HEAD
                 if (!purchase.date) return false;
                 const purchaseDate = new Date(purchase.date as any);
-=======
-                const purchaseDate = new Date(purchase.date);
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                 return purchaseDate.toDateString() === customDate.toDateString();
             });
         } else if (selectedDateRange !== 'All Time') {
             const startDate = getStartDate(selectedDateRange);
             if (startDate) {
-<<<<<<< HEAD
                  dateFilteredPurchases = purchases.filter(purchase => {
                      if (!purchase.date) return false;
                      return new Date(purchase.date as any) >= startDate;
                  });
-=======
-                 dateFilteredPurchases = purchases.filter(purchase => new Date(purchase.date) >= startDate);
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             }
         }
 
@@ -352,7 +300,6 @@ const PurchaseDataPage = () => {
             const lowercasedTerm = searchTerm.toLowerCase();
             if (lowercasedTerm === '') return true;
 
-<<<<<<< HEAD
             const invoiceNoStr = (purchase.invoiceNo || '').toString().toLowerCase();
             const partyName = (typeof purchase.billTo === 'string') ? purchase.billTo : (purchase.billTo?.name || '');
             const partyNameStr = (partyName || '').toString().toLowerCase();
@@ -361,12 +308,6 @@ const PurchaseDataPage = () => {
                 invoiceNoStr.includes(lowercasedTerm) ||
                 partyNameStr.includes(lowercasedTerm) ||
                 amountStr.includes(lowercasedTerm)
-=======
-            return (
-                (purchase.invoiceNo).toLowerCase().includes(lowercasedTerm) ||
-                (purchase.billTo?.name || '').toLowerCase().includes(lowercasedTerm) ||
-                String(purchase.invoiceAmount).includes(lowercasedTerm)
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             );
         });
     }, [purchases, selectedCard, searchTerm, selectedDateRange, customDate]);
@@ -422,7 +363,6 @@ const PurchaseDataPage = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [openDropdownId]);
 
-<<<<<<< HEAD
     const handleDeleteClick = (id: string) => {
         setDeletingId(id);
         setShowDeleteConfirm(true);
@@ -450,8 +390,6 @@ const PurchaseDataPage = () => {
         } catch (err: any) { alert(err?.response?.data?.error || err?.message || 'Restore failed'); }
     };
 
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     const handleDateButtonClick = () => {
         if (isDatePickerOpen) {
             setIsDatePickerOpen(false);
@@ -461,7 +399,6 @@ const PurchaseDataPage = () => {
     };
 
     return (
-<<<<<<< HEAD
         <>
         {showDeleteConfirm && (
             <div 
@@ -489,8 +426,6 @@ const PurchaseDataPage = () => {
             </div>
         )}
 
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-6">
             <header className="flex items-center justify-between pb-4 border-b">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Purchase Invoices</h1>
@@ -613,34 +548,19 @@ const PurchaseDataPage = () => {
                             ) : (
                                 filteredPurchases.map(purchase => (
                                     <TableRow key={purchase._id} className="border-b dark:border-gray-700">
-<<<<<<< HEAD
                                         <TableCell className="p-4">{purchase.date ? new Date(purchase.date as any).toLocaleDateString() : 'N/A'}</TableCell>
                                         <TableCell className="p-4">{purchase.invoiceNo ?? (purchase.invoiceNumber !== undefined && purchase.invoiceNumber !== null ? `PUR-${String(purchase.invoiceNumber).padStart(5,'0')}` : 'N/A')}</TableCell>
                                         <TableCell className="p-4">{(typeof purchase.billTo === 'string') ? purchase.billTo : (purchase.billTo?.name || 'N/A')}</TableCell>
                                         <TableCell className="p-4">{purchase.dueDate ? new Date(purchase.dueDate as any).toLocaleDateString() : 'N/A'}</TableCell>
                                         <TableCell className="p-4">₹{formatDisplayCurrency(purchase.invoiceAmount || purchase.totalAmount || 0)}</TableCell>
-=======
-                                        <TableCell className="p-4">{new Date(purchase.date).toLocaleDateString()}</TableCell>
-                                        <TableCell className="p-4">{purchase.invoiceNo}</TableCell>
-                                        <TableCell className="p-4">{purchase.billTo?.name || 'N/A'}</TableCell>
-                                        <TableCell className="p-4">{purchase.dueDate ? new Date(purchase.dueDate).toLocaleDateString() : 'N/A'}</TableCell>
-                                        <TableCell className="p-4">₹{formatDisplayCurrency(purchase.invoiceAmount)}</TableCell>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                         <TableCell className="p-4">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                                                 purchase.paymentStatus === 'unpaid' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
                                             }`}>
-<<<<<<< HEAD
                                                 {(purchase.paymentStatus || 'unpaid').charAt(0).toUpperCase() + (purchase.paymentStatus || 'unpaid').slice(1)}
                                             </span>
                                         </TableCell>
                                         <td ref={el => { dropdownRefs.current[purchase._id] = el as any; }} className="p-4 text-right relative">
-=======
-                                                {purchase.paymentStatus.charAt(0).toUpperCase() + purchase.paymentStatus.slice(1)}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell ref={el => dropdownRefs.current[purchase._id] = el} className="p-4 text-right relative">
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -651,7 +571,6 @@ const PurchaseDataPage = () => {
                                             </Button>
                                             {openDropdownId === purchase._id && (
                                                 <div className="absolute right-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10">
-<<<<<<< HEAD
                                                         <button
                                                             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                                                             onClick={() => { setOpenDropdownId(null); router.push(`/dashboard/purchase/purchase-invoice?editId=${purchase._id}`); }}
@@ -667,17 +586,6 @@ const PurchaseDataPage = () => {
                                                 </div>
                                             )}
                                         </td>
-=======
-                                                    <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
-                                                        <Edit className="h-4 w-4 mr-2" /> Edit
-                                                    </button>
-                                                    <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center">
-                                                        <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </TableCell>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                     </TableRow>
                                 ))
                             )
@@ -686,10 +594,7 @@ const PurchaseDataPage = () => {
                 </div>
             </main>
         </div>
-<<<<<<< HEAD
         </>
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     );
 };
 

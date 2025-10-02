@@ -66,23 +66,17 @@ interface InvoiceItem {
     name: string;
     hsn: string;
     qty: number;
-<<<<<<< HEAD
     originalQty?: number;
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     price: number;
     discountPercentStr: string; // The user-inputted discount percentage
     discountAmountStr: string; // The calculated discount amount
     lastDiscountInput: 'percent' | 'flat'; // Which discount input was last used
     taxPercentStr: string; // The selected tax percentage
     taxAmountStr: string; // The calculated tax amount
-<<<<<<< HEAD
     // Optional numeric stock and unit provided when item comes from AddItem modal
     numericStock?: number | null;
     unit?: string | null;
     productId?: string | null;
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 }
 
 const GST_OPTIONS = ['0', '0.1', '0.25', '3', '5', '6', '12', '18', '28'];
@@ -96,10 +90,7 @@ interface Charge {
 const CreatePurchaseInvoicePage = () => {
     const router = useRouter();
     const [invoiceNumber, setInvoiceNumber] = useState(1);
-<<<<<<< HEAD
     const [invoiceNo, setInvoiceNo] = useState<string>(''); // server-assigned formatted string (PUR-00001)
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     const nextItemId = useRef(0);
     const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
     const [items, setItems] = useState<InvoiceItem[]>([]);
@@ -115,10 +106,7 @@ const CreatePurchaseInvoicePage = () => {
     const [autoRoundOff, setAutoRoundOff] = useState(false);
     const [amountReceivedStr, setAmountReceivedStr] = useState('');
     const [isFullyPaid, setIsFullyPaid] = useState(false);
-<<<<<<< HEAD
     const [paymentMode, setPaymentMode] = useState<'unpaid' | 'cash' | 'upi' | 'card' | 'netbanking' | 'bank_transfer' | 'cheque' | 'online'>('unpaid');
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     const amountReceivedBeforePaid = useRef(0); // To store the value before marking as fully paid
     const [showNotesInput, setShowNotesInput] = useState(false);
 
@@ -142,7 +130,6 @@ const CreatePurchaseInvoicePage = () => {
     const [isScanBarcodeModalOpen, setIsScanBarcodeModalOpen] = useState(false);
 
     const [selectedParty, setSelectedParty] = useState<Party | null>(null);
-<<<<<<< HEAD
     const [isAddingParty, setIsAddingParty] = useState(false);
     const [partySearchTerm, setPartySearchTerm] = useState('');
     const [editId, setEditId] = useState<string | null>(null);
@@ -152,15 +139,12 @@ const CreatePurchaseInvoicePage = () => {
     const [businessName, setBusinessName] = useState<string>('Business Name');
     const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
     const [productsCache, setProductsCache] = useState<any[]>([]);
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 
     
     // --- CALCULATIONS ---
     const subtotal = items.reduce((acc, item) => acc + (item.qty || 0) * (item.price || 0), 0);
     const totalItemDiscount = items.reduce((acc, item) => acc + (parseFloat(item.discountAmountStr) || 0), 0);
     const subtotalAfterItemDiscounts = subtotal - totalItemDiscount;
-<<<<<<< HEAD
     const totalAdditionalCharges = additionalCharges.reduce((acc, charge) => acc + (parseFloat(charge.amount) || 0), 0);
     const taxableAmount = subtotalAfterItemDiscounts;
 
@@ -191,18 +175,6 @@ const CreatePurchaseInvoicePage = () => {
         // Only update flat amount when the last user input was percent.
         // Prevent running when lastDiscountInput is null or 'flat' to avoid mutual-effect loops.
         if (lastDiscountInput === 'percent') {
-=======
-    const totalTax = items.reduce((acc, item) => acc + (parseFloat(item.taxAmountStr) || 0), 0);
-    const itemsGrandTotal = subtotalAfterItemDiscounts + totalTax;
-    const totalAdditionalCharges = additionalCharges.reduce((acc, charge) => acc + (parseFloat(charge.amount) || 0), 0);
-    const taxableAmount = subtotalAfterItemDiscounts;
-
-    const overallDiscountAmount = parseFloat(discountFlatStr) || 0;
-    const discountBase = discountOption === 'before-tax' ? subtotalAfterItemDiscounts : (subtotalAfterItemDiscounts + totalTax);
-
-    useEffect(() => {
-        if (lastDiscountInput !== 'flat') {
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             const percent = parseFloat(discountPercentStr) || 0;
             const newFlat = (discountBase * percent) / 100;
             setDiscountFlatStr(newFlat > 0 ? newFlat.toFixed(2) : '');
@@ -218,7 +190,6 @@ const CreatePurchaseInvoicePage = () => {
         };
     }, []);
 
-<<<<<<< HEAD
     useEffect(() => {
         let mounted = true;
         const fetchProducts = async () => {
@@ -236,8 +207,6 @@ const CreatePurchaseInvoicePage = () => {
         return () => { mounted = false; try { window.removeEventListener('productsUpdated', onUpd as any); } catch (e) {} };
     }, []);
 
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     // Auto-calculate Due Date or Payment Terms based on which was last edited
     useEffect(() => {
         if (!invoiceDate) return;
@@ -269,13 +238,9 @@ const CreatePurchaseInvoicePage = () => {
 
 
     useEffect(() => {
-<<<<<<< HEAD
         // Only update percent when the last user input was flat.
         // This avoids the two-effects toggling each other when lastDiscountInput is null.
         if (lastDiscountInput === 'flat') {
-=======
-        if (lastDiscountInput !== 'percent') {
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             const flat = parseFloat(discountFlatStr) || 0;
             if (discountBase > 0) {
                 const newPercent = (flat / discountBase) * 100;
@@ -293,17 +258,11 @@ const CreatePurchaseInvoicePage = () => {
     // This effect syncs the base total to the input field, but only if the user hasn't typed in it.
     useEffect(() => {
         if (!totalAmountManuallySet) {
-<<<<<<< HEAD
             // Include additional charges in the displayed Total Amount so the input matches final payable
             const displayedTotal = baseTotal + totalAdditionalCharges;
             setTotalAmountStr(displayedTotal > 0 ? displayedTotal.toFixed(2) : '');
         }
     }, [baseTotal, totalAmountManuallySet, totalAdditionalCharges]);
-=======
-            setTotalAmountStr(baseTotal > 0 ? baseTotal.toFixed(2) : '');
-        }
-    }, [baseTotal, totalAmountManuallySet]);
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 
     // This is the total that will be used for the final balance calculation.
     // It starts with the value in the input field (or the base total if empty), then applies the manual adjustment and rounding.
@@ -343,10 +302,7 @@ const CreatePurchaseInvoicePage = () => {
         const newItem: InvoiceItem = {
             id: nextItemId.current++,
             name: itemToAdd.name,
-<<<<<<< HEAD
             productId: itemToAdd.id || null,
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
             hsn: itemToAdd.hsnCode || '', // Use hsnCode from modal
             qty: quantity,
             price: price,
@@ -463,7 +419,6 @@ const CreatePurchaseInvoicePage = () => {
         setPartySearchTerm('');
     };
 
-<<<<<<< HEAD
     // Load existing NewPurchase in edit mode when ?editId= is present
     useEffect(() => {
         try {
@@ -691,8 +646,6 @@ const CreatePurchaseInvoicePage = () => {
         } finally { setSaving(false); setTimeout(() => setSavedMessage(''), 3000); }
     };
 
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
     return (
         <div className="bg-gray-50 min-h-screen">
             <AddItemModal 
@@ -713,17 +666,12 @@ const CreatePurchaseInvoicePage = () => {
                             <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100 rounded-full p-2" onClick={() => router.push('/dashboard/purchase/purchase-data')}>
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
-<<<<<<< HEAD
                             <h1 className="text-xl font-semibold text-gray-800">{editId ? 'Update Purchase Invoice' : 'Create Purchase Invoice'}</h1>
-=======
-                            <h1 className="text-xl font-semibold text-gray-800">Create Purchase Invoice</h1>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                         </div>
                         <div className="flex items-center gap-2">
                             <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2">
                                 <Settings className="h-4 w-4 mr-2" /> Settings
                             </Button>
-<<<<<<< HEAD
 
                             <Button
                                 className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2"
@@ -733,11 +681,6 @@ const CreatePurchaseInvoicePage = () => {
                             </Button>
 
                             {savedMessage && <div className="text-sm text-green-600 ml-2">{savedMessage}</div>}
-=======
-                            <Button className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2">
-                                Save Purchase Invoice
-                            </Button>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                         </div>
                     </div>
                 </div>
@@ -760,12 +703,8 @@ const CreatePurchaseInvoicePage = () => {
                              <div className="flex flex-col sm:flex-row gap-4">
                                  <div className="w-full sm:w-64">
                                      <label htmlFor="invoiceNo" className="text-sm font-medium text-gray-700 mb-1 block text-right">Purchase Invoice No:</label>
-<<<<<<< HEAD
                                      {/* Show server-formatted invoiceNo (PUR-00001) when available; otherwise show numeric preview or placeholder */}
                                      <Input id="invoiceNo" type="text" value={invoiceNo || (editId ? (invoiceNumber ? String(invoiceNumber) : '') : 'Will be assigned on save')} readOnly className="text-right bg-gray-100 cursor-not-allowed" />
-=======
-                                     <Input id="invoiceNo" type="number" value={invoiceNumber} onChange={e => setInvoiceNumber(parseInt(e.target.value))} className="text-right"/>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                  </div>
                                  <div className="w-full sm:w-64">
                                     <label htmlFor="invoiceDate" className="text-sm font-medium text-gray-700 mb-1 block text-right">Purchase Invoice Date:</label>
@@ -837,7 +776,6 @@ const CreatePurchaseInvoicePage = () => {
                                         <td className="px-2 py-2 text-sm text-gray-500">{index + 1}</td>
                                         <td className="px-2 py-2"><Input type="text" placeholder="Item Name" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} /></td>
                                         <td className="px-2 py-2"><Input type="text" placeholder="HSN" value={item.hsn} onChange={e => handleItemChange(item.id, 'hsn', e.target.value)} /></td>
-<<<<<<< HEAD
                                                                                 <td className="px-2 py-2">
                                                                                     <div className="flex flex-col">
                                                                                         <Input type="number" placeholder="1" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} />
@@ -860,9 +798,6 @@ const CreatePurchaseInvoicePage = () => {
                                                                                         })()}
                                                                                     </div>
                                                                                 </td>
-=======
-                                        <td className="px-2 py-2"><Input type="number" placeholder="1" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} /></td>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                         <td className="px-2 py-2"><Input type="number" placeholder="0.00" value={item.price} onChange={e => handleItemChange(item.id, 'price', e.target.value)} /></td>
                                         <td className="px-2 py-2 w-32">
                                             <div className="flex flex-col gap-1">
@@ -1026,7 +961,6 @@ const CreatePurchaseInvoicePage = () => {
                                 <span className="text-gray-500">Taxable Amount</span>
                                 <span className="font-medium text-gray-800">₹ {formatCurrency(taxableAmount)}</span>
                             </div>
-<<<<<<< HEAD
                             {/* GST Breakdown */}
                             {gstBreakdown.length > 0 && (
                                 <div className="mt-2 space-y-1 text-sm">
@@ -1049,8 +983,6 @@ const CreatePurchaseInvoicePage = () => {
                                     })}
                                 </div>
                             )}
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                             <div className="flex justify-between items-center text-sm">
                                 {!showDiscountInput ? (
                                     <>
@@ -1107,7 +1039,6 @@ const CreatePurchaseInvoicePage = () => {
                             </div>
                             <div className="flex justify-between items-center text-sm">
                                 <label htmlFor="autoRoundOff" className="flex items-center gap-2 text-gray-600 cursor-pointer">
-<<<<<<< HEAD
                                     <Checkbox id="autoRoundOff" checked={autoRoundOff} onChange={(e) => {
                                         const checked = e.target.checked;
                                         setAutoRoundOff(checked);
@@ -1117,9 +1048,6 @@ const CreatePurchaseInvoicePage = () => {
                                             setAdjustmentType('add');
                                         }
                                     }} /> Auto Round Off
-=======
-                                    <Checkbox id="autoRoundOff" checked={autoRoundOff} onChange={(e) => setAutoRoundOff(e.target.checked)} /> Auto Round Off
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                 </label>
                                 
                                 {!autoRoundOff ? (
@@ -1191,7 +1119,6 @@ const CreatePurchaseInvoicePage = () => {
                                         }}
                                         className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0"
                                     />
-<<<<<<< HEAD
                     <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any)} className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
                         <option value="cash">Cash</option>
                         <option value="upi">UPI</option>
@@ -1201,12 +1128,6 @@ const CreatePurchaseInvoicePage = () => {
                         <option value="cheque">Cheque</option>
                         <option value="online">Online</option>
                     </select>
-=======
-                                    <select className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
-                                            <option>Cash</option>
-                                            <option>Bank</option>
-                                    </select>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                                 </div>
                             </div>
 
@@ -1222,7 +1143,6 @@ const CreatePurchaseInvoicePage = () => {
                         <div className="w-64 text-right">
                             <div className="border-b border-gray-400 pb-2 mb-2">
                             </div>
-<<<<<<< HEAD
                             <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">{businessName}</span></p>
                             <div className="ml-auto mt-4 h-25 w-45 border bg-white flex items-center justify-center overflow-hidden">
                                 {signatureUrl ? (
@@ -1232,10 +1152,6 @@ const CreatePurchaseInvoicePage = () => {
                                     <div className="text-xs text-gray-400">Signature will be shown here</div>
                                 )}
                             </div>
-=======
-                            <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">Business Name</span></p>
-                            <div className="ml-auto mt-4 h-25 w-45 border bg-white">{/* Signature will be loaded here */}</div>
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
                         </div>
                     </div>
                 </div>

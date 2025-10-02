@@ -110,8 +110,6 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-<<<<<<< HEAD
-=======
 
 
 
@@ -125,7 +123,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -134,8 +131,6 @@ h1, h2, h3, h4, h5, h6 {
     @apply bg-background text-foreground;
   }
 }
-<<<<<<< HEAD
-=======
 
 
 
@@ -172,4 +167,3 @@ h1, h2, h3, h4, h5, h6 {
   background-size: cover;
 }
 
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
