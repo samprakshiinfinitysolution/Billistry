@@ -29,6 +29,7 @@ import {
   Warehouse,
   Layers3,
   ExternalLink,
+  Search,
 } from "lucide-react";
 import { Product } from "@/types/product";
 import Link from "next/link";
@@ -46,7 +47,10 @@ const ItemsPageUI = () => {
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/product", { credentials: "include" });
+      const res = await fetch("/api/product", {
+        method: "GET",
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) setProducts(data.products);
       else toast.error("Failed to fetch products");
@@ -89,25 +93,23 @@ const ItemsPageUI = () => {
       if (data.success) {
         setProducts((prev) => prev.filter((p) => p._id !== id));
         toast.success("Product deleted successfully");
+        fetchProducts();
       } else toast.error(data.error || "Failed to delete product");
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete product");
     }
   };
-
-  const handleSave = (savedProduct: Product) => {
-    const cleanProduct = JSON.parse(JSON.stringify(savedProduct));
-
+  const handleSave = async (savedProduct: Product) => {
     setProducts((prev) => {
-      if (editingProduct) {
-        return prev.map((p) => (p._id === cleanProduct._id ? cleanProduct : p));
-      } else {
-        return [...prev, cleanProduct];
-      }
+      const exists = prev.find((p) => p._id === savedProduct._id);
+      if (exists)
+        return prev.map((p) => (p._id === savedProduct._id ? savedProduct : p));
+      else return [...prev, savedProduct];
     });
-    setEditingProduct(null);
+    toast.success("Product saved successfully");
     setOpen(false);
+    setEditingProduct(null);
   };
 
   const categories = useMemo(() => {
@@ -119,9 +121,7 @@ const ItemsPageUI = () => {
     return products.reduce((acc, p) => {
       const purchasePrice = Number(p.purchasePrice ?? 0);
       const openingStock = Number(p.openingStock ?? 0);
-      const gstPercent = Number(p.taxPercent ?? 0);
-      const gstAmount = (purchasePrice * gstPercent) / 100;
-      const subtotal = (purchasePrice - gstAmount) * openingStock;
+      const subtotal = purchasePrice * openingStock;
       return acc + subtotal;
     }, 0);
   }, [products]);
@@ -133,8 +133,8 @@ const ItemsPageUI = () => {
   }, [products]);
 
   const handleEdit = (product: Product | null, openFlag: boolean) => {
-    setEditingProduct(product); // null if cancel
-    setOpen(openFlag); // true to open modal, false to close
+    setEditingProduct(product);
+    setOpen(openFlag); 
   };
 
   return (
@@ -204,14 +204,17 @@ const ItemsPageUI = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
+        <div className="flex flex-col md:flex-row flex-wrap items-center justify-between gap-4 mb-4">
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-            <Input
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-64"
-            />
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 pr-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+              />
+            </div>
             <Select
               value={selectedCategory}
               onValueChange={setSelectedCategory}

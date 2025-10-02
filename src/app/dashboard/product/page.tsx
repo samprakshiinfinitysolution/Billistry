@@ -1,11 +1,8 @@
-
 "use client";
 import { Package, AlertTriangle } from "lucide-react";
-
 import { useEffect, useState, useMemo, use } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -40,6 +37,23 @@ interface Product {
   lowStockAlert?: string;
   unit?: string;
 }
+
+// GST Options
+export const GST_OPTIONS = [
+  { value: "None", label: "None" },
+  { value: "Exempted", label: "Exempted" },
+  { value: "0", label: "GST @ 0%" },
+  { value: "0.1", label: "GST @ 0.1%" },
+  { value: "0.25", label: "GST @ 0.25%" },
+  { value: "1.5", label: "GST @ 1.5%" },
+  { value: "3", label: "GST @ 3%" },
+  { value: "5", label: "GST @ 5%" },
+  { value: "6", label: "GST @ 6%" },
+  { value: "12", label: "GST @ 12%" },
+  { value: "13.8", label: "GST @ 13.8%" },
+  { value: "18", label: "GST @ 18%" },
+  { value: "28", label: "GST @ 28%" }
+];
 
 // const UNIT_OPTIONS = ["pcs", "kg", "liter", "pack", "box"];
 export const UNIT_OPTIONS = [
@@ -86,7 +100,6 @@ const defaultForm: Product = {
 
 export default function ProductPage() {
   const { user } = useAuthGuard();
-
   const [products, setProducts] = useState<Product[]>([]);
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<Product>(defaultForm);
@@ -186,11 +199,6 @@ export default function ProductPage() {
         setFormData(defaultForm);
         setEditingProduct(null);
         setOpen(false);
-<<<<<<< HEAD
-        // Notify other UI components (AddItem modal) that products updated so they can refetch
-        try { window.dispatchEvent(new Event('productsUpdated')); } catch (e) { /* ignore */ }
-=======
->>>>>>> ce21ec2fdc56a92ea043161788371f59da47de6b
       } else {
         toast.error(data.error || "Something went wrong");
       }
@@ -252,16 +260,7 @@ export default function ProductPage() {
       {/* Header */}
       <div className="flex justify-between items-center flex-wrap gap-2">
         <h1 className="text-2xl font-bold">Products</h1>
-        {/* <div className="flex items-center gap-4 text-sm text-gray-600">
-          <span>
-            Total: <strong>{totalProducts}</strong>
-          </span>
-          <span
-            className={lowStockCount > 0 ? "text-red-600 font-semibold" : ""}
-          >
-            Low Stock: <strong>{lowStockCount}</strong>
-          </span>
-        </div> */}
+        
         <div className="flex items-center gap-6 text-sm">
           {/* Total Products */}
           <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-4 py-2 rounded-xl shadow">
@@ -341,13 +340,6 @@ export default function ProductPage() {
                         value={formData.sku || ""}
                         readOnly
                       />
-                      {/* <Button
-                        onClick={() =>
-                          setFormData({ ...formData, sku: generateSKU() })
-                        }
-                      >
-                        Generate
-                      </Button> */}
                       {!formData._id && ( // only show button for new products
                         <Button
                           type="button"
@@ -410,16 +402,26 @@ export default function ProductPage() {
                 <div className="space-y-4">
                   {/* GST */}
                   <div className="flex flex-col space-y-1 p-2">
-                    <label className="text-sm font-medium">GST</label>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="GST %"
-                      value={formData.taxPercent}
-                      onChange={(e) =>
-                        handleNumberChange("taxPercent", e.target.value)
+                    <label className="text-sm font-medium">
+                      GST Tax Rate(%)
+                    </label>
+                    <Select
+                      value={formData.taxPercent || ""}
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, taxPercent: val })
                       }
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60 overflow-y-auto">
+                        {GST_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* HSN */}
@@ -582,31 +584,28 @@ export default function ProductPage() {
                   <td className="px-4 py-2">{p.lowStockAlert || "-"}</td>
                   {/* <td className="px-4 py-2">{p.purchasePrice || "-"}</td> */}
                   <td className="px-4 py-2">
-                    {user?.permissions?.visibility?.viewAmounts
+                    {Array.isArray(user?.permissions) && user.permissions.includes("viewAmounts")
                       ? `${p.purchasePrice ?? "-"}`
                       : "••••"}
                   </td>
 
                   <td className="px-4 py-2">{p.sellingPrice || "-"}</td>
                   <td className="px-4 py-2 text-center space-x-2">
-                   
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(p)}
-                      >
-                        Edit
-                      </Button>
-                  
-                   
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(p._id!)}
-                      >
-                        Delete
-                      </Button>
-                  
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEdit(p)}
+                    >
+                      Edit
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDelete(p._id!)}
+                    >
+                      Delete
+                    </Button>
                   </td>
                 </tr>
               ))

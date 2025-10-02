@@ -10,8 +10,9 @@ export type Product = {
   unit: string;
   lowStockAlert: string | number | null ;
   purchasePrice: string | number | null;
-  purchasePriceWithGST: string | number | null;
+  purchasePriceWithTax: boolean;
   sellingPrice: string | number | null;
-  sellingPriceWithGST: string | number | null;
+  sellingPriceWithTax: boolean;
+  createdAt: Date;
 };
 

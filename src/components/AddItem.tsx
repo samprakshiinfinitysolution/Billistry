@@ -188,7 +188,7 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
 
   return (
     <div 
-      className={`fixed inset-0 bg-black/40 z-50 flex justify-center items-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      className={`fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       onClick={handleOutsideClick}
     >
       <div 

@@ -2,7 +2,14 @@
 
 import { useState } from 'react'
 import { User, Mail, Phone, Edit } from 'lucide-react'
+<<<<<<< HEAD
 import Image from 'next/image'
+=======
+<<<<<<< HEAD
+import Image from 'next/image'
+=======
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
+>>>>>>> 3cfecf3c8e12ea107b03bcb7f8949aaf453d14ed
 
 export default function ProfilePage() {
   const [user, setUser] = useState({
@@ -20,11 +27,25 @@ export default function ProfilePage() {
       <div className="bg-white border rounded-xl shadow-md p-6 flex flex-col md:flex-row items-center gap-8">
         {/* Avatar */}
         <div className="relative">
+<<<<<<< HEAD
           <Image
             src={user.avatar}
             alt="Avatar"
             width={128}
             height={128}
+=======
+<<<<<<< HEAD
+          <Image
+            src={user.avatar}
+            alt="Avatar"
+            width={128}
+            height={128}
+=======
+          <img
+            src={user.avatar}
+            alt="Avatar"
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
+>>>>>>> 3cfecf3c8e12ea107b03bcb7f8949aaf453d14ed
             className="w-32 h-32 rounded-full object-cover border-4 border-pink-200"
           />
           <button className="absolute bottom-0 right-0 bg-pink-500 text-white p-1 rounded-full hover:bg-pink-600">

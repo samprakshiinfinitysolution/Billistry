@@ -136,34 +136,16 @@ h1, h2, h3, h4, h5, h6 {
 
 
 
-  /* Hide scrollbar */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
 
-
-
-
-
-
-@keyframes footerBgMove {
-  0% {
-    background-position: center;
-  }
-  50% {
-    background-position: top;
-  }
-  100% {
-    background-position: center;
-  }
+/* Chrome, Safari, Edge, Opera */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
-.footer-animate-bg {
-  animation: footerBgMove 25s ease-in-out infinite;
-  background-size: cover;
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
 }
 

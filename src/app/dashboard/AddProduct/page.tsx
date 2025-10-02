@@ -1,10 +1,10 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import HsnInput from "@/components/HsnInput";
 import { CategoryCombobox } from "@/components/CategoryCombobox";
-import useSWR from "swr";
+
 import {
   Select,
   SelectContent,
@@ -17,23 +17,32 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import useAuthGuard from "@/hooks/useAuthGuard";
 
-import { Product } from "@/types/product";
+interface Product {
+  _id?: string;
+  name: string;
+  sku?: string;
+  // barcode?: string;
+  category?: string;
+  // description?: string;
+  purchasePrice?: string;
+  sellingPrice: string;
+  taxPercent?: string;
+  hsnCode?: string;
+  openingStock?: string;
+  // currentStock?: string;
+  lowStockAlert?: string;
+  unit?: string;
+}
 
 // GST Options
 export const GST_OPTIONS = [
-  { value: "00", label: "None" },
-  { value: "0.0", label: "Exempted" },
+  { value: "None", label: "None" },
+  { value: "Exempted", label: "Exempted" },
   { value: "0", label: "GST @ 0%" },
   { value: "0.1", label: "GST @ 0.1%" },
   { value: "0.25", label: "GST @ 0.25%" },
@@ -74,7 +83,6 @@ export const UNIT_OPTIONS = [
 ];
 
 const defaultForm: Product = {
-  _id: "",
   name: "",
   sku: "",
 
@@ -82,9 +90,7 @@ const defaultForm: Product = {
   category: "",
   // description: "",
   purchasePrice: "",
-  purchasePriceWithTax: false,
   sellingPrice: "",
-  sellingPriceWithTax: true,
   taxPercent: "",
   hsnCode: "",
   openingStock: "",
@@ -92,62 +98,26 @@ const defaultForm: Product = {
   lowStockAlert: "",
   unit: "pcs",
 };
-
-interface AddProductProps {
-  open: boolean;
-  setOpen: (value: boolean) => void;
-  editingProduct: Product | null;
-  setEditingProduct: (p: Product | null) => void;
-  onSave: (savedProduct: Product) => void;
-}
-
-export default function AddProduct({
-  open,
-  setOpen,
-  editingProduct,
-  setEditingProduct,
-  onSave,
-}: AddProductProps) {
+export default function AddProduct() {
   const { user } = useAuthGuard();
 
   const [products, setProducts] = useState<Product[]>([]); //
+  const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<Product>(defaultForm);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null); //
   const [loading, setLoading] = useState(false);
   const [hsn, setHsn] = useState("");
   const [category, setCategory] = useState<{
     _id: string;
     category_name: string;
   } | null>(null);
-  const fetcher = (url: string) => fetch(url).then((r) => r.json());
-  const { data, error, mutate } = useSWR("/api/product", fetcher);
-  // 🔹 Populate form on edit
-  useEffect(() => {
-    if (editingProduct) {
-      setFormData(editingProduct);
-      setCategory(
-        editingProduct.category
-          ? { _id: "", category_name: editingProduct.category }
-          : null
-      );
-      setHsn(editingProduct.hsnCode || "");
-    } else {
-      setFormData(defaultForm);
-      setCategory(null);
-      setHsn("");
-    }
-  }, [editingProduct]);
-
-  useEffect(() => {
-    if (!category?._id) return;
-    (async () => {
-      const res = await fetch(`/api/category/${category._id}`);
-      const data = await res.json();
-      if (data.success) setCategory(data.category);
-    })();
-  }, [category?._id]);
 
   //Form Errors
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Search & filter
+  const [search, setSearch] = useState(""); //
+  const [lowStockOnly, setLowStockOnly] = useState(false); //
 
   // Load products
   useEffect(() => {
@@ -171,27 +141,47 @@ export default function AddProduct({
     if (!isOpen) {
       setFormData(defaultForm);
       setEditingProduct(null);
-      setHsn("");
-      setCategory(null);
-      setErrors({});
     }
   };
 
+  //Fetch Category
+  useEffect(() => {
+    const fetchCategoryName = async () => {
+      try {
+        const res = await fetch(`/api/category/${category}`);
+        const data = await res.json();
+
+        if (data.success && data.category) {
+          setCategory(data.category.category_name);
+        }
+      } catch (error) {
+        console.error("Error fetching category name:", error);
+      }
+    };
+
+    if (category) {
+      fetchCategoryName();
+    }
+  }, [category]);
+
   // Auto-generate SKU
-  const generateSKU = useCallback(() => {
+  const generateSKU = () => {
     const random = Math.floor(Math.random() * 9000 + 1000);
     const namePart = formData.name
       .replace(/\s+/g, "")
       .toUpperCase()
       .slice(0, 3);
     return `${namePart}-${random}`;
-  }, [formData.name]);
+  };
 
   // Prevent negative values but allow empty string
   const handleNumberChange = (key: keyof Product, value: string) => {
-    if (value === "" || /^[0-9]*\.?[0-9]*$/.test(value)) {
-      setFormData({ ...formData, [key]: value });
+    if (value === "") {
+      setFormData({ ...formData, [key]: "" });
+      return;
     }
+    const num = Math.max(0, Number(value) || 0);
+    setFormData({ ...formData, [key]: String(num) });
   };
 
   // Reusable function to set error for a field
@@ -202,76 +192,63 @@ export default function AddProduct({
     }));
   };
 
-  // Validate form data
+  //Validate
   const validate = () => {
     let valid = true;
-
-    // Name validation
     if (!formData.name.trim()) {
       setErrors((prev) => ({ ...prev, name: "Name is required" }));
       valid = false;
     } else {
       setErrors((prev) => ({ ...prev, name: "" }));
     }
-
-    // Selling Price validation
     if (!formData.sellingPrice || Number(formData.sellingPrice) <= 0) {
       setErrors((prev) => ({
         ...prev,
-        sellingPrice: "Selling Price must be greater than 0",
+        sellingPrice: "Selling Price must be > 0",
       }));
       valid = false;
     } else {
       setErrors((prev) => ({ ...prev, sellingPrice: "" }));
     }
-
-    // Purchase Price validation
     if (formData.purchasePrice && Number(formData.purchasePrice) < 0) {
       setFieldError("purchasePrice", "Purchase Price cannot be negative");
       valid = false;
-    } else {
-      setFieldError("purchasePrice", "");
-    }
+    } else setFieldError("purchasePrice", "");
 
-    // Opening Stock validation
     if (formData.openingStock && Number(formData.openingStock) < 0) {
       setFieldError("openingStock", "Opening Stock cannot be negative");
       valid = false;
     } else {
       setFieldError("openingStock", "");
     }
-
-    // Low Stock Alert validation
     if (formData.lowStockAlert && Number(formData.lowStockAlert) < 0) {
       setFieldError("lowStockAlert", "Low Stock Alert cannot be negative");
       valid = false;
     } else {
       setFieldError("lowStockAlert", "");
     }
-
-    // Category validation (use actual category state from combobox)
-    if (!category?.category_name) {
+    if (!formData.category) {
       setFieldError("category", "Category is required");
       valid = false;
     } else {
       setFieldError("category", "");
     }
-
     return valid;
   };
 
   // Save or update product
-  const handleSaveProduct = async (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    if (!validate()) return;
-
     const payload = {
       ...formData,
-      sku: formData.sku || generateSKU(),
       category: category?.category_name || "",
       hsnCode: hsn,
-      openingStock: formData.openingStock || "0",
     };
+    if (validate()) {
+      console.log("Form submitted", payload);
+    }
+
+    if (!formData.sku) formData.sku = generateSKU();
 
     setLoading(true);
     try {
@@ -284,46 +261,116 @@ export default function AddProduct({
         method,
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...formData,
+          category: category?.category_name || "",
+          hsnCode: hsn,
+          openingStock: formData.openingStock ?? 0,
+        }),
       });
 
       const data = await res.json();
-      if (data.success && data.product) {
-        toast.success(editingProduct ? "Product updated" : "Product added");
-        onSave(data.product);
+
+      if (data.success) {
+        if (editingProduct) {
+          setProducts(
+            products.map((p) =>
+              p._id === editingProduct._id ? data.product : p
+            )
+          );
+          toast.success("Product updated successfully");
+        } else {
+          setProducts([...products, data.product]);
+          toast.success("Product added successfully");
+        }
+
         setFormData(defaultForm);
         setEditingProduct(null);
         setOpen(false);
       } else {
-        toast.error(data.error || "Failed to save product");
+        toast.error(data.error || "Something went wrong");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save product. Try again.");
+      toast.error("Failed to save product");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleEdit = (product: Product) => {
+    setEditingProduct(product);
+    setFormData(product);
+    setOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+    try {
+      const res = await fetch(`/api/product?id=${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProducts(products.filter((p) => p._id !== id));
+        toast.success("Product deleted successfully");
+      } else toast.error(data.error || "Failed to delete product");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete product");
+    }
+  };
+
+  // Filtered products
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const matchesSearch =
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        (p.sku || "").toLowerCase().includes(search.toLowerCase()) ||
+        (p.category || "").toLowerCase().includes(search.toLowerCase());
+
+      const matchesStock = lowStockOnly
+        ? Number(p.openingStock || 0) <= Number(p.lowStockAlert || 0)
+        : true;
+
+      return matchesSearch && matchesStock;
+    });
+  }, [products, search, lowStockOnly]);
+
+  const totalProducts = products.length;
+  const lowStockCount = products.filter(
+    (p) => Number(p.openingStock || 0) <= Number(p.lowStockAlert || 0)
+  ).length;
+
   const [activeForm, setActiveForm] = useState("basic"); // default form
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogChange}>
-      <DialogContent
-        className="sm:max-w-max min-w-5xl max-w-lg h-[80vh] mx-auto px-6 rounded-2xl shadow-lg flex flex-col"
-        aria-describedby="dialog-description"
-      >
-        <DialogHeader className="w-full text-center">
-          <DialogTitle>
-            {editingProduct ? "Edit Product" : "New Product"}
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSaveProduct} className="space-y-4">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <Dialog open={open} onOpenChange={handleDialogChange}>
+        <DialogTrigger asChild>
+          <Button
+            className="cursor-pointer"
+            onClick={() => {
+              setFormData(defaultForm);
+              setEditingProduct(null);
+            }}
+          >
+            Add Product
+          </Button>
+        </DialogTrigger>
+
+        {/* Product Form */}
+        <DialogContent className="sm:max-w-max min-w-5xl max-w-lg h-[80vh] mx-auto px-6 rounded-2xl shadow-lg flex flex-col">
+          <DialogHeader className="w-full text-center">
+            <DialogTitle>
+              {editingProduct ? "Edit Product" : "New Product"}
+            </DialogTitle>
+          </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-[25%_75%] gap-3 w-full overflow-x-hidden h-max">
             {/* Parent Left Column */}
             <div className="w-max h-max border border-gray-500 rounded-md p-4 flex flex-col gap-2">
               <Button
-                type="button"
                 disabled={loading}
                 onClick={() => setActiveForm("basic")}
                 className={`w-48 cursor-pointer transition-colors duration-200 ${
@@ -358,7 +405,6 @@ export default function AddProduct({
               <div className="flex flex-col gap-5">
                 <h3 className="px-2 text-md">Advance Details</h3>
                 <Button
-                  type="button"
                   disabled={loading}
                   onClick={() => setActiveForm("stock")}
                   className={`w-48 cursor-pointer transition-colors duration-200 ${
@@ -396,7 +442,6 @@ export default function AddProduct({
                   Stock Details
                 </Button>
                 <Button
-                  type="button"
                   disabled={loading}
                   onClick={() => setActiveForm("price")}
                   className={`w-48 cursor-pointer transition-colors duration-200 ${
@@ -479,76 +524,37 @@ export default function AddProduct({
                     </div>
                   </div>
 
-                  {/* Selling Price  */}
-                  <div className="flex flex-col space-y-1 p-2 w-80">
-                    <label className="text-sm font-medium mb-1">
-                      Selling Price
+                  {/* Selling Price */}
+                  <div className="flex flex-col space-y-1 p-2">
+                    <label className="text-sm font-medium">
+                      Selling Price *
                     </label>
-                    <div className="flex w-full border border-gray-300 rounded-md overflow-hidden">
-                      {/* Price Input - 75% */}
-                      <div className="relative flex items-center flex-[3]">
-                        <span className="absolute left-3 text-gray-500">₹</span>
-                        <Input
-                          type="number"
-                          name="sellingPrice"
-                          placeholder="ex: ₹200"
-                          min={0}
-                          value={formData.sellingPrice ?? ""}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              sellingPrice: e.target.value,
-                            })
-                          }
-                          className="pl-8 pr-2 w-full border-none rounded-none"
-                          required
-                        />
-                      </div>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Selling Price"
+                      value={formData.sellingPrice ?? ""}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          sellingPrice: e.target.value,
+                        });
 
-                      {/* Dropdown - 25% */}
-                      <div className="flex-[1]">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full h-full flex justify-between items-center border-l border-gray-300 rounded-none rounded-r-md px-2"
-                            >
-                              {formData.sellingPriceWithTax
-                                ? "With Tax"
-                                : "Without Tax"}
-                              <ChevronDown className="ml-1 h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-
-                          <DropdownMenuContent className="w-full">
-                            <DropdownMenuItem
-                              className="whitespace-normal break-words"
-                              onSelect={() =>
-                                setFormData({
-                                  ...formData,
-                                  sellingPriceWithTax: true,
-                                })
-                              }
-                            >
-                              With Tax
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="whitespace-normal break-words"
-                              onSelect={() =>
-                                setFormData({
-                                  ...formData,
-                                  sellingPriceWithTax: false,
-                                })
-                              }
-                            >
-                              Without Tax
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
+                        // clear error if user typed something non-empty
+                        if (
+                          errors.sellingPrice &&
+                          e.target.value.trim() !== ""
+                        ) {
+                          setErrors((prev) => ({ ...prev, sellingPrice: "" }));
+                        }
+                      }}
+                      className={errors.sellingPrice ? "border-red-500" : ""}
+                      required
+                    />
                     {errors.sellingPrice && (
-                      <p className="text-red-500 text-sm">{errors.sellingPrice}</p>
+                      <p className="text-red-500 text-sm">
+                        {errors.sellingPrice}
+                      </p>
                     )}
                   </div>
 
@@ -579,7 +585,7 @@ export default function AddProduct({
                 </div>
 
                 {/* Right Column */}
-                <div className="space-y-3.5">
+                <div className="space-y-4">
                   {/* Category */}
                   <div className="flex flex-col space-y-1 p-2">
                     <label className="text-sm font-medium">Category</label>
@@ -594,41 +600,30 @@ export default function AddProduct({
                     <label className="text-sm font-medium">
                       GST Tax Rate(%)
                     </label>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="flex justify-between items-center w-[180px] p-1 px-2 border border-gray-300 rounded-lg shadow-sm text-gray-500 hover:border-gray-400 hover:shadow-md transition-all duration-200">
-                          {formData.taxPercent
-                            ? GST_OPTIONS.find(
-                                (opt) =>
-                                  String(opt.value) ===
-                                  String(formData.taxPercent)
-                              )?.label
-                            : "Select GST %"}
-                          <ChevronDown className="ml-2 w-4 h-4 text-gray-500" />
-                        </button>
-                      </DropdownMenuTrigger>
-
-                      <DropdownMenuContent className="mt-2 w-[180px] max-h-60 overflow-y-auto rounded-lg border border-gray-200 shadow-lg bg-white">
+                    <Select
+                      value={String(formData.taxPercent)}
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, taxPercent: val })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60 overflow-y-auto">
                         {GST_OPTIONS.map((option) => (
-                          <DropdownMenuItem
+                          <SelectItem
                             key={option.value}
-                            onSelect={() =>
-                              setFormData({
-                                ...formData,
-                                taxPercent: String(option.value),
-                              })
-                            }
-                            className="cursor-pointer hover:bg-gray-100 p-2 transition-colors"
+                            value={String(option.value)}
                           >
                             {option.label}
-                          </DropdownMenuItem>
+                          </SelectItem>
                         ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Unit */}
-                  <div className="flex flex-col space-y-1 p-2 w-48">
+                  <div className="flex flex-col space-y-1 p-2">
                     <label className="text-sm font-medium">Unit</label>
                     <Select
                       value={formData.unit}
@@ -636,17 +631,12 @@ export default function AddProduct({
                         setFormData({ ...formData, unit: val })
                       }
                     >
-                      <SelectTrigger className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 text-gray-700 hover:border-gray-400 hover:shadow-md transition-all duration-200">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
-
-                      <SelectContent className="w-full max-h-60 overflow-y-auto rounded-md border border-gray-200 shadow-lg bg-white">
+                      <SelectContent>
                         {UNIT_OPTIONS.map((unit) => (
-                          <SelectItem
-                            key={unit}
-                            value={unit}
-                            className="cursor-pointer p-2 hover:bg-indigo-100 transition-colors rounded-md"
-                          >
+                          <SelectItem key={unit} value={unit}>
                             {unit}
                           </SelectItem>
                         ))}
@@ -740,74 +730,24 @@ export default function AddProduct({
             {activeForm === "price" && (
               <div className="border border-gray-500 rounded-md grid grid-cols-1 md:grid-cols-2 gap-3 h-[55vh] min-w-[45vw] w-max overflow-y-scroll">
                 <div className="space-y-4 ">
-                  {/* Selling Price  */}
-                  <div className="flex flex-col space-y-1 p-2 w-80">
-                    <label className="text-sm font-medium mb-1">
-                      Selling Price
+                  {/* Selling Price */}
+                  <div className="flex flex-col space-y-1 p-2">
+                    <label className="text-sm font-medium">
+                      Selling Price *
                     </label>
-                    <div className="flex w-full border border-gray-300 rounded-md overflow-hidden">
-                      {/* Price Input - 75% */}
-                      <div className="relative flex items-center flex-[3]">
-                        <span className="absolute left-3 text-gray-500">₹</span>
-                        <Input
-                          type="number"
-                          name="sellingPrice"
-                          placeholder="ex: ₹200"
-                          min={0}
-                          value={formData.sellingPrice ?? ""}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              sellingPrice: e.target.value,
-                            })
-                          }
-                          className="pl-8 pr-2 w-full border-none rounded-none"
-                          required
-                        />
-                      </div>
-
-                      {/* Dropdown - 25% */}
-                      <div className="flex-[1]">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full h-full flex justify-between items-center border-l border-gray-300 rounded-none rounded-r-md px-2"
-                            >
-                              {formData.sellingPriceWithTax
-                                ? "With Tax"
-                                : "Without Tax"}
-                              <ChevronDown className="ml-1 h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-
-                          <DropdownMenuContent className="w-full">
-                            <DropdownMenuItem
-                              className="whitespace-normal break-words"
-                              onSelect={() =>
-                                setFormData({
-                                  ...formData,
-                                  sellingPriceWithTax: true,
-                                })
-                              }
-                            >
-                              With Tax
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="whitespace-normal break-words"
-                              onSelect={() =>
-                                setFormData({
-                                  ...formData,
-                                  sellingPriceWithTax: false,
-                                })
-                              }
-                            >
-                              Without Tax
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Selling Price"
+                      value={formData.sellingPrice ?? ""}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          sellingPrice: e.target.value,
+                        });
+                      }}
+                      required
+                    />
                   </div>
 
                   {/* GST */}
@@ -815,110 +755,46 @@ export default function AddProduct({
                     <label className="text-sm font-medium">
                       GST Tax Rate(%)
                     </label>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="flex justify-between items-center w-[180px] p-1 px-2 border border-gray-300 rounded-lg shadow-sm text-gray-500 hover:border-gray-400 hover:shadow-md transition-all duration-200">
-                          {formData.taxPercent
-                            ? GST_OPTIONS.find(
-                                (opt) =>
-                                  String(opt.value) ===
-                                  String(formData.taxPercent)
-                              )?.label
-                            : "Select GST %"}
-                          <ChevronDown className="ml-2 w-4 h-4 text-gray-500" />
-                        </button>
-                      </DropdownMenuTrigger>
-
-                      <DropdownMenuContent className="mt-2 w-[180px] max-h-60 overflow-y-auto rounded-lg border border-gray-200 shadow-lg bg-white">
+                    <Select
+                      value={formData.taxPercent || ""}
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, taxPercent: val })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60 overflow-y-auto">
                         {GST_OPTIONS.map((option) => (
-                          <DropdownMenuItem
-                            key={option.value}
-                            onSelect={() =>
-                              setFormData({
-                                ...formData,
-                                taxPercent: String(option.value),
-                              })
-                            }
-                            className="cursor-pointer hover:bg-gray-100 p-2 transition-colors"
-                          >
+                          <SelectItem key={option.value} value={option.value}>
                             {option.label}
-                          </DropdownMenuItem>
+                          </SelectItem>
                         ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
                 {/* Right Column */}
                 <div className="space-y-4">
                   {/* Purchase Price */}
-                  <div className="flex flex-col space-y-1 p-2 w-80">
-                    <label className="text-sm font-medium mb-1">
+                  <div className="flex flex-col space-y-1 p-2">
+                    <label className="text-sm font-medium">
                       Purchase Price
                     </label>
-                    <div className="flex w-full border border-gray-300 rounded-md overflow-hidden">
-                      {/* Price Input - 75% */}
-                      <div className="relative flex items-center flex-[3]">
-                        <span className="absolute left-3 text-gray-500">₹</span>
-                        <Input
-                          type="number"
-                          name="purchasePrice"
-                          placeholder="ex: ₹200"
-                          min={0}
-                          value={formData.purchasePrice ?? ""}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              purchasePrice: e.target.value,
-                            })
-                          }
-                          className="pl-8 pr-2 w-full border-none rounded-none"
-                          required
-                        />
-                      </div>
-
-                      {/* Dropdown - 25% */}
-                      <div className="flex-[1]">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full h-full flex justify-between items-center border-l border-gray-300 rounded-none rounded-r-md px-2"
-                            >
-                              {formData.purchasePriceWithTax
-                                ? "With Tax"
-                                : "Without Tax"}
-                              <ChevronDown className="ml-1 h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-
-                          <DropdownMenuContent className="w-full">
-                            <DropdownMenuItem
-                              className="whitespace-normal break-words"
-                              onSelect={() =>
-                                setFormData({
-                                  ...formData,
-                                  purchasePriceWithTax: true,
-                                })
-                              }
-                            >
-                              With Tax
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="whitespace-normal break-words"
-                              onSelect={() =>
-                                setFormData({
-                                  ...formData,
-                                  purchasePriceWithTax: false,
-                                })
-                              }
-                            >
-                              Without Tax
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="Purchase Price"
+                      value={formData.purchasePrice ?? ""}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          purchasePrice: e.target.value,
+                        });
+                      }}
+                      required
+                    />
                   </div>
                 </div>
               </div>
@@ -929,22 +805,24 @@ export default function AddProduct({
           <div className="mt-2 flex justify-end gap-2">
             {/* Cancel Button */}
             <Button
-              type="button"
-              variant="outline"
+              className="w-max px-10"
+              variant="outline" // Optional: gives a subtle look
               onClick={() => {
-                setEditingProduct(null);
-                setOpen(false);
+                setFormData(defaultForm); // Reset form to default values
+                setEditingProduct(null); // Clear editing state
+                setOpen(false); // Close modal (if applicable)
+                setErrors({}); // Clear errors
               }}
+              disabled={loading} // Disable if saving is in progress
             >
               Cancel
             </Button>
 
             {/* Save/Update Button */}
             <Button
-              type="submit"
               onClick={handleSaveProduct}
               disabled={loading}
-              className="w-max px-20 cursor-pointer"
+              className="w-max px-20"
             >
               {loading
                 ? editingProduct
@@ -955,8 +833,106 @@ export default function AddProduct({
                 : "Save"}
             </Button>
           </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product Table */}
+      <div className="overflow-x-auto border rounded-lg">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                Name
+              </th>
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                SKU
+              </th>
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                HSN
+              </th>
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                GST
+              </th>
+
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                Category
+              </th>
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                Stock
+              </th>
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                Unit
+              </th>
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                Low Stock Alert
+              </th>
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                Purchase Price
+              </th>
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                Selling Price
+              </th>
+              <th className="px-4 py-2 text-center text-sm font-semibold text-gray-700">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {filteredProducts.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="text-center py-4 text-gray-500">
+                  No products found
+                </td>
+              </tr>
+            ) : (
+              filteredProducts.map((p) => (
+                <tr
+                  key={p._id}
+                  className={
+                    Number(p.openingStock || 0) <= Number(p.lowStockAlert || 0)
+                      ? "bg-red-50"
+                      : ""
+                  }
+                >
+                  <td className="px-4 py-2">{p.name}</td>
+                  <td className="px-4 py-2">{p.sku}</td>
+                  <td className="px-4 py-2">{p.hsnCode || "-"}</td>
+                  <td className="px-4 py-2">{p.taxPercent || "-"}</td>
+                  <td className="px-4 py-2">{p.category || "-"}</td>
+                  <td className="px-4 py-2">{p.openingStock || 0}</td>
+                  <td className="px-4 py-2">{p.unit || "-"}</td>
+                  <td className="px-4 py-2">{p.lowStockAlert || "-"}</td>
+                  {/* <td className="px-4 py-2">{p.purchasePrice || "-"}</td> */}
+                  <td className="px-4 py-2">
+                    {Array.isArray(user?.permissions) && user.permissions.includes("viewAmounts")
+                      ? `${p.purchasePrice ?? "-"}`
+                      : "••••"}
+                  </td>
+
+                  <td className="px-4 py-2">{p.sellingPrice || "-"}</td>
+                  <td className="px-4 py-2 text-center space-x-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEdit(p)}
+                    >
+                      Edit
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDelete(p._id!)}
+                    >
+                      Delete
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

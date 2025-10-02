@@ -74,7 +74,7 @@ export default function ProductTable({
               key={p._id}
               className={`${
                 Number(p.openingStock ?? 0) <= Number(p.lowStockAlert ?? 0)
-                  ? "bg-red-200"
+                  ? "!bg-red-200"
                   : ""
               }`}
             >

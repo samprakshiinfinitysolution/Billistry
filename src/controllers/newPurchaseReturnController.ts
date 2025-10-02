@@ -2,6 +2,7 @@
 import { NewPurchaseReturn, INewPurchaseReturn } from '@/models/NewPurchaseReturn';
 import NewPurchase from '@/models/NewPurchase';
 import Product from '@/models/Product';
+import Party from '@/models/Party';
 import Counter from '@/models/Counter';
 import { connectDB } from '@/lib/db';
 import { UserPayload } from '@/lib/middleware/auth';
@@ -62,7 +63,47 @@ export const createNewPurchaseReturn = async (body: NewPurchaseReturnInput, user
   }
 
   const doc = await NewPurchaseReturn.create(createObj);
-  return doc;
+  try {
+    const populated = await NewPurchaseReturn.findById(doc._id)
+      .populate({ path: 'selectedParty', select: 'partyName mobileNumber billingAddress shippingAddress gstin openingBalance balance' })
+      .lean();
+    if (populated && populated.selectedParty && typeof populated.selectedParty === 'object') {
+      const sp = populated.selectedParty as any;
+      populated.selectedParty = {
+        id: sp._id || sp.id,
+        name: sp.partyName || sp.name || '',
+        mobileNumber: sp.mobileNumber || sp.mobile || '',
+        billingAddress: sp.billingAddress || sp.address || sp.shippingAddress || '',
+        shippingAddress: sp.shippingAddress || '',
+        gstin: sp.gstin || '',
+        openingBalance: sp.openingBalance || 0,
+        balance: sp.balance || 0,
+      };
+    }
+    return populated || doc;
+  } catch (err: any) {
+    const raw = await NewPurchaseReturn.findById(doc._id).lean();
+    if (raw && raw.selectedParty && mongoose.connection && mongoose.connection.db) {
+      try {
+        const p = await mongoose.connection.db.collection('parties').findOne({ _id: new mongoose.Types.ObjectId(String(raw.selectedParty)) }, { projection: { partyName: 1, mobileNumber: 1, billingAddress: 1, shippingAddress: 1, gstin: 1, openingBalance: 1, balance: 1 } });
+        if (p) {
+          raw.selectedParty = {
+            id: p._id,
+            name: p.partyName || '',
+            mobileNumber: p.mobileNumber || '',
+            billingAddress: p.billingAddress || p.address || p.shippingAddress || '',
+            shippingAddress: p.shippingAddress || '',
+            gstin: p.gstin || '',
+            openingBalance: p.openingBalance || 0,
+            balance: p.balance || 0,
+          };
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    return raw || doc;
+  }
 };
 
 export const getNextPurchaseReturnInvoicePreview = async (user: UserPayload) => {
@@ -82,12 +123,50 @@ export const getAllNewPurchaseReturns = async (user: UserPayload, options?: { in
   if (!user?.userId || !user?.businessId) throw new Error('Unauthorized');
   const includeDeleted = options?.includeDeleted === true;
 
-  const docs = await NewPurchaseReturn.find({ business: user.businessId, isDeleted: includeDeleted ? { $in: [true, false] } : false })
-    .sort({ createdAt: -1 })
-    .populate({ path: 'selectedParty', select: 'partyName mobileNumber' })
-    .lean();
+  let docs: any[] = [];
+  try {
+    docs = await NewPurchaseReturn.find({ business: user.businessId, isDeleted: includeDeleted ? { $in: [true, false] } : false })
+      .sort({ createdAt: -1 })
+      .populate({ path: 'selectedParty', select: 'partyName mobileNumber billingAddress shippingAddress gstin openingBalance balance' })
+      .lean();
+  } catch (err: any) {
+    console.warn('getAllNewPurchaseReturns: populate failed, falling back to manual party lookup:', err?.message || err);
+    docs = await NewPurchaseReturn.find({ business: user.businessId, isDeleted: includeDeleted ? { $in: [true, false] } : false }).sort({ createdAt: -1 }).lean();
 
-  return docs;
+    const ids = Array.from(new Set(docs.map((d: any) => (d.selectedParty ? String(d.selectedParty) : '')).filter(Boolean))) as string[];
+    const partiesMap: Record<string, any> = {};
+    if (ids.length > 0 && mongoose.connection && mongoose.connection.db) {
+      const bsonIds = ids.map(id => new mongoose.Types.ObjectId(id));
+      const parties = await mongoose.connection.db.collection('parties').find({ _id: { $in: bsonIds } }, { projection: { partyName: 1, mobileNumber: 1, billingAddress: 1, shippingAddress: 1, gstin: 1, openingBalance: 1, balance: 1 } }).toArray();
+      for (const p of parties) partiesMap[String(p._id)] = p;
+    }
+
+    for (const d of docs) {
+      if (d.selectedParty) {
+        const key = String(d.selectedParty);
+        if (partiesMap[key]) d.selectedParty = partiesMap[key];
+      }
+    }
+  }
+
+  const normalized = (docs || []).map((d: any) => {
+    if (d.selectedParty && typeof d.selectedParty === 'object') {
+      const sp = d.selectedParty;
+      d.selectedParty = {
+        id: sp._id || sp.id,
+        name: sp.partyName || sp.name || '',
+        mobileNumber: sp.mobileNumber || sp.mobile || '',
+        billingAddress: sp.billingAddress || sp.address || sp.shippingAddress || '',
+        shippingAddress: sp.shippingAddress || '',
+        gstin: sp.gstin || '',
+        openingBalance: sp.openingBalance || 0,
+        balance: sp.balance || 0,
+      };
+    }
+    return d;
+  });
+
+  return normalized;
 };
 
 export const getNewPurchaseReturnById = async (id: string, user: UserPayload) => {
@@ -97,10 +176,24 @@ export const getNewPurchaseReturnById = async (id: string, user: UserPayload) =>
   if (!mongoose.Types.ObjectId.isValid(id)) throw new Error('Invalid id');
 
   const doc = await NewPurchaseReturn.findOne({ _id: id, business: user.businessId, isDeleted: false })
-    .populate({ path: 'selectedParty', select: 'partyName mobileNumber' })
+    .populate({ path: 'selectedParty', select: 'partyName mobileNumber billingAddress shippingAddress gstin openingBalance balance' })
     .lean();
 
   if (!doc) throw new Error('Not found or unauthorized');
+
+  if (doc.selectedParty && typeof doc.selectedParty === 'object') {
+    const sp = doc.selectedParty as any;
+    doc.selectedParty = {
+      id: sp._id || sp.id,
+      name: sp.partyName || sp.name || '',
+      mobileNumber: sp.mobileNumber || sp.mobile || '',
+      billingAddress: sp.billingAddress || sp.address || sp.shippingAddress || '',
+      shippingAddress: sp.shippingAddress || '',
+      gstin: sp.gstin || '',
+      openingBalance: sp.openingBalance || 0,
+      balance: sp.balance || 0,
+    };
+  }
 
   return doc;
 };
@@ -205,7 +298,47 @@ export const updateNewPurchaseReturn = async (id: string, body: any, user: UserP
 
   Object.assign(doc, body, { updatedBy: (user.userId as any) });
   await doc.save();
-  return doc;
+  try {
+    const populated = await NewPurchaseReturn.findById(doc._id)
+      .populate({ path: 'selectedParty', select: 'partyName mobileNumber billingAddress shippingAddress gstin openingBalance balance' })
+      .lean();
+    if (populated && populated.selectedParty && typeof populated.selectedParty === 'object') {
+      const sp = populated.selectedParty as any;
+      populated.selectedParty = {
+        id: sp._id || sp.id,
+        name: sp.partyName || sp.name || '',
+        mobileNumber: sp.mobileNumber || sp.mobile || '',
+        billingAddress: sp.billingAddress || sp.address || sp.shippingAddress || '',
+        shippingAddress: sp.shippingAddress || '',
+        gstin: sp.gstin || '',
+        openingBalance: sp.openingBalance || 0,
+        balance: sp.balance || 0,
+      };
+    }
+    return populated || doc;
+  } catch (err: any) {
+    const raw = await NewPurchaseReturn.findById(doc._id).lean();
+    if (raw && raw.selectedParty && mongoose.connection && mongoose.connection.db) {
+      try {
+        const p = await mongoose.connection.db.collection('parties').findOne({ _id: new mongoose.Types.ObjectId(String(raw.selectedParty)) }, { projection: { partyName: 1, mobileNumber: 1, billingAddress: 1, shippingAddress: 1, gstin: 1, openingBalance: 1, balance: 1 } });
+        if (p) {
+          raw.selectedParty = {
+            id: p._id,
+            name: p.partyName || '',
+            mobileNumber: p.mobileNumber || '',
+            billingAddress: p.billingAddress || p.address || p.shippingAddress || '',
+            shippingAddress: p.shippingAddress || '',
+            gstin: p.gstin || '',
+            openingBalance: p.openingBalance || 0,
+            balance: p.balance || 0,
+          };
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    return raw || doc;
+  }
 };
 
 export const deleteNewPurchaseReturn = async (id: string, user: UserPayload) => {

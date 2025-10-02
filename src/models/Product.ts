@@ -6,11 +6,12 @@ export interface IProduct extends Document {
   name: string;
   sku?: string;
   barcode?: string;
-  // category?: string;
-  category?: mongoose.Types.ObjectId; // <-- reference to Category
+  category?: string;
   description?: string;
   purchasePrice?: number;
+  purchasePriceWithTax: boolean;
   sellingPrice: number;
+  sellingPriceWithTax: boolean;
   taxPercent?: number;   // GST %
   hsnCode?: string;      // HSN Code for GST
   openingStock?: number; // Initial stock
@@ -28,11 +29,12 @@ const ProductSchema = new Schema<IProduct>(
     name: { type: String, required: true, index: true },
     sku: { type: String, index: true },
     barcode: { type: String, index: true },
-    // category: { type: String, index: true },
-    category: { type: Schema.Types.ObjectId, ref: "Category", index: true }, // relation
+    category: { type: String, index: true },
     description: { type: String },
     purchasePrice: { type: Number },
+    purchasePriceWithTax : { type: Boolean, default: true },
     sellingPrice: { type: Number, required: true },
+    sellingPriceWithTax: { type: Boolean, default: true },
     taxPercent: { type: Number, default: 0 }, // GST %
     hsnCode: { type: String, index: true },   // HSN code
     openingStock: { type: Number, default: 0 },

@@ -46,7 +46,6 @@ interface Supplier {
   name: string;
   phone?: string;
   email?: string;
-
 }
 
 interface Item {

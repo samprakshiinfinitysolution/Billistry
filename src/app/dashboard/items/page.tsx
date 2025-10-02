@@ -698,6 +698,10 @@
 
 
 
+<<<<<<< HEAD
+// "use client";
+=======
+<<<<<<< HEAD
 // "use client";
 
 // import {
@@ -1099,3 +1103,419 @@
 //     </div>
 //   );
 // }
+=======
+"use client";
+>>>>>>> 3cfecf3c8e12ea107b03bcb7f8949aaf453d14ed
+
+// import {
+//   Input,
+//   Button,
+//   Label,
+//   Select,
+//   SelectTrigger,
+//   SelectContent,
+//   SelectItem,
+//   SelectValue,
+//   Card,
+//   CardHeader,
+//   CardTitle,
+//   CardContent,
+// } from "@/components/ui"; // adjust path if needed
+
+// import React, { useState, useEffect, useMemo } from "react";
+
+// interface Item {
+//   _id: string;
+//   name: string;
+//   photo?: string;
+//   unit: string;
+//   purchasePrice: number;
+//   mrp: number;
+//   openingStock: number;
+//   lowStockAlert: number;
+//   hsnCode?: string;
+//   gstRate?: number;
+//   createdAt: string;
+//   updatedAt: string;
+// }
+
+// const unitOptions = ["pcs", "kg", "litre", "meter", "box"];
+
+// export default function ItemsPage() {
+//   const [items, setItems] = useState<Item[]>([]);
+//   const [newItem, setNewItem] = useState<Partial<Item>>({});
+//   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+//   const [searchTerm, setSearchTerm] = useState("");
+//   const [sortKey, setSortKey] = useState<keyof Item>("name");
+//   const [sortAsc, setSortAsc] = useState(true);
+//   const [currentPage, setCurrentPage] = useState(1);
+//   const [loading, setLoading] = useState(false);
+//   const itemsPerPage = 5;
+
+//   useEffect(() => {
+//     fetchItems();
+//   }, []);
+
+//   const fetchItems = async () => {
+//     setLoading(true);
+//     try {
+//       const res = await fetch("/api/items");
+//       if (!res.ok) throw new Error("Failed to fetch items");
+//       const data = await res.json();
+//       if (Array.isArray(data)) setItems(data);
+//     } catch (err) {
+//       console.error("Fetch failed:", err);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   const handleAddOrUpdateItem = async () => {
+//     const requiredFields: (keyof Item)[] = [
+//       "name",
+//       "unit",
+//       "mrp",
+//       "openingStock",
+//       "purchasePrice",
+//       "lowStockAlert",
+//     ];
+
+//     const isValid = requiredFields.every(
+//       (field) => newItem[field] !== undefined && newItem[field] !== ""
+//     );
+//     if (!isValid) {
+//       alert("Please fill all required fields.");
+//       return;
+//     }
+
+//     const method = editingItemId ? "PUT" : "POST";
+//     const url = editingItemId ? `/api/items/${editingItemId}` : "/api/items";
+
+//     try {
+//       const res = await fetch(url, {
+//         method,
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify(newItem),
+//       });
+//       if (!res.ok) throw new Error("Save failed");
+//       setNewItem({});
+//       setEditingItemId(null);
+//       fetchItems();
+//     } catch (err) {
+//       console.error("Save failed:", err);
+//     }
+//   };
+
+//   const handleDeleteItem = async (id: string) => {
+//     if (!confirm("Are you sure you want to delete this item?")) return;
+//     try {
+//       const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
+//       if (!res.ok) throw new Error("Delete failed");
+//       fetchItems();
+//     } catch (err) {
+//       console.error("Delete failed:", err);
+//     }
+//   };
+
+//   const handleEdit = (item: Item) => {
+//     setNewItem(item);
+//     setEditingItemId(item._id);
+//   };
+
+//   const handleStockChange = async (
+//     id: string,
+//     type: "increase" | "decrease"
+//   ) => {
+//     try {
+//       const res = await fetch(`/api/items/${id}`, {
+//         method: "PATCH",
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify({ type }),
+//       });
+//       if (!res.ok) throw new Error("Stock update failed");
+//       fetchItems();
+//     } catch (err) {
+//       console.error("Stock update failed:", err);
+//     }
+//   };
+
+//   const filteredItems = useMemo(() => {
+//     return items
+//       .filter((i) => i.name.toLowerCase().includes(searchTerm.toLowerCase()))
+//       .sort((a, b) => {
+//         const aVal = a[sortKey];
+//         const bVal = b[sortKey];
+//         if (aVal < bVal) return sortAsc ? -1 : 1;
+//         if (aVal > bVal) return sortAsc ? 1 : -1;
+//         return 0;
+//       });
+//   }, [items, searchTerm, sortKey, sortAsc]);
+
+//   const paginatedItems = useMemo(() => {
+//     const start = (currentPage - 1) * itemsPerPage;
+//     return filteredItems.slice(start, start + itemsPerPage);
+//   }, [filteredItems, currentPage]);
+
+//   const lowStockItems = items.filter(
+//     (i) => i.openingStock <= i.lowStockAlert
+//   );
+//   const totalStockValue = items.reduce(
+//     (sum, item) => sum + item.purchasePrice * item.openingStock,
+//     0
+//   );
+
+//   return (
+//     <div className="p-6 space-y-6">
+//       <h1 className="text-3xl font-bold">📦 Inventory Management</h1>
+
+//       {/* Form */}
+//       <Card>
+//         <CardHeader>
+//           <CardTitle>{editingItemId ? "Edit Item" : "Add New Item"}</CardTitle>
+//         </CardHeader>
+//         <CardContent>
+//           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+//             <Input
+//               placeholder="Name"
+//               value={newItem.name || ""}
+//               onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+//             />
+//             <Input
+//               placeholder="Photo URL"
+//               value={newItem.photo || ""}
+//               onChange={(e) => setNewItem({ ...newItem, photo: e.target.value })}
+//             />
+//             <Select
+//               value={newItem.unit || ""}
+//               onValueChange={(val) => setNewItem({ ...newItem, unit: val })}
+//             >
+//               <SelectTrigger>
+//                 <SelectValue placeholder="Unit" />
+//               </SelectTrigger>
+//               <SelectContent>
+//                 {unitOptions.map((unit) => (
+//                   <SelectItem key={unit} value={unit}>
+//                     {unit}
+//                   </SelectItem>
+//                 ))}
+//               </SelectContent>
+//             </Select>
+//             <Input
+//               type="number"
+//               placeholder="Opening Stock"
+//               value={newItem.openingStock ?? ""}
+//               onChange={(e) =>
+//                 setNewItem({
+//                   ...newItem,
+//                   openingStock: Number(e.target.value),
+//                 })
+//               }
+//             />
+//             <Input
+//               type="number"
+//               placeholder="Purchase Price"
+//               value={newItem.purchasePrice ?? ""}
+//               onChange={(e) =>
+//                 setNewItem({
+//                   ...newItem,
+//                   purchasePrice: Number(e.target.value),
+//                 })
+//               }
+//             />
+//             <Input
+//               type="number"
+//               placeholder="MRP"
+//               value={newItem.mrp ?? ""}
+//               onChange={(e) =>
+//                 setNewItem({ ...newItem, mrp: Number(e.target.value) })
+//               }
+//             />
+//             <Input
+//               type="number"
+//               placeholder="Low Stock Alert"
+//               value={newItem.lowStockAlert ?? ""}
+//               onChange={(e) =>
+//                 setNewItem({
+//                   ...newItem,
+//                   lowStockAlert: Number(e.target.value),
+//                 })
+//               }
+//             />
+//             <Input
+//               placeholder="HSN Code"
+//               value={newItem.hsnCode || ""}
+//               onChange={(e) =>
+//                 setNewItem({ ...newItem, hsnCode: e.target.value })
+//               }
+//             />
+//             <Input
+//               type="number"
+//               placeholder="GST Rate (%)"
+//               value={newItem.gstRate ?? ""}
+//               onChange={(e) =>
+//                 setNewItem({
+//                   ...newItem,
+//                   gstRate: Number(e.target.value),
+//                 })
+//               }
+//             />
+//             <Button onClick={handleAddOrUpdateItem} className="col-span-2">
+//               {editingItemId ? "Update" : "Add Item"}
+//             </Button>
+//           </div>
+//         </CardContent>
+//       </Card>
+
+//       {/* Filters */}
+//       <div className="flex items-center justify-between gap-4 flex-wrap">
+//         <Input
+//           className="max-w-xs"
+//           placeholder="Search items..."
+//           value={searchTerm}
+//           onChange={(e) => setSearchTerm(e.target.value)}
+//         />
+//         <div className="flex gap-2">
+//           <Select
+//             value={sortKey}
+//             onValueChange={(val) => setSortKey(val as keyof Item)}
+//           >
+//             <SelectTrigger>
+//               <SelectValue placeholder="Sort by" />
+//             </SelectTrigger>
+//             <SelectContent>
+//               <SelectItem value="name">Name</SelectItem>
+//               <SelectItem value="openingStock">Opening Stock</SelectItem>
+//               <SelectItem value="purchasePrice">Purchase Price</SelectItem>
+//             </SelectContent>
+//           </Select>
+//           <Button variant="outline" onClick={() => setSortAsc(!sortAsc)}>
+//             {sortAsc ? "↑ Asc" : "↓ Desc"}
+//           </Button>
+//         </div>
+//       </div>
+
+//       {/* Table */}
+//       {loading ? (
+//         <div className="text-center py-10">Loading...</div>
+//       ) : (
+//         <div className="overflow-auto rounded border">
+//           <table className="min-w-full text-sm">
+//             <thead className="bg-gray-100">
+//               <tr>
+//                 {[
+//                   "Photo",
+//                   "Name",
+//                   "Unit",
+//                   "Opening Stock",
+//                   "MRP",
+//                   "Purchase",
+//                   "Low",
+//                   "HSN",
+//                   "GST%",
+//                   "Actions",
+//                 ].map((h, i) => (
+//                   <th key={i} className="p-2 text-left border">
+//                     {h}
+//                   </th>
+//                 ))}
+//               </tr>
+//             </thead>
+//             <tbody>
+//               {paginatedItems.map((item) => (
+//                 <tr
+//                   key={item._id}
+//                   className={
+//                     item.openingStock <= item.lowStockAlert ? "bg-red-50" : ""
+//                   }
+//                 >
+//                   <td className="p-2 border">
+//                     {item.photo ? (
+//                       <img
+//                         src={item.photo}
+//                         alt={item.name}
+//                         className="w-10 h-10 object-cover rounded"
+//                       />
+//                     ) : (
+//                       "-"
+//                     )}
+//                   </td>
+//                   <td className="p-2 border">{item.name}</td>
+//                   <td className="p-2 border">{item.unit}</td>
+//                   <td className="p-2 border">{item.openingStock}</td>
+//                   <td className="p-2 border">₹{item.mrp}</td>
+//                   <td className="p-2 border">₹{item.purchasePrice}</td>
+//                   <td className="p-2 border">{item.lowStockAlert}</td>
+//                   <td className="p-2 border">{item.hsnCode || "-"}</td>
+//                   <td className="p-2 border">{item.gstRate ?? "-"}</td>
+//                   <td className="p-2 border space-x-1">
+//                     <Button
+//                       size="sm"
+//                       onClick={() => handleStockChange(item._id, "increase")}
+//                     >
+//                       +
+//                     </Button>
+//                     <Button
+//                       size="sm"
+//                       onClick={() => handleStockChange(item._id, "decrease")}
+//                     >
+//                       -
+//                     </Button>
+//                     <Button size="sm" onClick={() => handleEdit(item)}>
+//                       Edit
+//                     </Button>
+//                     <Button
+//                       size="sm"
+//                       variant="destructive"
+//                       onClick={() => handleDeleteItem(item._id)}
+//                     >
+//                       Delete
+//                     </Button>
+//                   </td>
+//                 </tr>
+//               ))}
+//             </tbody>
+//           </table>
+//         </div>
+//       )}
+
+//       {/* Pagination */}
+//       <div className="flex justify-between items-center pt-4">
+//         <p>Total Stock Value: ₹{totalStockValue.toFixed(2)}</p>
+//         <div className="space-x-1">
+//           {Array.from({
+//             length: Math.ceil(filteredItems.length / itemsPerPage),
+//           }).map((_, i) => (
+//             <Button
+//               key={i}
+//               variant={currentPage === i + 1 ? "default" : "outline"}
+//               size="sm"
+//               onClick={() => setCurrentPage(i + 1)}
+//             >
+//               {i + 1}
+//             </Button>
+//           ))}
+//         </div>
+//       </div>
+
+<<<<<<< HEAD
+//       {/* Low Stock Notice */}
+//       {lowStockItems.length > 0 && (
+//         <div className="bg-red-100 text-red-800 p-3 rounded mt-4">
+//           ⚠️ {lowStockItems.length} item(s) are below low-stock threshold.
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
+=======
+      {/* Low Stock Notice */}
+      {lowStockItems.length > 0 && (
+        <div className="bg-red-100 text-red-800 p-3 rounded mt-4">
+          ⚠️ {lowStockItems.length} item(s) are below low-stock threshold.
+        </div>
+      )}
+    </div>
+  );
+}
+>>>>>>> dcc59acd5f59524ac9f5cc4448fa122e42a677b1
+>>>>>>> 3cfecf3c8e12ea107b03bcb7f8949aaf453d14ed

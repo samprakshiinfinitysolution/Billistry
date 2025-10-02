@@ -285,8 +285,10 @@ const reportSections = [
   {
     title: "Bills Reports",
     links: [
-      { name: "Sales Report", href: "/dashboard/reports/bills/sale" },
-      { name: "Purchase Report", href: "/dashboard/reports/bills/purchase" },
+      { name: "Sales Summary", href: "/dashboard/reports/sale" },
+      { name: "Purchase Summary", href: "/dashboard/reports/purchase" },
+      { name: "Stock Summary", href: "/dashboard/reports/inventory/stock-summary" },
+      { name: "Low Stock Summary", href: "/dashboard/reports/inventory/low-stock" },
       // { name: "Cashbook Report", href: "/dashboard/reports/bills/cashbook" },
     ],
   },
