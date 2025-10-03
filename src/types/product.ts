@@ -6,6 +6,7 @@ export type Product = {
   hsnCode: string;
   taxPercent: string | number;
   category: string;
+  currentStock: string | number | null;
   openingStock: string | number | null;
   unit: string;
   lowStockAlert: string | number | null ;

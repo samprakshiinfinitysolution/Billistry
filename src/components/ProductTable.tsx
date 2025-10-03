@@ -47,7 +47,7 @@ export default function ProductTable({
           <TableHead>HSN Code</TableHead>
           <TableHead>GST (%)</TableHead>
           <TableHead>Category</TableHead>
-          <TableHead>Opening Stock</TableHead>
+          <TableHead>Current Stock</TableHead>
           <TableHead>Unit</TableHead>
           <TableHead>Low Stock Alert</TableHead>
           <TableHead>Purchase Price</TableHead>
@@ -84,7 +84,7 @@ export default function ProductTable({
               <TableCell>{p.hsnCode || "-"}</TableCell>
               <TableCell>{p.taxPercent || "-"}</TableCell>
               <TableCell>{p.category || "-"}</TableCell>
-              <TableCell>{p.openingStock || 0}</TableCell>
+              <TableCell>{p.currentStock || 0}</TableCell>
               <TableCell>{p.unit || "-"}</TableCell>
               <TableCell>{p.lowStockAlert || "-"}</TableCell>
               <TableCell>{p.purchasePrice || "-"}</TableCell>

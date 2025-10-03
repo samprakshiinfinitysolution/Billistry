@@ -4,8 +4,10 @@ import { Search, ClipboardX } from 'lucide-react';
 
 // Interfaces and Types
 export interface Invoice {
+    id?: string;
     date: string;
     invoiceNo: string;
+    invoiceNumber?: number;
     amount: number;
 }
 
@@ -46,10 +48,11 @@ const formatCurrency = (amount: number) => {
 interface LinkToInvoiceProps {
     invoiceList: Invoice[];
     searchTerm: string;
-    onSearchTermChange: (term: string) => void;
+    onSearchTermChange?: (term: string) => void;
+    onSelectInvoice?: (invoice: Invoice) => void;
 }
 
-export const LinkToInvoice = ({ invoiceList, searchTerm, onSearchTermChange }: LinkToInvoiceProps) => {
+export const LinkToInvoice = ({ invoiceList, searchTerm, onSearchTermChange, onSelectInvoice }: LinkToInvoiceProps) => {
     const [showSearchedInvoices, setShowSearchedInvoices] = useState(false);
     const invoiceSearchRef = useRef<HTMLDivElement>(null);
 
@@ -66,16 +69,17 @@ export const LinkToInvoice = ({ invoiceList, searchTerm, onSearchTermChange }: L
         };
     }, []);
 
-    const handleSelectInvoice = (invoiceNo: string) => {
-        onSearchTermChange(invoiceNo);
+    const handleSelectInvoice = (invoice: Invoice) => {
+        if (onSelectInvoice) onSelectInvoice(invoice);
+        else if (onSearchTermChange) onSearchTermChange(invoice.invoiceNo || String(invoice.invoiceNumber || invoice.id || ''));
         setShowSearchedInvoices(false);
     };
 
-    const filteredInvoices = invoiceList.filter(invoice =>
-        invoice.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        invoice.date.includes(searchTerm) ||
-        String(invoice.amount).includes(searchTerm)
-    );
+    const filteredInvoices = invoiceList.filter(invoice => {
+        const invNo = (invoice.invoiceNo || String(invoice.invoiceNumber || '')).toLowerCase();
+        const term = (searchTerm || '').toLowerCase();
+        return invNo.includes(term) || invoice.date.includes(searchTerm) || String(invoice.amount).includes(searchTerm) || (invoice.id && invoice.id.includes(searchTerm));
+    });
 
     return (
         <div className="w-full sm:w-[calc(32rem+1rem)] border rounded-lg p-4 bg-gray-50 space-y-3">
@@ -89,7 +93,7 @@ export const LinkToInvoice = ({ invoiceList, searchTerm, onSearchTermChange }: L
                     placeholder="Search invoices"
                     className="pl-10 bg-white"
                     value={searchTerm}
-                    onChange={(e) => onSearchTermChange(e.target.value)}
+                    onChange={(e) => onSearchTermChange && onSearchTermChange(e.target.value)}
                     onFocus={() => setShowSearchedInvoices(true)}
                 />
                 {showSearchedInvoices && (
@@ -105,9 +109,9 @@ export const LinkToInvoice = ({ invoiceList, searchTerm, onSearchTermChange }: L
                             <tbody>
                                 {filteredInvoices.length > 0 ? (
                                     filteredInvoices.map((invoice, index) => (
-                                        <tr key={index} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleSelectInvoice(invoice.invoiceNo)}>
+                                        <tr key={index} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleSelectInvoice(invoice)}>
                                             <td className="p-2">{invoice.date}</td>
-                                            <td className="p-2">{invoice.invoiceNo}</td>
+                                            <td className="p-2">{invoice.invoiceNo || (invoice.invoiceNumber ? String(invoice.invoiceNumber) : invoice.id)}</td>
                                             <td className="p-2 text-right">{formatCurrency(invoice.amount)}</td>
                                         </tr>
                                     ))

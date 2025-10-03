@@ -1,6 +1,3 @@
-
-
-
 "use client";
 
 import toast from "react-hot-toast";
@@ -16,6 +13,14 @@ import {
   Trash2,
   FileText,
 } from "lucide-react";
+
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 // --- Types ---
 interface Party {
@@ -138,7 +143,8 @@ export default function PartiesPage() {
         <h1 className="text-2xl font-bold text-gray-800">Parties</h1>
         <div className="flex items-center gap-4">
           <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-            <FileText className="w-4 h-4" /> Reports <ChevronDown className="w-4 h-4" />
+            <FileText className="w-4 h-4" /> Reports{" "}
+            <ChevronDown className="w-4 h-4" />
           </button>
           <Settings className="w-5 h-5 text-gray-600 cursor-pointer" />
         </div>
@@ -149,7 +155,9 @@ export default function PartiesPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white p-5 rounded-lg shadow-sm border border-l-4 border-l-blue-600">
             <p className="text-sm text-gray-500 mb-1">All Parties</p>
-            <p className="text-2xl font-semibold text-gray-800">{totalParties}</p>
+            <p className="text-2xl font-semibold text-gray-800">
+              {totalParties}
+            </p>
           </div>
         </div>
 
@@ -206,17 +214,23 @@ export default function PartiesPage() {
                       >
                         Balance
                       </th>
-                      <th className="relative px-6 py-3">
-                        <span className="sr-only">Actions</span>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider ">
+                        Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredAndSortedParties.map((party) => (
                       <tr key={party._id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{party.partyName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{party.mobileNumber}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{party.partyType}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {party.partyName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {party.mobileNumber}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {party.partyType}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span
                             className={`font-medium ${
@@ -235,40 +249,43 @@ export default function PartiesPage() {
                             {Math.abs(party.balance)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative">
-                          <button
-                            onClick={() => toggleDropdown(party._id)}
-                            className="text-gray-500 hover:text-gray-900 focus:outline-none"
-                          >
-                            <MoreVertical className="h-5 w-5" />
-                          </button>
 
-                          {activeDropdown === party._id && (
-                            <div className="origin-top-right absolute right-1 mt-2 w-48 rounded-md shadow-lg bg-white ring-1   z-50">
-                              <div className="py-1">
-                                <button
-                                  type="button"
-                                  className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                  onClick={() => handleEditParty(party._id)}
-                                >
-                                  <Edit2 className="w-4 h-4" /> Edit Party
-                                </button>
-                                <button
-                                  type="button"
-                                  className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                                  onClick={() => handleDeleteParty(party._id)}
-                                >
-                                  <Trash2 className="w-4 h-4" /> Delete
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-gray-500 hover:text-gray-900"
+                              >
+                                <MoreVertical className="h-5 w-5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem
+                                onClick={() => handleEditParty(party._id)}
+                              >
+                                <Edit2 className="w-4 h-4 mr-2" />
+                                Edit Party
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteParty(party._id)}
+                                className="text-red-600 focus:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                     ))}
                     {filteredAndSortedParties.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-4 text-center text-gray-500 text-sm">
+                        <td
+                          colSpan={6}
+                          className="px-6 py-4 text-center text-gray-500 text-sm"
+                        >
                           No parties found matching your criteria.
                         </td>
                       </tr>

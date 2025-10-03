@@ -19,6 +19,7 @@ export interface ItemData {
   salesPrice: number;
   purchasePrice: number | null;
   currentStock: string | null;
+  numericStock?: number | null;
   category: string;
   unit?: string | null;
   taxPercent?: number | null;
@@ -86,6 +87,16 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
     return { selectedItemsCount: count, totalAmount: amount };
   }, [stagedItems, allItems]);
 
+  // Determine if any staged quantity exceeds available numeric stock
+  const hasInsufficientStock = useMemo(() => {
+    return Object.entries(stagedItems).some(([itemId, qty]) => {
+      const item = allItems.find(i => i.id === itemId);
+      if (!item) return false;
+      if (typeof item.numericStock !== 'number') return false; // unknown stock -> allow
+      return qty > (item.numericStock || 0);
+    });
+  }, [stagedItems, allItems]);
+
   const handleQuantityChange = useCallback((itemId: string, newQuantity: number) => {
     setStagedItems(prev => {
       const newStagedItems = { ...prev };
@@ -120,17 +131,18 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch('http://localhost:3000/api/product');
+            const res = await fetch('/api/product');
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             const data = await res.json();
             if (data.success && Array.isArray(data.products)) {
-                const mappedItems: ItemData[] = data.products.map((p: any) => ({
+        const mappedItems: ItemData[] = data.products.map((p: any) => ({
                     id: p._id,
                     name: p.name,
                     code: p.sku || null,
                     salesPrice: Number(p.sellingPrice) || 0,
                     purchasePrice: p.purchasePrice ? Number(p.purchasePrice) : null,
-                    currentStock: p.openingStock ? `${p.openingStock} ${p.unit || ''}`.trim() : null,
+          currentStock: (typeof p.currentStock !== 'undefined' && p.currentStock !== null) ? `${p.currentStock} ${p.unit || ''}`.trim() : (p.openingStock ? `${p.openingStock} ${p.unit || ''}`.trim() : null),
+          numericStock: (typeof p.currentStock !== 'undefined' && p.currentStock !== null) ? Number(p.currentStock) : ((typeof p.openingStock !== 'undefined' && p.openingStock !== null) ? Number(p.openingStock) : null),
                     category: p.category || 'Uncategorized',
                     unit: p.unit || null,
                     taxPercent: p.taxPercent ? Number(p.taxPercent) : null,
@@ -150,6 +162,46 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
     };
 
     fetchItems();
+  }, [isOpen]);
+
+  // Listen for other parts of the app notifying that products changed (e.g., product create/update)
+  useEffect(() => {
+    const handler = () => {
+      // only refetch when modal is open to avoid unnecessary network calls
+      if (!isOpen) return;
+      (async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const res = await fetch('/api/product');
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          const data = await res.json();
+          if (data.success && Array.isArray(data.products)) {
+            const mappedItems: ItemData[] = data.products.map((p: any) => ({
+              id: p._id,
+              name: p.name,
+              code: p.sku || null,
+              salesPrice: Number(p.sellingPrice) || 0,
+              purchasePrice: p.purchasePrice ? Number(p.purchasePrice) : null,
+              currentStock: (typeof p.currentStock !== 'undefined' && p.currentStock !== null) ? `${p.currentStock} ${p.unit || ''}`.trim() : (p.openingStock ? `${p.openingStock} ${p.unit || ''}`.trim() : null),
+              numericStock: (typeof p.currentStock !== 'undefined' && p.currentStock !== null) ? Number(p.currentStock) : ((typeof p.openingStock !== 'undefined' && p.openingStock !== null) ? Number(p.openingStock) : null),
+              category: p.category || 'Uncategorized',
+              unit: p.unit || null,
+              taxPercent: p.taxPercent ? Number(p.taxPercent) : null,
+              hsnCode: p.hsnCode || null,
+            }));
+            setAllItems(mappedItems);
+            setAllCategories(['All', ...Array.from(new Set(mappedItems.map(item => item.category)))]);
+          }
+        } catch (err: any) {
+          console.error('productsUpdated refetch failed', err);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    };
+    window.addEventListener('productsUpdated', handler as EventListener);
+    return () => window.removeEventListener('productsUpdated', handler as EventListener);
   }, [isOpen]);
 
   useEffect(() => {
@@ -188,7 +240,7 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
 
   return (
     <div 
-      className={`fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      className={`fixed inset-0 bg-black/40 z-50 flex justify-center items-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       onClick={handleOutsideClick}
     >
       <div 
@@ -252,12 +304,22 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
                 </tr>
               ) : filteredItems.length > 0 ? (
                 filteredItems.map(item => (
-                  <tr key={item.id} className="hover:bg-gray-50">
+                  <React.Fragment key={item.id}>
+                  <tr className="hover:bg-gray-50">
                     <td className="py-4 whitespace-nowrap text-gray-900 font-medium">{item.name}</td>
                     <td className="py-4 whitespace-nowrap text-gray-500">{item.code || '-'}</td>
                     <td className="py-4 whitespace-nowrap text-gray-500">₹ {formatCurrency(item.salesPrice)}</td>
                     <td className="py-4 whitespace-nowrap text-gray-500">{item.purchasePrice ? `₹ ${formatCurrency(item.purchasePrice)}` : '-'}</td>
-                    <td className="py-4 whitespace-nowrap text-gray-500">{item.currentStock || '-'}</td>
+                    <td className="py-4 whitespace-nowrap text-gray-500">
+                      {typeof item.numericStock === 'number' ? (
+                        <div className="flex flex-col">
+                          <span className="text-sm">{Math.max(0, (item.numericStock || 0))} {item.unit || ''}</span>
+                          <span className="text-xs text-gray-400">{item.currentStock ? `(${item.currentStock})` : ''}</span>
+                        </div>
+                      ) : (
+                        item.currentStock || '-'
+                      )}
+                    </td>
                     <td className="py-4 whitespace-nowrap text-center w-64">
                       {stagedItems[item.id] > 0 ? (
                         <div className="flex items-center justify-center gap-2">
@@ -271,12 +333,12 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
                                 >
                                     -
                                 </Button>
-                                <Input
-                                    type="number"
-                                    value={stagedItems[item.id]}
-                                    onChange={(e) => handleQuantityChange(item.id, Math.max(0, Number(e.target.value) || 0))}
-                                    className="h-8 w-full text-center px-7"
-                                />
+                <Input
+                  type="number"
+                  value={stagedItems[item.id]}
+                  onChange={(e) => handleQuantityChange(item.id, Math.max(0, Number(e.target.value) || 0))}
+                  className="h-8 w-full text-center px-7"
+                />
                                 <Button
                                     size="icon"
                                     variant="ghost"
@@ -286,9 +348,21 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
                                     +
                                 </Button>
                             </div>
-                            <span className="text-sm text-gray-600 uppercase w-16 text-left">
-                                {item.unit || 'QTY'}
-                            </span>
+                            <div className="flex flex-col items-start">
+                              <span className="text-sm text-gray-600 uppercase w-16 text-left">{item.unit || 'QTY'}</span>
+                              {/* Live available stock */}
+                            {typeof item.numericStock === 'number' && (
+                                <span className={`text-xs ${((item.numericStock || 0) - (stagedItems[item.id] || 0)) <= 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                                  {(() => {
+                                    const live = (item.numericStock || 0);
+                                    const raw = live - (stagedItems[item.id] || 0);
+                                    const unitLabel = item.unit || 'pcs';
+                                    if (raw <= 0) return `Out of stock ${unitLabel}`;
+                                    return `Available: ${raw} ${unitLabel}`;
+                                  })()}
+                                </span>
+                              )}
+                            </div>
                             {/* Close Button */}
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500" onClick={() => handleQuantityChange(item.id, 0)}>
                                 <X className="h-4 w-4" />
@@ -301,6 +375,7 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
                       )}
                     </td>
                   </tr>
+                  </React.Fragment>
                 ))
               ) : (
                 <tr>
@@ -331,11 +406,11 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
                 </div>
             )}
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
             <Button className="bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 font-semibold px-6 py-2 rounded-md" onClick={handleCloseAndReset}>
               Cancel
             </Button>
-            <Button className="bg-indigo-600 text-white hover:bg-indigo-700 font-semibold px-6 py-2 rounded-md" onClick={handleDoneClick}>
+            <Button disabled={hasInsufficientStock} className={`font-semibold px-6 py-2 rounded-md ${hasInsufficientStock ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`} onClick={handleDoneClick}>
               Done
             </Button>
           </div>

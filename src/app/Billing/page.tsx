@@ -16,13 +16,13 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, RefObject } from "react";
 
 export default function BillingInvoicing() {
-  const invoiceRef = useRef<HTMLDivElement>(null);
-  const billingRef = useRef<HTMLDivElement>(null);
-  const notesRef = useRef<HTMLDivElement>(null);
-  const paymentRef = useRef<HTMLDivElement>(null);
+  const invoiceRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const billingRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const notesRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
+  const paymentRef = useRef<HTMLDivElement>(null) as RefObject<HTMLDivElement>;
 
   const sections = [
     { id: "invoice", ref: invoiceRef, icon: <FileText className="text-[#7B53A6]" />, label: "Invoice Generation" },

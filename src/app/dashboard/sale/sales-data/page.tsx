@@ -1,7 +1,9 @@
 'use client';
 
+import axios from 'axios';
 import Link from 'next/link';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     BadgeIndianRupee,
     CalendarIcon,
@@ -11,7 +13,10 @@ import {
     ClipboardX,
     Search,
     ChevronLeft,
-    ChevronRight,
+    ChevronRight, 
+    MoreVertical,
+    Edit,
+    Trash2,
 } from 'lucide-react';
 
 // Mock UI components
@@ -34,7 +39,10 @@ const TableHeader = ({ children, ...props }: React.HTMLAttributes<HTMLTableSecti
 const TableRow = ({ children, ...props }: React.HTMLAttributes<HTMLTableRowElement>) => <tr {...props}>{children}</tr>;
 const TableHead = ({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) => <th {...props}>{children}</th>;
 const TableBody = ({ children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) => <tbody {...props}>{children}</tbody>;
-const TableCell = ({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) => <td {...props}>{children}</td>;
+const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(({ children, ...props }, ref) => (
+    <td ref={ref} {...props}>{children}</td>
+));
+TableCell.displayName = 'TableCell';
 const DropdownMenu = ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className="relative inline-block text-left" {...props}>{children}</div>;
 const DropdownMenuTrigger = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
 const DropdownMenuContent = ({ children }: { children: React.ReactNode }) => <div className="origin-top-left absolute left-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 max-h-80 overflow-y-auto">{children}</div>;
@@ -107,6 +115,18 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
     );
 };
 
+interface Sale {
+    _id: string;
+    invoiceNo?: string; // formatted invoice string from NewSale (INV-00001)
+    invoiceNumber?: number;
+    invoiceDate?: string | Date;
+    dueDate?: string | Date;
+    totalAmount?: number; // renamed from invoiceAmount
+    paymentStatus?: 'unpaid' | 'cash' | 'upi' | 'card' | 'netbanking' | 'bank' | 'bank_transfer' | 'cheque' | 'online';
+    selectedParty?: { name?: string; partyName?: string; mobileNumber?: string; billingAddress?: string; balance?: number; } | string;
+    isDeleted?: boolean;
+}
+
 
 interface StatCardProps {
     title: string;
@@ -155,13 +175,171 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
 
 
 const SalesInvoicePage = () => {
+    const [sales, setSales] = useState<Sale[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [selectedCard, setSelectedCard] = useState('Total Sales');
     const [selectedDateRange, setSelectedDateRange] = useState('Last 365 Days');
     const [hoveredDateRange, setHoveredDateRange] = useState<string | null>(null);
     const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [customDate, setCustomDate] = useState<Date | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showArchived, setShowArchived] = useState(false);
+    const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const router = useRouter();
+    const [isCreating, setIsCreating] = useState(false);
+    
+    const dropdownRefs = useRef<{ [key: string]: HTMLTableCellElement | null }>({});
     const datePickerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const fetchSales = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                // Using axios to fetch NewSale resource
+                const res = await axios.get('/api/new_sale' + (showArchived ? '?includeDeleted=true' : ''), { withCredentials: true });
+                const data = res.data;
+
+                if (data.success) {
+                    setSales(data.data || []); // Use `data.data` to access the sales array
+                } else {
+                    // Use the error message from the API response
+                    throw new Error(data.error || 'Failed to fetch sales data.');
+                }
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSales();
+    }, []);
+
+    useEffect(() => {
+        // refetch when toggling archived view
+        const fetchSales = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await axios.get('/api/new_sale' + (showArchived ? '?includeDeleted=true' : ''), { withCredentials: true });
+                const data = res.data;
+                if (data.success) setSales(data.data || []);
+                else throw new Error(data.error || 'Failed to fetch');
+            } catch (err: any) {
+                setError(err.message);
+            } finally { setLoading(false); }
+        };
+        fetchSales();
+    }, [showArchived]);
+
+    const handleDeleteClick = (id: string) => {
+        setDeletingId(id);
+        setShowDeleteConfirm(true);
+        setOpenDropdownId(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingId) return;
+        try {
+            await axios.delete(`/api/new_sale/${deletingId}`, { withCredentials: true });
+            setSales(prev => prev.filter(s => s._id !== deletingId));
+        } catch (err: any) {
+            alert(err?.response?.data?.error || err?.message || 'Failed to delete');
+        } finally {
+            setShowDeleteConfirm(false);
+            setDeletingId(null);
+        }
+    };
+        const filteredSales = useMemo(() => {
+        const getStartDate = (range: string): Date | null => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            switch (range) {
+                case 'Today': return today;
+                case 'Yesterday': const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1); return yesterday;
+                case 'This Week': const thisWeek = new Date(today); thisWeek.setDate(today.getDate() - today.getDay()); return thisWeek;
+                case 'Last Week': const lastWeekEnd = new Date(today); lastWeekEnd.setDate(today.getDate() - today.getDay() - 1); const lastWeekStart = new Date(lastWeekEnd); lastWeekStart.setDate(lastWeekEnd.getDate() - 6); return lastWeekStart;
+                case 'Last 7 Days': const last7 = new Date(today); last7.setDate(today.getDate() - 6); return last7;
+                case 'This Month': return new Date(today.getFullYear(), today.getMonth(), 1);
+                case 'Previous Month': return new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                case 'Last 30 Days': const last30 = new Date(today); last30.setDate(today.getDate() - 29); return last30;
+                case 'This Quarter': const q = Math.floor(today.getMonth() / 3); return new Date(today.getFullYear(), q * 3, 1);
+                case 'Previous Quarter': const pq = Math.floor(today.getMonth() / 3) - 1; const pqy = pq < 0 ? today.getFullYear() - 1 : today.getFullYear(); const pqsm = pq < 0 ? 9 : pq * 3; return new Date(pqy, pqsm, 1);
+                case 'Current Fiscal Year': const fys = 3; return new Date(today.getMonth() >= fys ? today.getFullYear() : today.getFullYear() - 1, fys, 1);
+                case 'Previous Fiscal Year': const pfys = 3; const pcY = today.getFullYear(); const psY = today.getMonth() >= pfys ? pcY : pcY - 1; return new Date(psY - 1, pfys, 1);
+                case 'Last 365 Days': const last365 = new Date(today); last365.setDate(today.getDate() - 364); return last365;
+                default: return null;
+            }
+        };
+
+        let dateFilteredSales = sales;
+
+            if (selectedDateRange === 'Custom Date Range' && customDate) {
+            dateFilteredSales = sales.filter(sale => {
+                const saleDate = sale.invoiceDate ? new Date(sale.invoiceDate) : null;
+                return saleDate ? saleDate.toDateString() === customDate.toDateString() : false;
+            });
+        } else if (selectedDateRange !== 'All Time') {
+            const startDate = getStartDate(selectedDateRange);
+            if (startDate) {
+                 dateFilteredSales = sales.filter(sale => {
+                     const saleDate = sale.invoiceDate ? new Date(sale.invoiceDate) : null;
+                     return saleDate ? saleDate >= startDate : false;
+                 });
+            }
+        }
+
+                return dateFilteredSales.filter(sale => {
+            const matchesStatus =
+                selectedCard === 'Total Sales' ||
+                (selectedCard === 'Paid' && (sale.paymentStatus === 'cash' || sale.paymentStatus === 'online')) ||
+                (selectedCard === 'Unpaid' && sale.paymentStatus === 'unpaid');
+
+            if (!matchesStatus) return false;
+
+            const lowercasedTerm = searchTerm.toLowerCase();
+            if (lowercasedTerm === '') return true;
+
+            return (
+                (String(sale.invoiceNo || sale.invoiceNumber || '')).toLowerCase().includes(lowercasedTerm) ||
+                (typeof sale.selectedParty === 'string' ? sale.selectedParty.toLowerCase() : (sale.selectedParty?.name || '').toLowerCase()).includes(lowercasedTerm) ||
+                String(sale.totalAmount || '').includes(lowercasedTerm)
+            );
+        });
+    }, [sales, selectedCard, searchTerm, selectedDateRange, customDate]);
+
+    // global totals from the full sales list (these stay constant when user clicks a StatCard)
+    const { totalSalesAll, paidAmountAll, unpaidAmountAll } = useMemo(() => {
+        return sales.reduce((acc, sale) => {
+            const amt = sale.totalAmount || 0;
+            acc.totalSalesAll += amt;
+            if (sale.paymentStatus === 'unpaid') acc.unpaidAmountAll += amt;
+            else acc.paidAmountAll += amt;
+            return acc;
+        }, { totalSalesAll: 0, paidAmountAll: 0, unpaidAmountAll: 0 } as { totalSalesAll: number; paidAmountAll: number; unpaidAmountAll: number; });
+    }, [sales]);
+
+    // compute totals from filteredSales (kept for any future needs) but not used for StatCard amounts
+    const { totalSales, paidAmount, unpaidAmount } = useMemo(() => {
+        return filteredSales.reduce((acc, sale) => {
+            const amt = sale.totalAmount || 0;
+            acc.totalSales += amt;
+            if (sale.paymentStatus === 'unpaid') {
+                acc.unpaidAmount += amt;
+            } else {
+                acc.paidAmount += amt;
+            }
+            return acc;
+        }, { totalSales: 0, paidAmount: 0, unpaidAmount: 0 });
+    }, [filteredSales]);
+
+    const formatDisplayCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-IN').format(amount);
+    };
 
     const getFormattedDate = (date: Date): string => {
         const day = String(date.getDate()).padStart(2, '0');
@@ -179,7 +357,7 @@ const SalesInvoicePage = () => {
             case 'Yesterday': startDate = new Date(today); startDate.setDate(today.getDate() - 1); return `${getFormattedDate(startDate)} to ${getFormattedDate(startDate)}`;
             case 'This Week': startDate = new Date(today); startDate.setDate(today.getDate() - today.getDay()); return `${getFormattedDate(startDate)} to ${getFormattedDate(today)}`;
             case 'Last Week': endDate = new Date(today); endDate.setDate(today.getDate() - today.getDay() - 1); startDate = new Date(endDate); startDate.setDate(endDate.getDate() - 6); return `${getFormattedDate(startDate)} to ${getFormattedDate(endDate)}`;
-            case 'Last 7 days': startDate = new Date(today); startDate.setDate(today.getDate() - 6); return `${getFormattedDate(startDate)} to ${getFormattedDate(today)}`;
+            case 'Last 7 Days': startDate = new Date(today); startDate.setDate(today.getDate() - 6); return `${getFormattedDate(startDate)} to ${getFormattedDate(today)}`;
             case 'This Month': startDate = new Date(today.getFullYear(), today.getMonth(), 1); return `${getFormattedDate(startDate)} to ${getFormattedDate(today)}`;
             case 'Previous Month': endDate = new Date(today.getFullYear(), today.getMonth(), 0); startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1); return `${getFormattedDate(startDate)} to ${getFormattedDate(endDate)}`;
             case 'Last 30 Days': startDate = new Date(today); startDate.setDate(today.getDate() - 29); return `${getFormattedDate(startDate)} to ${getFormattedDate(today)}`;
@@ -193,18 +371,25 @@ const SalesInvoicePage = () => {
         }
     };
 
-    const dateRangeOptions = ['Today', 'Yesterday', 'This Week', 'Last Week', 'Last 7 days', 'This Month', 'Previous Month', 'Last 30 Days', 'This Quarter', 'Previous Quarter', 'Current Fiscal Year', 'Previous Fiscal Year', 'Last 365 Days', 'Custom Date Range'];
+    const dateRangeOptions = ['Today', 'Yesterday', 'This Week', 'Last Week', 'Last 7 Days', 'This Month', 'Previous Month', 'Last 30 Days', 'This Quarter', 'Previous Quarter', 'Current Fiscal Year', 'Previous Fiscal Year', 'Last 365 Days', 'Custom Date Range'];
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
+            // Close date dropdown/picker if click is outside
             if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
                 setIsDateDropdownOpen(false);
                 setIsDatePickerOpen(false);
             }
+
+            // Close action dropdown if click is outside
+            if (openDropdownId && dropdownRefs.current[openDropdownId] && !dropdownRefs.current[openDropdownId]!.contains(event.target as Node)) {
+                setOpenDropdownId(null);
+            }
         };
+
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [openDropdownId]); // Re-run effect if openDropdownId changes
 
     const handleDateButtonClick = () => {
         if (isDatePickerOpen) {
@@ -215,6 +400,33 @@ const SalesInvoicePage = () => {
     };
 
     return (
+        <>
+        {showDeleteConfirm && (
+            <div 
+                className={`fixed inset-0 bg-black/40 z-50 flex justify-center items-center p-4 transition-opacity duration-300 ${showDeleteConfirm ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                onClick={() => setShowDeleteConfirm(false)}
+            >
+                <div className="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                    <h2 className="text-lg font-semibold text-gray-900">Are you sure you want to delete this Sales Invoice?</h2>
+                    {/* <p className="mt-2 text-sm text-gray-600">Once deleted, it cannot be recovered.</p> */}
+                    <div className="mt-6 flex justify-end gap-3">
+                        <Button
+                            variant="outline"
+                            className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2"
+                            onClick={() => setShowDeleteConfirm(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            className="bg-red-600 text-white hover:bg-red-700 px-4 py-2"
+                            onClick={confirmDelete}
+                        >
+                            Yes, Delete
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        )}
         <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-6">
             <header className="flex items-center justify-between pb-4 border-b">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Sales Invoices</h1>
@@ -232,16 +444,16 @@ const SalesInvoicePage = () => {
             </header>
             <main className="flex-1 py-6 space-y-6">
                 <div className="grid gap-6 md:grid-cols-3">
-                    <StatCard title="Total Sales" amount="0" icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCard('Total Sales')} isSelected={selectedCard === 'Total Sales'} />
-                    <StatCard title="Paid" amount="0" icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Paid')} isSelected={selectedCard === 'Paid'} />
-                    <StatCard title="Unpaid" amount="0" icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Unpaid')} isSelected={selectedCard === 'Unpaid'} />
+                    <StatCard title="Total Sales" amount={formatDisplayCurrency(totalSalesAll)} icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCard('Total Sales')} isSelected={selectedCard === 'Total Sales'} />
+                    <StatCard title="Paid" amount={formatDisplayCurrency(paidAmountAll)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Paid')} isSelected={selectedCard === 'Paid'} />
+                    <StatCard title="Unpaid" amount={formatDisplayCurrency(unpaidAmountAll)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Unpaid')} isSelected={selectedCard === 'Unpaid'} />
                 </div>
 
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input placeholder="Search..." className="pl-10 pr-4 py-2 border rounded-md w-64 bg-white" />
+                            <Input placeholder="Search..." className="pl-10 pr-4 py-2 border rounded-md w-64 bg-white" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         </div>
 
                         <div ref={datePickerRef} className="relative">
@@ -299,12 +511,15 @@ const SalesInvoicePage = () => {
                                 </Button>
                             </DropdownMenuTrigger>
                         </DropdownMenu>
-                        {/* <Button className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2">Create Sales Invoice</Button> */}
-                    <Link href="/dashboard/sale/sales-invoice">
-    <Button className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2">
-        Create Sales Invoice
-    </Button>
-</Link>
+                        <Button
+                            className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2"
+                            onClick={() => {
+                                // Open the editor in NEW mode (no editId) — editor will fetch a preview invoiceNo if needed
+                                router.push('/dashboard/sale/sales-invoice');
+                            }}
+                        >
+                            Create Sales Invoice
+                        </Button>
                     </div>
                 </div>
 
@@ -318,22 +533,88 @@ const SalesInvoicePage = () => {
                                 <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due In</TableHead>
                                 <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</TableHead>
                                 <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
+                                <TableHead className="p-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow>
-                                <TableCell colSpan={6} className="text-center py-20">
-                                    <div className="flex flex-col items-center gap-4">
-                                        <ClipboardX className="h-16 w-16 text-gray-300 dark:text-gray-600" strokeWidth={1} />
-                                        <p className="text-gray-500 dark:text-gray-400">No Transactions Matching the current filter</p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
+                            {
+                                (() => {
+                                    if (loading) return <TableRow><TableCell colSpan={7} className="text-center py-20">Loading...</TableCell></TableRow>;
+                                    if (error) return <TableRow><TableCell colSpan={7} className="text-center py-20 text-red-500">{error}</TableCell></TableRow>;
+                                    if (filteredSales.length === 0) return (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="text-center py-20">
+                                                <div className="flex flex-col items-center gap-4">
+                                                    <ClipboardX className="h-16 w-16 text-gray-300 dark:text-gray-600" strokeWidth={1} />
+                                                    <p className="text-gray-500 dark:text-gray-400">No sales invoices found.</p>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+
+                                    return filteredSales.map(sale => {
+                                        const idOrNo = sale._id || sale.invoiceNo || sale.invoiceNumber;
+                        return (
+                            <TableRow key={sale._id} className="border-b dark:border-gray-700 hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/sale/sales-invoice/${encodeURIComponent(String(idOrNo))}`)}>
+                                                <TableCell className="p-4">{sale.invoiceDate ? new Date(sale.invoiceDate).toLocaleDateString() : 'N/A'}</TableCell>
+                                                <TableCell className="p-4">{sale.invoiceNo || (sale.invoiceNumber ? String(sale.invoiceNumber) : 'N/A')}</TableCell>
+                                                <TableCell className="p-4">{typeof sale.selectedParty === 'string' ? sale.selectedParty : (sale.selectedParty?.name || sale.selectedParty?.partyName || 'N/A')}</TableCell>
+                                                <TableCell className="p-4">{sale.dueDate ? new Date(sale.dueDate).toLocaleDateString() : 'N/A'}</TableCell>
+                                                <TableCell className="p-4">₹{formatDisplayCurrency(sale.totalAmount || 0)}</TableCell>
+                                                <TableCell className="p-4">
+                                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                                        sale.paymentStatus === 'unpaid' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                                    }`}>
+                                                        {sale.paymentStatus ? (sale.paymentStatus.charAt(0).toUpperCase() + sale.paymentStatus.slice(1)) : 'Unknown'}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell ref={(el) => { dropdownRefs.current[sale._id] = el; }} className="p-4 text-right relative">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon" 
+                                                        className="h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                        onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === sale._id ? null : sale._id); }}
+                                                    >
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                    {openDropdownId === sale._id && (
+                                                        <div className="absolute right-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10">
+                                                            <button
+                                                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                                                onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); router.push(`/dashboard/sale/sales-invoice?editId=${sale._id}`); }}
+                                                            >
+                                                                <Edit className="h-4 w-4 mr-2" /> Edit
+                                                            </button>
+                                                            {sale.isDeleted ? (
+                                                                <button className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-100 flex items-center" onClick={async (e) => { e.stopPropagation();
+                                                                    if (!confirm('Restore this invoice?')) return;
+                                                                    try {
+                                                                        await axios.put(`/api/new_sale/${sale._id}`, { isDeleted: false }, { withCredentials: true });
+                                                                        setSales(prev => prev.map(s => s._id === sale._id ? { ...s, isDeleted: false } : s));
+                                                                        setOpenDropdownId(null);
+                                                                    } catch (e: any) { alert(e?.response?.data?.error || e?.message || 'Restore failed'); }
+                                                                }}>
+                                                                    <Edit className="h-4 w-4 mr-2" /> Restore
+                                                                </button>
+                                                            ) : (
+                                                                <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center" onClick={(e) => { e.stopPropagation(); handleDeleteClick(sale._id); }}>
+                                                                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    });
+                                })()
+                            }
                         </TableBody>
                     </Table>
                 </div>
             </main>
         </div>
+        </>
     );
 };
 

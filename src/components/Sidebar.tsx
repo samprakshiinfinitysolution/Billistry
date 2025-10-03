@@ -265,7 +265,7 @@ interface SidebarProps {
 }
 
 const navLinks = [
-  { href: '/dashboard/home', label: 'Dashboard', icon: Home, section: 'GENERAL' }, // Changed Home to Dashboard
+  { href: '/dashboard/home/newhome', label: 'Dashboard', icon: Home, section: 'GENERAL' }, // Changed Home to Dashboard
   { href: '/dashboard/parties', label: 'Parties', icon: Users, section: 'GENERAL' }, // Renamed Customers to Parties
   // {
   //   label: 'Parties', icon: Users, section: 'PARTIES', children: [ // New Section
