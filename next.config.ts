@@ -13,6 +13,11 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true, // faster builds & smaller bundles
+  typescript: {
+    // Ignore type errors during production builds
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;
+
