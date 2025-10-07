@@ -13,12 +13,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Next.js
-        run: npm run build
-
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -27,7 +21,9 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /var/www/billistry
+            git reset --hard
             git pull origin main
             npm ci
             npm run build
-            pm2 restart billistry || pm2 start npm --name "billistry" -- start
+            pm2 describe billistry || pm2 start npm --name "billistry" -- start
+            pm2 reload billistry
