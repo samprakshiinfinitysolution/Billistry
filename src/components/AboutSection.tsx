@@ -108,7 +108,7 @@ export default function AboutSection() {
 
             {/* Video */}
             <video
-              src="https://mybillbook.in/static-assets/videos/marketing.mp4"
+              src="/videos/Billistry.mp4"
               autoPlay
               muted
               loop

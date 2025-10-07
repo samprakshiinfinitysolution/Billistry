@@ -664,7 +664,7 @@ const CreateSalesInvoicePage = () => {
                                                 else selectedPartyToSend = selectedParty as any;
                                             }
 
-                                                                    let invoiceData: any = {
+                                                                    const invoiceData: any = {
                                                                         // For new invoices, invoiceNumber is assigned by server and will be removed before POST
                                                                         invoiceNumber,
                                                 invoiceDate,

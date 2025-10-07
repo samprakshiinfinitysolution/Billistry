@@ -170,7 +170,7 @@ export default function ContactUs() {
       <div>
         <h3 className="text-3xl font-bold text-[#460F58] mb-2 font-['Roboto']">Get in touch</h3>
         <p className="text-gray-600 text-sm mb-6">
-          We'd love to hear from you! Reach out via form or social media.
+          We&apos;d love to hear from you! Reach out via form or social media.
         </p>
 
         <div className="space-y-6">

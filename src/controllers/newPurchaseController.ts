@@ -331,7 +331,7 @@ export const updateNewPurchase = async (id: string, body: Partial<NewPurchaseInp
       for (const it of body.items) {
         if (!it.productId && it.name) namesToResolve.add(String(it.name).trim());
       }
-      let nameToId: Record<string, string> = {};
+      const nameToId: Record<string, string> = {};
       try {
         const names = Array.from(namesToResolve).filter(Boolean);
         if (names.length > 0) {

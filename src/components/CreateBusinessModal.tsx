@@ -3,6 +3,7 @@
 import toast from 'react-hot-toast';
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, ChevronDown } from 'lucide-react';
+import Image from 'next/image';
 
 // --- Sub-component: A reusable Searchable Dropdown (Combobox) ---
 interface SearchableDropdownProps {
@@ -161,7 +162,7 @@ export const CreateBusinessModal = ({ isOpen, onClose, onSubmit }: CreateBusines
 
         <div className="p-6 space-y-6">
           <div className="text-center">
-            <img src="https://i.imgur.com/3xR2u9p.png" alt="Manage multiple businesses" className="mx-auto mb-3" style={{ maxWidth: '300px' }}/>
+            <Image src="https://i.imgur.com/3xR2u9p.png" alt="Manage multiple businesses" className="mx-auto mb-3" style={{ maxWidth: '300px' }}/>
             <p className="text-sm text-gray-600">Have more than 1 business?</p>
             <p className="text-sm text-blue-600">Easily manage all your businesses on myBillBook</p>
           </div>

@@ -113,7 +113,7 @@ export default function SalesSummaryPage() {
   // Fetch sales, customer and items data
   const fetchSales = async () => {
     try {
-      const res = await axios.get("/api/sale", { withCredentials: true });
+      const res = await axios.get("/api/new_sale", { withCredentials: true });
       setSales(res.data.data || []);
     } catch (err: any) {
       console.error(err);

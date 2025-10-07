@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import {User} from '@/models/User';
+import User from '@/models/User';
 import { generateOtp, sendOtp } from '@/utils/otp';
 
 export async function POST(req: NextRequest) {

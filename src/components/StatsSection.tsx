@@ -10,7 +10,7 @@ const stats = [
 
 // Count-up hook
 function useCountUp(
-  ref: React.RefObject<HTMLSpanElement>,
+  ref: React.RefObject<HTMLSpanElement | null>,
   end: number,
   duration = 1200,
   suffix = ''
@@ -18,33 +18,43 @@ function useCountUp(
   useEffect(() => {
     if (!ref.current) return
     const start = 0
+    // Check if the end value is a floating point number
+    const isFloat = end % 1 !== 0;
     const increment = end / (duration / 16)
     let current = start
     const animate = () => {
       current += increment
       if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
-        ref.current!.textContent = end.toLocaleString() + suffix
+        // Ensure the final value is displayed correctly, especially for floats
+        ref.current!.textContent = isFloat ? end.toFixed(2) + suffix : end.toLocaleString() + suffix;
         return
       }
-      ref.current!.textContent = Math.floor(current).toLocaleString() + suffix
+      // Format the number during animation
+      const animatedValue = isFloat 
+        ? current.toFixed(2) 
+        : Math.floor(current).toLocaleString();
+      ref.current!.textContent = animatedValue + suffix
       requestAnimationFrame(animate)
     }
     animate()
   }, [end, ref, duration, suffix])
 }
 
+// New component to encapsulate the count-up logic for a single stat
+const AnimatedStat = ({ stat }: { stat: typeof stats[0] }) => {
+  const ref = useRef<HTMLSpanElement>(null);
+  // The hook is now called at the top level of this component
+  useCountUp(ref, stat.value, 1200, stat.suffix || (stat.label === 'System Uptime' ? '%' : '+'));
+
+  return (
+    <span ref={ref} className="text-4xl sm:text-5xl font-extrabold text-[#390F59] mb-3">
+      {/* Initial value before animation starts */}
+      {stat.value.toLocaleString()}{stat.suffix || (stat.label === "System Uptime" ? "%" : "+")}
+    </span>
+  );
+};
+
 export default function StatsSection() {
-  const refs = [
-    useRef<HTMLSpanElement>(null),
-    useRef<HTMLSpanElement>(null),
-    useRef<HTMLSpanElement>(null),
-    useRef<HTMLSpanElement>(null),
-  ];
-
-  stats.forEach((stat, i) => {
-    useCountUp(refs[i], stat.value, 1200, stat.suffix || (stat.label === 'System Uptime' ? '%' : '+'));
-  });
-
   return (
     <section className="relative bg-[#F7FBFB] py-24 px-4 " style={{ fontFamily: 'Roboto, sans-serif' }}>
       <div className="relative max-w-6xl mx-auto text-center sm:px-8 lg:px-10">
@@ -63,13 +73,7 @@ export default function StatsSection() {
               hover:border-[#7B53A6] hover:shadow-[0_8px_20px_rgba(123,83,166,0.25)]  transition duration-300 min-h-[200px]"
             >
               {/* Number */}
-              <span
-                ref={refs[idx]}
-                className="text-4xl sm:text-5xl font-extrabold text-[#390F59] mb-3"
-              >
-                {stat.value.toLocaleString()}
-                {stat.suffix || (stat.label === "System Uptime" ? "%" : "+")}
-              </span>
+              <AnimatedStat stat={stat} />
 
               {/* Label */}
               <p className="text-gray-500 text-lg font-medium">{stat.label}</p>

@@ -6,7 +6,7 @@ import { ArrowLeft, Download, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import InvoiceDownload from '../../../../../components/InvoiceDownload';
 
-const PurchaseInvoiceViewer = ({ params }: { params: { id: string } }) => {
+const PurchaseInvoiceViewer = ({ params }: any) => {
     const router = useRouter();
     const { id } = params;
     const [meta, setMeta] = useState<any>(null);

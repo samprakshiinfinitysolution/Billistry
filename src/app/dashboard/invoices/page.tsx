@@ -68,7 +68,11 @@ export default function EnhancedInvoicePage() {
     setForm({ ...form, items: newItems });
   };
 
-  const handleItemChange = (index: number, key: keyof InvoiceItem, value: any) => {
+  const handleItemChange = <K extends keyof InvoiceItem>(
+    index: number,
+    key: K,
+    value: InvoiceItem[K]
+  ) => {
     const newItems = [...form.items];
     newItems[index][key] = value;
     setForm({ ...form, items: newItems });
@@ -304,7 +308,9 @@ export default function EnhancedInvoicePage() {
               />
               <select
                 value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as any })}
+                onChange={(e) =>
+                  setForm({ ...form, status: e.target.value as InvoiceType["status"] })
+                }
                 className="w-full border p-2 rounded"
               >
                 <option value="Pending">Pending</option>

@@ -1,14 +1,23 @@
 import PDFDocument from 'pdfkit';
-import { writeFileSync } from 'fs';
+import { createWriteStream } from 'fs';
 
-export const generateTransactionPDF = (transactions: any[], filePath: string) => {
+interface Transaction {
+  type: string;
+  amount: number;
+  partyId?: {
+    name: string;
+  };
+  date: string | Date;
+}
+
+export const generateTransactionPDF = (transactions: Transaction[], filePath: string) => {
   const doc = new PDFDocument();
-  const stream = doc.pipe(writeFileSync(filePath));
+  const stream = doc.pipe(createWriteStream(filePath));
 
   doc.fontSize(16).text('Transaction Report', { align: 'center' });
   doc.moveDown();
 
-  transactions.forEach((txn, index) => {
+  transactions.forEach((txn: Transaction, index: number) => {
     doc.fontSize(12).text(
       `${index + 1}. ${txn.type} ₹${txn.amount} to/from ${txn.partyId?.name || 'N/A'} on ${new Date(txn.date).toLocaleDateString()}`
     );

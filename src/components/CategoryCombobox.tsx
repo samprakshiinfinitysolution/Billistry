@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
-interface Category {
+export interface Category {
   _id: string;
   category_name: string;
 }

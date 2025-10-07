@@ -1,13 +1,13 @@
 // helper to call API with JWT from cookie
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const token = typeof window !== "undefined" ? getCookie("token") : null;
+  const token = typeof window !== "undefined" ? getCookie("accessToken") : null;
 
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...options.headers,
-  };
+  const headers = new Headers(options.headers);
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
 
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(url, {
     ...options,
@@ -21,6 +21,6 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 // simple cookie getter
 function getCookie(name: string) {
   if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
   return match ? match[2] : null;
 }

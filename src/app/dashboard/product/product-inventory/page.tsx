@@ -27,8 +27,17 @@ import {
   Warehouse,
 } from 'lucide-react';
 
+// --- Type Definition ---
+type Item = {
+  name: string;
+  category: string;
+  code: string | null;
+  stockQty: string | null;
+  sellingPrice: number;
+  purchasePrice: number | null;
+};
 // --- Mock Data ---
-const itemsData = [
+const itemsData: Item[] = [
   {
     name: 'Internet 30MBPS',
     category: 'Internet charge',
@@ -80,13 +89,13 @@ const itemsData = [
 ];
 
 // --- Helper Functions ---
-const formatCurrency = (amount) => {
+const formatCurrency = (amount: number | null | undefined) => {
   if (amount === null || typeof amount === 'undefined') return '-';
   return `₹ ${new Intl.NumberFormat('en-IN').format(amount)}`;
 };
 
 // Helper to get the numeric part of the stock quantity
-const getStockNumber = (stockQty) => {
+const getStockNumber = (stockQty: string | null) => {
   if (!stockQty) return 0;
   const match = stockQty.match(/^[\d,]+/);
   return match ? parseInt(match[0].replace(/,/g, ''), 10) : 0;

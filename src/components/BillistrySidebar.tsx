@@ -1,6 +1,7 @@
 // app/components/BillistrySidebar.tsx
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FaTachometerAlt, FaUsers, FaBuilding, FaBoxOpen, FaCog } from "react-icons/fa";
@@ -8,7 +9,7 @@ import { FaTachometerAlt, FaUsers, FaBuilding, FaBoxOpen, FaCog } from "react-ic
 interface SidebarLink {
   name: string;
   href: string;
-  icon: JSX.Element;
+  icon: React.ReactNode;
 }
 
 const links: SidebarLink[] = [

@@ -314,6 +314,7 @@ export const getPurchaseReport = async (
   filterQuery: {
     purchaseType?: string;
     payment?: string;
+    status?: string;
     start?: string;
     end?: string;
   }

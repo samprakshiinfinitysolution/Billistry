@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import crypto from "crypto";
 import { connectDB } from "@/lib/db";
-import { Staff } from "@/models/Staff";
+import  Staff  from "@/models/Staff";
 import nodemailer from "nodemailer";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

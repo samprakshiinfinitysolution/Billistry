@@ -1143,8 +1143,11 @@ const handleEditReturn = (ret: SaleReturn) => {
             className="mt-2"
           />
 
-          <Select value={refundMode} onValueChange={(val) => setRefundMode(val as any)} className="mt-2">
-            <SelectTrigger>
+          <Select
+            value={refundMode}
+            onValueChange={(val) => setRefundMode(val as typeof refundMode)}
+          >
+            <SelectTrigger className="mt-2">
               <SelectValue placeholder="Select Refund Mode" />
             </SelectTrigger>
             <SelectContent>

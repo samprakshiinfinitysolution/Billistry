@@ -1,6 +1,6 @@
 // lib/withAuth.ts
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "./jwt"; // your jwt util
+import { verifySession } from "./auth"; // your jwt util
 
 interface WithAuthOptions {
   roles?: string[]; // Allowed roles e.g. ["superadmin", "shopkeeper"]
@@ -17,7 +17,7 @@ export function withAuth(handler: Handler, options: WithAuthOptions = {}) {
       }
 
       const token = authHeader.split(" ")[1];
-      const decoded = await verifyToken(token); // make sure verifyToken returns user payload
+      const decoded = verifySession(token); // make sure verifySession returns user payload
 
       if (!decoded) {
         return NextResponse.json({ error: "Invalid token" }, { status: 401 });

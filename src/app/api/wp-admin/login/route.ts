@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { connectDB } from '@/lib/db';
+import jwt from 'jsonwebtoken';
 import { AdminUser } from '@/models/adminuser';
-import { signToken } from '@/lib/auth';
+
 
 export async function POST(req: Request) {
   await connectDB();
@@ -15,7 +16,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   }
 
-  const token = signToken({ email: user.email });
+  const JWT_SECRET = process.env.JWT_SECRET;
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
+
+  const token = jwt.sign({ email: user.email }, JWT_SECRET, { expiresIn: '1h' });
 
   const res = NextResponse.json({ success: true });
   res.cookies.set('token', token, {

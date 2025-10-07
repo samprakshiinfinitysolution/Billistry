@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import  {getSessionCookie}  from '@/lib/cookies';
+import { cookies } from 'next/headers';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 if (!JWT_SECRET) throw new Error('JWT_SECRET not set');
@@ -14,9 +14,9 @@ export type SessionPayload = {
   email?: string;
 };
 
-export function signSession(payload: SessionPayload, expiresIn = '7d') {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
-}
+// export function signSession(payload: SessionPayload, expiresIn = '7d') {
+//   return jwt.sign({ ...payload }, JWT_SECRET, { expiresIn });
+// }
 export function verifySession<T = SessionPayload>(token?: string) {
   if (!token) return null;
   try { return jwt.verify(token, JWT_SECRET) as T; } catch { return null; }
@@ -29,7 +29,8 @@ export async function comparePassword(password: string, hash?: string) {
   if (!hash) return false;
   return bcrypt.compare(password, hash);
 }
-export function getServerSession() {
-  const token = getSessionCookie();
+export async function getServerSession() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("accessToken")?.value;
   return verifySession(token);
 }

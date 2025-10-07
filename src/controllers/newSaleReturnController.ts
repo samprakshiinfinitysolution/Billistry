@@ -8,6 +8,11 @@ import { connectDB } from '@/lib/db';
 import { UserPayload } from '@/lib/middleware/auth';
 import mongoose from 'mongoose';
 
+// Define a type for the counter object for better type safety
+interface CounterType {
+  seq?: number;
+}
+
 interface NewSaleReturnInput {
   originalSale: string;
   returnDate?: string | Date;
@@ -112,7 +117,7 @@ export const getNextSaleReturnInvoicePreview = async (user: UserPayload) => {
   await connectDB();
   if (!user?.userId || !user?.businessId) throw new Error('Unauthorized');
 
-  const counter = await Counter.findOne({ business: user.businessId, prefix: 'SR' }).lean();
+  const counter = await Counter.findOne({ business: user.businessId, prefix: 'SR' }).lean<CounterType>();
   const nextSeq = (counter && typeof counter.seq === 'number') ? counter.seq + 1 : 1;
   const invoiceNumber = nextSeq;
   const invoiceNo = `SR-${String(invoiceNumber).padStart(5, '0')}`;
@@ -224,7 +229,7 @@ export const updateNewSaleReturn = async (id: string, body: any, user: UserPaylo
         if (!it.productId && it.name) namesToResolve.add(String(it.name).trim());
       }
 
-      let nameToId: Record<string, string> = {};
+      const nameToId: Record<string, string> = {};
       try {
         const names = Array.from(namesToResolve).filter(Boolean);
         if (names.length > 0) {

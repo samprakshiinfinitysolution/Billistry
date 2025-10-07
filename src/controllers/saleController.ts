@@ -499,19 +499,21 @@ const getDateRange = (type: string, start?: string, end?: string) => {
 
 export const getSaleReport = async (
   user: UserPayload,
-  filterQuery: { saleType?: string; payment?: string; start?: string; end?: string }
+  filterQuery: { saleType?: string; payment?: string; status?: string; start?: string; end?: string }
 ) => {
   await connectDB();
   if (!user?.businessId) throw new Error("Unauthorized");
 
-  const { saleType, payment, start, end } = filterQuery;
+  const { saleType, payment, status, start, end } = filterQuery;
   const filter: any = { business: user.businessId, isDeleted: false };
 
   if (saleType) {
     const { fromDate, toDate } = getDateRange(saleType, start, end);
     filter.date = { $gte: fromDate, $lte: toDate };
   }
-  if (payment) filter.paymentStatus = payment;
+  // Use 'status' if available, otherwise fall back to 'payment' for filtering paymentStatus
+  const paymentFilter = status || payment;
+  if (paymentFilter) filter.paymentStatus = paymentFilter;
 
   const sales = await Sale.find(filter).populate("billTo").populate("items.item").sort({ createdAt: -1 }).lean();
   const totalSalesAmount = sales.reduce((sum, s) => sum + (s.invoiceAmount || 0), 0);

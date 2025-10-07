@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     BadgeIndianRupee,
     CalendarIcon,
@@ -124,7 +125,7 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
     let titleColor = "";
     let iconColor = "";
 
-    if (title === "Paid") {
+    if (title === "Paid" || title === "Refunded") {
         titleColor = "text-green-600";
         iconColor = "text-green-600";
     } else if (title === "Unpaid") {
@@ -155,7 +156,25 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
 
 
 const PurchaseReturnDataPage = () => {
+    const router = useRouter();
     const [selectedCard, setSelectedCard] = useState('Total Returns');
+    const [returnsList, setReturnsList] = useState<any[]>([]);
+    const [isLoadingReturns, setIsLoadingReturns] = useState(false);
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-IN', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount || 0);
+    };
+
+    const totals = useMemo(() => {
+        const totalReturns = returnsList.reduce((s, r) => s + Number(r.totalAmount || 0), 0);
+        const unpaid = returnsList.reduce((s, r) => s + Number(r.balanceAmount || 0), 0);
+        const refunded = returnsList.reduce((s, r) => {
+            const balance = Number(r.balanceAmount || 0);
+            if (balance === 0) return s + Number(r.amountPaid || r.totalAmount || 0);
+            return s;
+        }, 0);
+        return { totalReturns, unpaid, refunded };
+    }, [returnsList]);
     const [selectedDateRange, setSelectedDateRange] = useState('Last 365 Days');
     const [hoveredDateRange, setHoveredDateRange] = useState<string | null>(null);
     const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
@@ -206,6 +225,91 @@ const PurchaseReturnDataPage = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    useEffect(() => {
+        let mounted = true;
+        const fetchReturns = async () => {
+            setIsLoadingReturns(true);
+            try {
+                const res = await fetch('/api/new_purchase_return', { credentials: 'include' });
+                const body = await res.json().catch(() => null);
+                if (mounted && body && body.success && Array.isArray(body.data)) {
+                    setReturnsList(body.data);
+                }
+            } catch (e) {
+                console.error('Failed to fetch purchase returns', e);
+            } finally {
+                if (mounted) setIsLoadingReturns(false);
+            }
+        };
+        fetchReturns();
+        return () => { mounted = false; };
+    }, []);
+
+    // UI state for search and card filtering
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCardLocal, setSelectedCardLocal] = useState(selectedCard);
+
+    const filteredReturns = useMemo(() => {
+        const getStartDate = (range: string): Date | null => {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            switch (range) {
+                case 'Today': return today;
+                case 'Yesterday': const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1); return yesterday;
+                case 'This Week': const thisWeek = new Date(today); thisWeek.setDate(today.getDate() - today.getDay()); return thisWeek;
+                case 'Last Week': const lastWeekEnd = new Date(today); lastWeekEnd.setDate(today.getDate() - today.getDay() - 1); const lastWeekStart = new Date(lastWeekEnd); lastWeekStart.setDate(lastWeekEnd.getDate() - 6); return lastWeekStart;
+                case 'Last 7 days': const last7 = new Date(today); last7.setDate(today.getDate() - 6); return last7;
+                case 'This Month': return new Date(today.getFullYear(), today.getMonth(), 1);
+                case 'Previous Month': return new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                case 'Last 30 Days': const last30 = new Date(today); last30.setDate(today.getDate() - 29); return last30;
+                case 'This Quarter': const q = Math.floor(today.getMonth() / 3); return new Date(today.getFullYear(), q * 3, 1);
+                case 'Previous Quarter': const pq = Math.floor(today.getMonth() / 3) - 1; const pqy = pq < 0 ? today.getFullYear() - 1 : today.getFullYear(); const pqsm = pq < 0 ? 9 : pq * 3; return new Date(pqy, pqsm, 1);
+                case 'Current Fiscal Year': const fys = 3; return new Date(today.getMonth() >= fys ? today.getFullYear() : today.getFullYear() - 1, fys, 1);
+                case 'Previous Fiscal Year': const pfys = 3; const pcY = today.getFullYear(); const psY = today.getMonth() >= pfys ? pcY : pcY - 1; return new Date(psY - 1, pfys, 1);
+                case 'Last 365 Days': const last365 = new Date(today); last365.setDate(today.getDate() - 364); return last365;
+                default: return null;
+            }
+        };
+
+        let items = returnsList.slice();
+
+        // date filtering
+        if (selectedDateRange === 'Custom Date Range' && customDate) {
+            items = items.filter(r => {
+                const d = r.returnDate ? new Date(r.returnDate) : (r.savedAt ? new Date(r.savedAt) : new Date(r.createdAt));
+                return d.toDateString() === customDate.toDateString();
+            });
+        } else if (selectedDateRange !== 'All Time') {
+            const start = getStartDate(selectedDateRange);
+            if (start) items = items.filter(r => {
+                const d = r.returnDate ? new Date(r.returnDate) : (r.savedAt ? new Date(r.savedAt) : new Date(r.createdAt));
+                return d >= start;
+            });
+        }
+
+        // card filter
+        items = items.filter(r => {
+            if (selectedCardLocal === 'Total Returns') return true;
+            const balance = Number(r.balanceAmount || 0);
+            if (selectedCardLocal === 'Paid') return balance === 0;
+            if (selectedCardLocal === 'Unpaid') return balance !== 0;
+            return true;
+        });
+
+        // search
+        if (searchTerm && searchTerm.trim() !== '') {
+            const term = searchTerm.toLowerCase();
+            items = items.filter(r => {
+                const no = (r.returnInvoiceNo || r.returnInvoiceNumber || '').toString().toLowerCase();
+                const party = (r.selectedParty?.name || r.selectedParty?.partyName || '').toString().toLowerCase();
+                const amt = String(r.totalAmount || r.amountPaid || '');
+                return no.includes(term) || party.includes(term) || amt.includes(term);
+            });
+        }
+
+        return items;
+    }, [returnsList, selectedDateRange, customDate, selectedCardLocal, searchTerm]);
+
     const handleDateButtonClick = () => {
         if (isDatePickerOpen) {
             setIsDatePickerOpen(false);
@@ -232,16 +336,16 @@ const PurchaseReturnDataPage = () => {
             </header>
             <main className="flex-1 py-6 space-y-6">
                 <div className="grid gap-6 md:grid-cols-3">
-                    <StatCard title="Total Returns" amount="0" icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCard('Total Returns')} isSelected={selectedCard === 'Total Returns'} />
-                    <StatCard title="Paid" amount="0" icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Paid')} isSelected={selectedCard === 'Paid'} />
-                    <StatCard title="Unpaid" amount="0" icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Unpaid')} isSelected={selectedCard === 'Unpaid'} />
+                    <StatCard title="Total Returns" amount={formatCurrency(totals.totalReturns)} icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCardLocal('Total Returns')} isSelected={selectedCardLocal === 'Total Returns'} />
+                    <StatCard title="Refunded" amount={formatCurrency(totals.refunded)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCardLocal('Paid')} isSelected={selectedCardLocal === 'Paid'} />
+                    <StatCard title="Unpaid" amount={formatCurrency(totals.unpaid)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCardLocal('Unpaid')} isSelected={selectedCardLocal === 'Unpaid'} />
                 </div>
 
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input placeholder="Search..." className="pl-10 pr-4 py-2 border rounded-md w-64 bg-white" />
+                            <Input placeholder="Search..." className="pl-10 pr-4 py-2 border rounded-md w-64 bg-white" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         </div>
 
                         <div ref={datePickerRef} className="relative">
@@ -320,14 +424,48 @@ const PurchaseReturnDataPage = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow>
-                                <TableCell colSpan={6} className="text-center py-20">
-                                    <div className="flex flex-col items-center gap-4">
-                                        <ClipboardX className="h-16 w-16 text-gray-300 dark:text-gray-600" strokeWidth={1} />
-                                        <p className="text-gray-500 dark:text-gray-400">No Transactions Matching the current filter</p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
+                            {isLoadingReturns ? (
+                                <TableRow>
+                                    <td colSpan={6} className="text-center py-20">Loading...</td>
+                                </TableRow>
+                            ) : returnsList.length === 0 ? (
+                                <TableRow>
+                                    <td colSpan={6} className="text-center py-20">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <ClipboardX className="h-16 w-16 text-gray-300 dark:text-gray-600" strokeWidth={1} />
+                                            <p className="text-gray-500 dark:text-gray-400">No Transactions Matching the current filter</p>
+                                        </div>
+                                    </td>
+                                </TableRow>
+                            ) : (
+                                filteredReturns.map((r) => {
+                                    const date = r.returnDate ? new Date(r.returnDate) : (r.savedAt ? new Date(r.savedAt) : new Date(r.createdAt));
+                                    const today = new Date();
+                                    const diffMs = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                                    const dueIn = diffMs >= 0 ? `${diffMs} days` : `Overdue ${Math.abs(diffMs)} days`;
+
+                                    const total = Number(r.totalAmount || 0);
+                                    const paid = Number(r.amountPaid || 0);
+                                    const balance = Number(r.balanceAmount || 0);
+                                    let status = 'Unpaid';
+                                    if (balance === 0) status = 'Refunded';
+                                    else if (paid > 0) status = 'Partially Refunded';
+
+                                    const statusColor = status === 'Refunded' ? 'text-green-700 bg-green-100' : status === 'Partially Refunded' ? 'text-yellow-700 bg-yellow-100' : 'text-red-700 bg-red-100';
+
+                                    const idOrNo = r._id || r.returnInvoiceNo || r.returnInvoiceNumber;
+                                        return (
+                                            <TableRow key={r._id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/return/purchase/purchase-return-invoice/${encodeURIComponent(String(idOrNo))}`)}>
+                                            <td className="p-4">{date.toLocaleDateString()}</td>
+                                            <td className="p-4">{r.returnInvoiceNo || r.returnInvoiceNumber}</td>
+                                            <td className="p-4">{r.selectedParty?.name || r.selectedParty?.partyName || ''}</td>
+                                            <td className="p-4">{dueIn}</td>
+                                            <td className="p-4">₹ {total.toFixed(2)}</td>
+                                            <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-medium ${statusColor}`}>{status}</span></td>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
                         </TableBody>
                     </Table>
                 </div>

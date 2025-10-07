@@ -217,7 +217,7 @@ export const updateNewPurchaseReturn = async (id: string, body: any, user: UserP
         if (!it.productId && it.name) namesToResolve.add(String(it.name).trim());
       }
 
-      let nameToId: Record<string, string> = {};
+      const nameToId: Record<string, string> = {};
       try {
         const names = Array.from(namesToResolve).filter(Boolean);
         if (names.length > 0) {

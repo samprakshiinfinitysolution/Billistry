@@ -1,21 +1,36 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { Contact, IContact } from "@/models/contactModel";
 import { connectDB } from '@/lib/db';
-import { Contact } from '@/models/contactModel';
 
-export async function submitContact(req: NextRequest) {
+// ✅ Create
+export async function createContact(data: Partial<IContact>): Promise<IContact> {
   await connectDB();
-  try {
-    const body = await req.json();
-    const { name, email, subject, message } = body;
+  const contact = await Contact.create(data);
+  return contact;
+}
 
-    if (!name || !message) {
-      return NextResponse.json({ success: false, error: 'Name and message are required' }, { status: 400 });
-    }
+// ✅ Read All
+export async function getAllContacts(): Promise<IContact[]> {
+  await connectDB();
+  return Contact.find().sort({ createdAt: -1 });
+}
 
-    const saved = await Contact.create({ name, email, subject, message });
-    return NextResponse.json({ success: true, contact: saved }, { status: 201 });
-  } catch (err: unknown) {
-    const error = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ success: false, error }, { status: 500 });
-  }
+// ✅ Read One
+export async function getContactById(id: string): Promise<IContact | null> {
+  await connectDB();
+  return Contact.findById(id);
+}
+
+// ✅ Update
+export async function updateContact(
+  id: string,
+  data: Partial<IContact>
+): Promise<IContact | null> {
+  await connectDB();
+  return Contact.findByIdAndUpdate(id, data, { new: true });
+}
+
+// ✅ Delete
+export async function deleteContact(id: string): Promise<IContact | null> {
+  await connectDB();
+  return Contact.findByIdAndDelete(id);
 }

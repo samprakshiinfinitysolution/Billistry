@@ -40,7 +40,7 @@ type EntryForm = {
   description: string;
 };
 
-export default function CashbookPage(): JSX.Element {
+export default function CashbookPage(): React.JSX.Element {
   const [data, setData] = useState<CashbookResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

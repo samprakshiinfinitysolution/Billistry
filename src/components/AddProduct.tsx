@@ -88,9 +88,10 @@ const defaultForm: Product = {
   taxPercent: "",
   hsnCode: "",
   openingStock: "",
-  // currentStock: "",
+  currentStock: "",
   lowStockAlert: "",
   unit: "pcs",
+  createdAt: new Date(),
 };
 
 interface AddProductProps {

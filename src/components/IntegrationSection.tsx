@@ -57,18 +57,18 @@ import Image from "next/image";
 
 const featuresData = {
   billing: [
-    { src: "/images/automatic-invoice.webp", alt: "Automatic GST Bill Sharing on Whatsapp/SMS", title: "Automatic invoice sharing on SMS & Whatsapp", link: null },
-    { src: "/images/sales-purchase.webp", alt: "Sales & Purchase Invoices, Expense Tracking", title: "Sales Purchase and Expenses", link: null },
-    { src: "/images/quotation-proforma.webp", alt: "Create Quotations/Estimates & Proforma Invoices", title: "Quotations Estimates & Proforma Invoices", link: null },
-    { src: "/images/delivery-challan.webp", alt: "Create Delivery Challan", title: "Delivery Challan", link: "https://mybillbook.in/blog/delivery-challan-meaning-and-format/" },
+    { src: "/images/automaticinvoice.webp", alt: "Automatic GST Bill Sharing on Whatsapp/SMS", title: "Automatic invoice sharing on SMS & Whatsapp", link: null },
+    { src: "/images/Bsales.webp", alt: "Sales & Purchase Invoices, Expense Tracking", title: "Sales Purchase and Expenses", link: null },
+    { src: "/images/invoice.webp", alt: "Create Quotations/Estimates & Proforma Invoices", title: "Quotations Estimates & Proforma Invoices", link: null },
+    { src: "/images/Deliverychallan.webp", alt: "Create Delivery Challan", title: "Delivery Challan", link: "https://mybillbook.in/blog/delivery-challan-meaning-and-format/" },
   ],
   inventory: [
-    { src: "/images/manage-stocks.webp", alt: "Inventory Management Software", title: "Manage Stock Items" },
-    { src: "/images/godown.webp", alt: "Godown Management Billing Software", title: "Godown Management" },
-    { src: "/images/batching.webp", alt: "Product Batching Feature", title: "Batching" },
-    { src: "/images/serialisation.webp", alt: "Add Serial Number for easy product tracking", title: "Serialisation" },
-    { src: "/images/barcodes.webp", alt: "Create and Print Barcodes", title: "Generate and Print Barcodes", link: "https://mybillbook.in/s/billing-software-with-barcode/" },
-    { src: "/images/custom-fields.webp", alt: "Add custom fields for easy inventory management", title: "Inventory Custom Fields" },
+    { src: "/images/stockm.webp", alt: "Inventory Management Software", title: "Manage Stock Items" },
+    { src: "/images/godownm.webp", alt: "Godown Management Billing Software", title: "Godown Management" },
+    { src: "/images/batchingm.webp", alt: "Product Batching Feature", title: "Batching" },
+    { src: "/images/serialization.webp", alt: "Add Serial Number for easy product tracking", title: "Serialisation" },
+    { src: "/images/Print.webp", alt: "Create and Print Barcodes", title: "Generate and Print Barcodes", link: "https://mybillbook.in/s/billing-software-with-barcode/" },
+    { src: "/images/inventorycustom.webp", alt: "Add custom fields for easy inventory management", title: "Inventory Custom Fields" },
   ],
   business: [
     { src: "/images/multiple-device.webp", alt: "Access myBillBook on multiple devices", title: "Multiple Device Login" },
@@ -86,15 +86,17 @@ const featuresData = {
   ],
 };
 
+type FeatureTabKey = keyof typeof featuresData;
+
 const tabs = [
-  { key: "billing", label: "Billing" },
-  { key: "inventory", label: "Inventory Management" },
-  { key: "business", label: "Business Management" },
-  { key: "bonus", label: "Bonus Features" },
+  { key: "billing" as FeatureTabKey, label: "Billing" },
+  { key: "inventory" as FeatureTabKey, label: "Inventory Management" },
+  { key: "business" as FeatureTabKey, label: "Business Management" },
+  { key: "bonus" as FeatureTabKey, label: "Bonus Features" },
 ];
 
 export default function FeaturesSection() {
-  const [activeTab, setActiveTab] = useState("billing");
+  const [activeTab, setActiveTab] = useState<FeatureTabKey>("billing");
 
   return (
     <section className="bg-[#F7FBFB] py-16 px-4 sm:px-6 md:px-10  ">

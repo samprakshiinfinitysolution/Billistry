@@ -302,7 +302,7 @@ export const updateNewSale = async (id: string, body: Partial<NewSaleInput>, use
       }
 
       // Resolve names to product ids where possible (within the business)
-      let nameToId: Record<string, string> = {};
+      const nameToId: Record<string, string> = {};
       try {
         const names = Array.from(namesToResolve).filter(Boolean);
         if (names.length > 0) {

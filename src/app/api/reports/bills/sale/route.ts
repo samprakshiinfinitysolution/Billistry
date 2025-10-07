@@ -7,9 +7,7 @@ export async function GET(req: NextRequest) {
   try {
     // ✅ Authenticate user
     const user = await authMiddleware(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (user instanceof NextResponse) return user;
 
     // ✅ Extract query params
     const { searchParams } = new URL(req.url);

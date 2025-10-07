@@ -15,9 +15,9 @@ export type SessionPayload = {
 };
 
 // Sign a JWT token
-export function signSession(payload: SessionPayload, expiresIn = "7d") {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
-}
+// export function signSession(payload: SessionPayload, expiresIn = "7d") {
+//   return jwt.sign(payload, JWT_SECRET, { expiresIn });
+// }
 
 // Verify a JWT token
 export function verifySession<T = SessionPayload>(token?: string): T | null {
@@ -42,10 +42,10 @@ export async function comparePassword(password: string, hash?: string) {
 }
 
 // Get session from cookie (server-side)
-export function getServerSession(): SessionPayload | null {
+export async function getServerSession(): Promise<SessionPayload | null> {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get("token")?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get("accessToken")?.value;
     return verifySession(token);
   } catch {
     return null;

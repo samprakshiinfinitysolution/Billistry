@@ -37,7 +37,7 @@ import {
   endOfDay,
 } from "date-fns";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable from "jspdf-autotable"; // Make sure you have @types/jspdf-autotable installed for type definitions
 import * as XLSX from "xlsx";
 import useAuthGuard from "@/hooks/useAuthGuard";
 
@@ -172,10 +172,10 @@ export default function PurchasePage() {
     setForm({ ...form, items: updated });
   };
 
-  const handleItemChange = (
+  const handleItemChange = <K extends keyof PurchaseItemForm>(
     index: number,
-    key: keyof PurchaseItemForm,
-    value: any
+    key: K,
+    value: PurchaseItemForm[K]
   ) => {
     const updated = [...form.items];
     updated[index][key] = value;
@@ -426,12 +426,12 @@ export default function PurchasePage() {
                       .join(", ")}
                   </TableCell>
                   <TableCell className="px-4 py-2">{p.paymentStatus}</TableCell>
-                  {/* <TableCell className="px-4 py-2">₹{p.invoiceAmount.toFixed(2)}</TableCell> */}
-                  <TableCell className="px-4 py-2">
+                  <TableCell className="px-4 py-2">₹{p.invoiceAmount.toFixed(2)}</TableCell>
+                  {/* <TableCell className="px-4 py-2">
                     {user?.permissions?.viewAmounts
                       ? `₹${p.invoiceAmount.toFixed(2)}`
                       : "####"}
-                  </TableCell>
+                  </TableCell> */}
 
                   <TableCell className="flex gap-2 px-4 py-2">
                     <Button

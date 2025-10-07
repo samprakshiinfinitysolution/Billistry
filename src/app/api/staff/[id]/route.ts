@@ -19,7 +19,7 @@ import { authMiddleware } from "@/lib/middleware/auth";
 import { getStaffById, updateStaff, deleteStaff } from "@/controllers/staffController";
 
 // GET single staff
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: any) {
   const user = await authMiddleware(req, ["shopkeeper", "superadmin"]);
   if ("status" in user) return user;
 
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 // PUT update staff
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: any) {
   const user = await authMiddleware(req, ["shopkeeper", "superadmin"]);
   if ("status" in user) return user;
 
@@ -35,7 +35,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 // DELETE staff
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: any) {
   const user = await authMiddleware(req, ["shopkeeper", "superadmin"]);
   if ("status" in user) return user;
 

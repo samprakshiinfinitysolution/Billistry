@@ -90,7 +90,7 @@ import { useState } from "react";
 import { CheckCircle2, Star } from "lucide-react";
 
 export default function PlansSection() {
-  const [billing, setBilling] = useState("monthly"); // monthly | yearly
+  const [billing, setBilling] = useState<"monthly" | "yearly">("monthly"); // monthly | yearly
 
   const plans = [
     {
@@ -181,7 +181,7 @@ export default function PlansSection() {
         >
           {/* Badge for Pro */}
           {p.highlight && (
-            <span className="absolute -top-4 items-center  bg-[#460F58] text-white px-5 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+            <span className="absolute -top-4 items-center  bg-[#460F58] text-white px-5 py-1 rounded-full text-xs font-bold flex  gap-1 shadow-lg">
               <Star className="w-4 h-4 fill-yellow-300 text-yellow-300" />
               Most Popular
             </span>
@@ -233,8 +233,3 @@ export default function PlansSection() {
 
   );
 }
-
-
-
-
-

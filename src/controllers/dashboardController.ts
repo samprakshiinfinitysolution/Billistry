@@ -237,14 +237,14 @@ async function getTrendData(
   if (filter === "day") {
     for (let h = 0; h < 24; h++) {
       const hourLabel = `${h.toString().padStart(2, "0")}:00`;
-      const found = trend.find((t) => t._id === hourLabel);
+      const found = trend.find((t: { _id: string; total: number }) => t._id === hourLabel);
       results.push({ date: hourLabel, total: found ? found.total : 0 });
     }
   } else {
     const current = new Date(start);
     while (current <= end) {
       const dateStr = current.toISOString().split("T")[0];
-      const found = trend.find((t) => t._id === dateStr);
+      const found = trend.find((t: { _id: string; total: number }) => t._id === dateStr);
       results.push({ date: dateStr, total: found ? found.total : 0 });
       current.setDate(current.getDate() + 1);
     }

@@ -87,6 +87,7 @@
     "@eslint/eslintrc": "^3",
     "@locator/babel-jsx": "^0.4.4",
     "@tailwindcss/postcss": "^4.1.11",
+    "@types/cors": "^2.8.19",
     "@types/formidable": "^3.4.5",
     "@types/json2csv": "^5.0.7",
     "@types/jsonwebtoken": "^9.0.10",

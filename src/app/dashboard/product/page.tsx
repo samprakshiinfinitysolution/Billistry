@@ -39,7 +39,7 @@ interface Product {
 }
 
 // GST Options
-export const GST_OPTIONS = [
+ const GST_OPTIONS = [
   { value: "None", label: "None" },
   { value: "Exempted", label: "Exempted" },
   { value: "0", label: "GST @ 0%" },
@@ -56,7 +56,7 @@ export const GST_OPTIONS = [
 ];
 
 // const UNIT_OPTIONS = ["pcs", "kg", "liter", "pack", "box"];
-export const UNIT_OPTIONS = [
+ const UNIT_OPTIONS = [
   "pcs", // Piece
   "unit", // General single item
   "dozen", // 12 pcs

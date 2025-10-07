@@ -9,8 +9,4 @@ export const GET = asyncHandler(async (req: NextRequest) => {
 
   const preview = await getNextSaleReturnInvoicePreview(user);
   return NextResponse.json({ success: true, data: preview }, { status: 200 });
-<<<<<<< HEAD
 });
-=======
-});
->>>>>>> 3cfecf3c8e12ea107b03bcb7f8949aaf453d14ed

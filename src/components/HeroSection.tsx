@@ -236,7 +236,7 @@ export default function HeroSection() {
 
   useEffect(() => {
     const currentWord = words[index];
-    let typingSpeed = isDeleting ? 60 : 120;
+    const typingSpeed = isDeleting ? 60 : 120;
 
     const typingEffect = setTimeout(() => {
       if (!isDeleting && displayedText.length < currentWord.length) {
