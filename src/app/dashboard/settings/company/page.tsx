@@ -32,7 +32,7 @@ const ImageUpload = ({ label, previewUrl, onFileSelect, onClear, error }: ImageU
         <input type="file" ref={fileInputRef} onChange={handleFileChange} accept={ACCEPTED_IMAGE_TYPES.join(',')} className="hidden" />
         {previewUrl ? (
           <>
-            <Image src={previewUrl} alt="Preview" className="max-h-full max-w-full object-contain rounded" />
+            <Image src={previewUrl} alt="Preview" fill className="object-contain rounded" />
             <button type="button" onClick={onClear} className="absolute top-1 right-1 bg-white rounded-full p-1 shadow-md text-gray-600 hover:text-red-500"><X size={16} /></button>
           </>
         ) : (
@@ -73,8 +73,17 @@ const SearchableDropdown = ({ label, options, selected, onSelect, placeholder = 
 
 // --- Other General UI Components ---
 const ToggleSwitch = ({ enabled, onChange }: { enabled: boolean; onChange: (enabled: boolean) => void }) => ( <button type="button" onClick={() => onChange(!enabled)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none ${enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${enabled ? 'translate-x-6' : 'translate-x-1'}`} /></button>);
-const FormField = ({ label, required, className, children, error }: { label: string; required?: boolean; className?: string; error?: string; children: React.ReactNode; }) => ( <div className={className}><label htmlFor={label} className="block text-sm font-medium text-gray-600 mb-1">{label} {required && <span className="text-red-500">*</span>}</label>{children}{error && <p className="mt-1 text-xs text-red-500">{error}</p>}</div>);
-const Input = (props: React.InputHTMLAttributes<HTMLInputElement> & { hasError?: boolean }) => ( <input {...props} className={`block w-full px-3 py-2 bg-white border ${props.hasError ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`} />);
+const FormField = ({ label, required, className, children, error }: { label: string; required?: boolean; className?: string; error?: string; children: React.ReactNode; }) => ( <div className={className}><label htmlFor={label} className="block text-sm font-medium text-gray-600 mb-1">{label} {required && <span className="text-red-500">*</span>}</label>{children}{error && <p className="mt-1 text-xs text-red-500">{error}</p>}</div>);const Input = ({
+  hasError,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { hasError?: boolean }) => (
+  <input
+    {...props}
+    className={`block w-full px-3 py-2 bg-white border ${
+      hasError ? "border-red-500" : "border-gray-300"
+    } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+  />
+);
 const Select = ({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => ( <div className="relative"><select {...props} className="appearance-none block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{children}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" /></div>);
 
 
