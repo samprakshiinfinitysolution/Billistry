@@ -12,6 +12,9 @@ export const metadata: Metadata = {
     default: "Billistry",
     template: "%s | Inventory Management",
   },
+  verification: {
+    google: 'AKucHrsElZd8_4wCZTxdvkuCHmM74rlQ_Wu_eLuoevI',
+  },
   description: "Complete inventory management solution for businesses",
   keywords: ["inventory", "management", "business", "stock", "warehouse"],
   authors: [{ name: "Billistry Team" }],
