@@ -162,14 +162,14 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
             <button onClick={onPress} className="absolute inset-0 z-10 focus:outline-none rounded-lg" aria-label={`View ${title}`}>
                 {/* This button is for accessibility and interaction, but is visually transparent */}
             </button>
-            <CardHeader className="p-4">
+            <CardHeader className="p-3">
                 <CardTitle className={`flex items-center text-sm font-semibold ${titleColor}`}>
                     <div className={`mr-3 ${iconColor}`}>{icon}</div>
                     {title}
                 </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-                <div className="text-3xl font-bold text-gray-900 dark:text-gray-50">₹ {amount}</div>
+                    <CardContent className="p-3 pt-0">
+                        <div className="text-2xl font-bold text-gray-900 dark:text-gray-50">₹ {amount}</div>
             </CardContent>
         </Card>
     );
@@ -443,22 +443,24 @@ const PurchaseDataPage = () => {
             </div>
         )}
 
-        <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-4">
             <header className="flex items-center justify-between pb-4 border-b">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Purchase Invoices</h1>
+        <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">Purchase Invoices</h1>
                 <div className="flex items-center gap-2">
                     <DropdownMenu>
-                        <DropdownMenuTrigger>
-                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2">
+                            <DropdownMenuTrigger>
+                                <Link href="/dashboard/reports/purchase/PurchaseSummary">
+                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
                                 <FileBarChart className="h-4 w-4 mr-2" />
                                 Reports
                                 <ChevronDown className="h-4 w-4 ml-2" />
                             </Button>
+                            </Link>
                         </DropdownMenuTrigger>
                     </DropdownMenu>
                 </div>
             </header>
-            <main className="flex-1 py-6 space-y-6">
+            <main className="flex-1 pt-4 space-y-4 flex flex-col overflow-hidden">
                 <div className="grid gap-6 md:grid-cols-3">
                     <StatCard title="Total Purchases" amount={formatDisplayCurrency(totalPurchasesAll)} icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCard('Total Purchases')} isSelected={selectedCard === 'Total Purchases'} />
                     <StatCard title="Paid" amount={formatDisplayCurrency(paidAmountAll)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Paid')} isSelected={selectedCard === 'Paid'} />
@@ -469,13 +471,13 @@ const PurchaseDataPage = () => {
                     <div className="flex items-center gap-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input placeholder="Search..." className="pl-10 pr-4 py-2 border rounded-md w-64 bg-white" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                            <Input placeholder="Search..." className="pl-10 pr-4 py-1.5 border rounded-md w-64 bg-white" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         </div>
 
                         <div ref={datePickerRef} className="relative">
                             <Button
                                 variant="outline"
-                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2 w-64"
+                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5 w-64"
                                 onClick={handleDateButtonClick}
                             >
                                 <div className="flex items-center justify-between w-full">
@@ -519,33 +521,33 @@ const PurchaseDataPage = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger>
-                                <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2">
-                                    Bulk Actions
-                                    <ChevronDown className="h-4 w-4 ml-2" />
+                            <DropdownMenu>
+                                <DropdownMenuTrigger>
+                                    <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
+                                        Bulk Actions
+                                        <ChevronDown className="h-4 w-4 ml-2" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                            </DropdownMenu>
+                            <Link href="/dashboard/purchase/purchase-invoice">
+                                <Button className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5">
+                                    Create Purchase Invoice
                                 </Button>
-                            </DropdownMenuTrigger>
-                        </DropdownMenu>
-                        <Link href="/dashboard/purchase/purchase-invoice">
-                            <Button className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2">
-                                Create Purchase Invoice
-                            </Button>
-                        </Link>
+                            </Link>
                     </div>
                 </div>
 
-                <div className="border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm">
+                <div className="border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm flex-1 overflow-y-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow className="border-b dark:border-gray-700">
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice Number</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party Name</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due In</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
-                                <TableHead className="p-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</TableHead>
+                            <TableRow className="border-b dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice Number</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party Name</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due In</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
+                                <TableHead className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -567,20 +569,20 @@ const PurchaseDataPage = () => {
                                     return filteredPurchases.map(purchase => {
                                         const idOrNo = purchase._id || purchase.invoiceNo || purchase.invoiceNumber;
                                         return (
-                                            <TableRow key={purchase._id} className="border-b dark:border-gray-700 hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/purchase/purchase-invoice/${encodeURIComponent(String(idOrNo))}`)}>
-                                                <TableCell className="p-4">{purchase.date ? new Date(purchase.date as any).toLocaleDateString() : 'N/A'}</TableCell>
-                                                <TableCell className="p-4">{purchase.invoiceNo ?? (purchase.invoiceNumber !== undefined && purchase.invoiceNumber !== null ? `PUR-${String(purchase.invoiceNumber).padStart(5,'0')}` : 'N/A')}</TableCell>
-                                                <TableCell className="p-4">{(typeof purchase.billTo === 'string') ? purchase.billTo : (purchase.billTo?.name || 'N/A')}</TableCell>
-                                                <TableCell className="p-4">{purchase.dueDate ? new Date(purchase.dueDate as any).toLocaleDateString() : 'N/A'}</TableCell>
-                                                <TableCell className="p-4">₹{formatDisplayCurrency(purchase.invoiceAmount || purchase.totalAmount || 0)}</TableCell>
-                                                <TableCell className="p-4">
+                                            <TableRow key={purchase._id} className="border-b dark:border-gray-700 hover:bg-gray-50 cursor-pointer text-sm" onClick={() => router.push(`/dashboard/purchase/purchase-invoice/${encodeURIComponent(String(purchase._id))}`)}>
+                                                <TableCell className="px-3 py-2">{purchase.date ? new Date(purchase.date as any).toLocaleDateString() : 'N/A'}</TableCell>
+                                                <TableCell className="px-3 py-2">{purchase.invoiceNumber ? `#${purchase.invoiceNumber}` : (purchase.invoiceNo || 'N/A')}</TableCell>
+                                                <TableCell className="px-3 py-2">{(typeof purchase.billTo === 'string') ? purchase.billTo : (purchase.billTo?.name || 'N/A')}</TableCell>
+                                                <TableCell className="px-3 py-2">{purchase.dueDate ? new Date(purchase.dueDate as any).toLocaleDateString() : 'N/A'}</TableCell>
+                                                <TableCell className="px-3 py-2">₹{formatDisplayCurrency(purchase.invoiceAmount || purchase.totalAmount || 0)}</TableCell>
+                                                <TableCell className="px-3 py-2">
                                                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                                                         purchase.paymentStatus === 'unpaid' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
                                                     }`}>
                                                         {(purchase.paymentStatus || 'unpaid').charAt(0).toUpperCase() + (purchase.paymentStatus || 'unpaid').slice(1)}
                                                     </span>
                                                 </TableCell>
-                                                <td ref={el => { dropdownRefs.current[purchase._id] = el as any; }} className="p-4 text-right relative">
+                                                <td ref={el => { dropdownRefs.current[purchase._id] = el as any; }} className="px-3 py-2 text-right relative">
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"

@@ -37,7 +37,7 @@ import {
   endOfDay,
 } from "date-fns";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable"; // Make sure you have @types/jspdf-autotable installed for type definitions
+import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import useAuthGuard from "@/hooks/useAuthGuard";
 
@@ -46,6 +46,7 @@ interface Supplier {
   name: string;
   phone?: string;
   email?: string;
+
 }
 
 interface Item {
@@ -172,13 +173,13 @@ export default function PurchasePage() {
     setForm({ ...form, items: updated });
   };
 
-  const handleItemChange = <K extends keyof PurchaseItemForm>(
+  const handleItemChange = (
     index: number,
-    key: K,
-    value: PurchaseItemForm[K]
+    key: keyof PurchaseItemForm,
+    value: any
   ) => {
     const updated = [...form.items];
-    updated[index][key] = value;
+    (updated[index] as any)[key] = value;
 
     if (key === "item") {
       const selected = items.find((i) => i._id === value);

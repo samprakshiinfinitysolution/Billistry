@@ -2,20 +2,25 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Share2 } from 'lucide-react';
+import { ArrowLeft, Download, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import InvoiceDownload from '../../../../../../components/InvoiceDownload';
+import InvoiceDownload from '@/components/InvoiceDownload';
 
-const SalesReturnInvoiceViewer = ({ params }: any) => {
+const SalesReturnInvoiceViewer = ({ params }: { params: any }) => {
     const router = useRouter();
-    const { id } = params;
+    // Try to unwrap params using React.use() when available; otherwise resolve the promise in an effect
+ 
+    const maybeParams = (React as any).use ? (React as any).use(params) : undefined;
+    const initialId = maybeParams?.id ?? null;
+    const [id, setId] = useState<string | null>(initialId);
     const [meta, setMeta] = useState<any>(null);
 
     useEffect(() => {
         let mounted = true;
-        const fetchMeta = async () => {
+    const fetchMeta = async () => {
             try {
-                let res = await fetch(`/api/new_sale_return/${encodeURIComponent(id)}`, { credentials: 'include' });
+        const safeId = String(id);
+        let res = await fetch(`/api/new_sale_return/${encodeURIComponent(safeId)}`, { credentials: 'include' });
                 let body = await res.json().catch(() => null);
 
                 // If direct fetch by id didn't return a doc, try querying by invoice number
@@ -35,23 +40,78 @@ const SalesReturnInvoiceViewer = ({ params }: any) => {
                 setMeta(null);
             }
         };
-        fetchMeta();
+        if (id) fetchMeta();
         return () => { mounted = false; };
     }, [id]);
 
+    useEffect(() => {
+        if (id) return;
+        let mounted = true;
+        (async () => {
+            try {
+                const resolved = await params;
+                if (!mounted) return;
+                if (resolved?.id) setId(resolved.id);
+            } catch (e) {
+                // ignore
+            }
+        })();
+        return () => { mounted = false; };
+    }, [params, id]);
+
     const handlePrint = () => window.print();
-    const handleShare = async () => {
-        const url = window.location.href;
-        const title = `Sales Return ${meta?.invoiceNo || meta?.invoiceNumber || id}`;
-        if (navigator.share) {
-            try { await navigator.share({ title, url }); } catch (e) { /* ignore */ }
-        } else {
-            try { await navigator.clipboard.writeText(url); alert('Link copied to clipboard'); } catch (e) { alert(url); }
+    const handleDownload = async () => {
+        if (!id) { alert('Invoice ID not available'); return; }
+        try {
+            let res: Response;
+            if (meta) {
+                console.debug('Downloading PDF via from-meta POST');
+                res = await fetch(`/api/download-invoice/from-meta`, { method: 'POST', credentials: 'include', body: JSON.stringify(meta) });
+            } else {
+                console.debug('Downloading PDF via GET by id');
+                res = await fetch(`/api/download-invoice/${encodeURIComponent(id)}`, { credentials: 'include' });
+            }
+            if (!res.ok) { alert('Failed to download PDF'); return; }
+            const blob = await res.blob();
+            const partyName = meta?.selectedParty?.name || meta?.selectedParty?.partyName || meta?.partyName || meta?.businessName || 'Client';
+            const clean = String(partyName).replace(/\s+/g, '_');
+            const filename = `${clean}_Sales_Return.pdf`;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+            alert('Error downloading PDF');
         }
     };
+    
 
-    // Prefer return-specific fields (returnInvoiceNo / returnInvoiceNumber), then fall back to invoice fields, then id
-    const invoiceLabel = meta?.returnInvoiceNo || meta?.invoiceNo || (meta?.returnInvoiceNumber ? `#${meta.returnInvoiceNumber}` : (meta?.invoiceNumber ? `#${meta.invoiceNumber}` : id));
+    // Prefer numeric returnInvoiceNumber (show as #N), then returnInvoiceNo, then fallback to invoiceNumber/#invoiceNo, then id
+    const invoiceLabel = meta?.returnInvoiceNumber ? `#${meta.returnInvoiceNumber}` : (meta?.returnInvoiceNo || (meta?.invoiceNumber ? `#${meta.invoiceNumber}` : (meta?.invoiceNo || id || '')));
+
+    // Derive payment status: prefer explicit paymentStatus, otherwise infer from amounts
+    const deriveStatus = (m: any) => {
+        if (!m) return { text: 'Unknown', color: 'bg-gray-100 text-gray-700' };
+        const ps = m.paymentStatus;
+        if (ps) {
+            const txt = String(ps).charAt(0).toUpperCase() + String(ps).slice(1);
+            return { text: txt, color: ps === 'unpaid' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800' };
+        }
+        const balance = Number(m.balanceAmount ?? 0);
+        const refunded = Number(m.amountRefunded ?? m.amountPaid ?? 0);
+        if (balance === 0) return { text: 'Refunded', color: 'bg-green-100 text-green-800' };
+        if (refunded && refunded > 0) return { text: 'Partially Refunded', color: 'bg-green-100 text-green-800' };
+        return { text: 'Unpaid', color: 'bg-red-100 text-red-800' };
+    };
+
+    const { text: statusText, color: statusColorClass } = deriveStatus(meta);
+
+    if (!id) return <div className="p-6">Loading...</div>;
 
     return (
         <div className="bg-gray-50 min-h-screen">
@@ -62,14 +122,21 @@ const SalesReturnInvoiceViewer = ({ params }: any) => {
                             <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100 rounded-md p-2" onClick={() => router.push('/dashboard/return/sale/sales-return-data')}>
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
-                            <h1 className="text-xl font-semibold text-gray-800">Sales Return {invoiceLabel ? invoiceLabel : ''}</h1>
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-xl font-semibold text-gray-800">Sales Return {invoiceLabel ? invoiceLabel : ''}</h1>
+                                {meta && (
+                                    <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${statusColorClass}`}>
+                                        {statusText}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button onClick={handleShare} className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-md inline-flex items-center">
-                                <Share2 className="h-4 w-4 mr-2" /> Share
+                            <button onClick={handlePrint} className="bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200 px-4 py-2 rounded-md inline-flex items-center">
+                                <Printer className="h-4 w-4 mr-2 text-gray-600" /> Print PDF
                             </button>
-                            <button onClick={handlePrint} className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2 rounded-md inline-flex items-center">
-                                <Download className="h-4 w-4 mr-2" /> Download
+                            <button onClick={handleDownload} className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2 rounded-md inline-flex items-center">
+                                <Download className="h-4 w-4 mr-2" /> Download PDF
                             </button>
                         </div>
                     </div>

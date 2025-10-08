@@ -1,10 +1,8 @@
-import { AlertTriangle } from 'lucide-react';
-
 interface LowStockItem {
   sku: string;
   name: string;
-  minOrder: number;
-  currentQty: number;
+  lowStockAlert: number;
+  currentStock: number;
   alert: boolean;
 }
 
@@ -22,25 +20,27 @@ export default function LowStockAlerts({ data }: LowStockAlertsProps) {
             <tr className="text-left text-sm text-gray-400 border-b border-gray-700">
               <th className="pb-3">SKU</th>
               <th className="pb-3">Product Name</th>
-              <th className="pb-3">Low Stock</th>
-              <th className="pb-3">Current Qty</th>
+              <th className="pb-3">Low Stock Alert</th>
+              <th className="pb-3">Current Stock</th>
             </tr>
           </thead>
           <tbody>
-            {data.map((item, idx) => (
+            {data.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="py-6 text-center text-sm text-gray-400">
+                  No low stock alerts
+                </td>
+              </tr>
+            ) : data.map((item, idx) => (
               <tr key={idx} className="border-b border-gray-700 text-sm">
                 <td className="py-3">{item.sku}</td>
                 <td className="py-3">{item.name}</td>
                 <td className="py-3">
-                  {item.alert ? (
-                    <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-semibold">
-                      {item.minOrder}
-                    </span>
-                  ) : (
-                    item.minOrder
-                  )}
+                  <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-semibold">
+                    {item.lowStockAlert}
+                  </span>
                 </td>
-                <td className="py-3">{item.currentQty}</td>
+                <td className="py-3">{item.currentStock}</td>
               </tr>
             ))}
           </tbody>

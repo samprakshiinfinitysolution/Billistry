@@ -13,13 +13,13 @@ import {
     ClipboardX,
     Search,
     ChevronLeft,
-    ChevronRight, 
+    ChevronRight,
     MoreVertical,
     Edit,
     Trash2,
 } from 'lucide-react';
 
-// Mock UI components
+// Mock UI components (Consistent with the reference)
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
     <button
         {...props}
@@ -48,7 +48,7 @@ const DropdownMenuTrigger = ({ children }: { children: React.ReactNode }) => <di
 const DropdownMenuContent = ({ children }: { children: React.ReactNode }) => <div className="origin-top-left absolute left-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 max-h-80 overflow-y-auto">{children}</div>;
 const DropdownMenuItem = ({ children, className = '', ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a href="#" className={`block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 ${className}`} {...props}>{children}</a>;
 
-// NEW: Advanced, Self-contained Calendar Component
+// Calendar component
 const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -115,19 +115,20 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
     );
 };
 
+// Interface for a Sale object
 interface Sale {
     _id: string;
-    invoiceNo?: string; // formatted invoice string from NewSale (INV-00001)
+    invoiceNo?: string;
     invoiceNumber?: number;
-    invoiceDate?: string | Date;
+    date?: string | Date;
     dueDate?: string | Date;
-    totalAmount?: number; // renamed from invoiceAmount
-    paymentStatus?: 'unpaid' | 'cash' | 'upi' | 'card' | 'netbanking' | 'bank' | 'bank_transfer' | 'cheque' | 'online';
-    selectedParty?: { name?: string; partyName?: string; mobileNumber?: string; billingAddress?: string; balance?: number; } | string;
+    invoiceAmount?: number;
+    paymentStatus?: 'unpaid' | 'cash' | 'online' | string;
+    billTo?: { name?: string } | string;
     isDeleted?: boolean;
 }
 
-
+// StatCard component for displaying summary data
 interface StatCardProps {
     title: string;
     amount: string;
@@ -160,24 +161,28 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
             <button onClick={onPress} className="absolute inset-0 z-10 focus:outline-none rounded-lg" aria-label={`View ${title}`}>
                 {/* This button is for accessibility and interaction, but is visually transparent */}
             </button>
-            <CardHeader className="p-4">
+            <CardHeader className="p-3">
                 <CardTitle className={`flex items-center text-sm font-semibold ${titleColor}`}>
                     <div className={`mr-3 ${iconColor}`}>{icon}</div>
                     {title}
                 </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-                <div className="text-3xl font-bold text-gray-900 dark:text-gray-50">₹ {amount}</div>
+            <CardContent className="p-3 pt-0">
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-50">₹ {amount}</div>
             </CardContent>
         </Card>
     );
 };
 
 
-const SalesInvoicePage = () => {
+const SalesDataPage = () => {
+    const router = useRouter();
     const [sales, setSales] = useState<Sale[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showArchived, setShowArchived] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
     const [selectedCard, setSelectedCard] = useState('Total Sales');
     const [selectedDateRange, setSelectedDateRange] = useState('Last 365 Days');
     const [hoveredDateRange, setHoveredDateRange] = useState<string | null>(null);
@@ -185,13 +190,8 @@ const SalesInvoicePage = () => {
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [customDate, setCustomDate] = useState<Date | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [showArchived, setShowArchived] = useState(false);
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
-    const router = useRouter();
-    const [isCreating, setIsCreating] = useState(false);
-    
+
     const dropdownRefs = useRef<{ [key: string]: HTMLTableCellElement | null }>({});
     const datePickerRef = useRef<HTMLDivElement>(null);
 
@@ -200,14 +200,32 @@ const SalesInvoicePage = () => {
             setLoading(true);
             setError(null);
             try {
-                // Using axios to fetch NewSale resource
                 const res = await axios.get('/api/new_sale' + (showArchived ? '?includeDeleted=true' : ''), { withCredentials: true });
                 const data = res.data;
 
                 if (data.success) {
-                    setSales(data.data || []); // Use `data.data` to access the sales array
+                    // Normalize server data to a consistent UI-friendly shape
+                    const normalized = (data.data || []).map((d: any) => {
+                        const rawNum = (d.invoiceNumber !== undefined && d.invoiceNumber !== null) ? Number(d.invoiceNumber) : undefined;
+                        const invoiceNum = (typeof rawNum === 'number' && !isNaN(rawNum)) ? rawNum : undefined;
+                        const rawInvoiceNo = d.invoiceNo ? String(d.invoiceNo).trim() : undefined;
+                        const invoiceNoIsPlaceholder = rawInvoiceNo ? /^INV-0+$/.test(rawInvoiceNo) : false; // Check for INV- placeholder
+                        const invoiceNoComputed = (!invoiceNoIsPlaceholder && rawInvoiceNo) ? rawInvoiceNo : (typeof invoiceNum === 'number' ? `INV-${String(invoiceNum).padStart(5, '0')}` : undefined);
+                        
+                        return {
+                            _id: d._id,
+                            invoiceNo: invoiceNoComputed,
+                            invoiceNumber: invoiceNum,
+                            date: d.invoiceDate || d.savedAt || d.createdAt,
+                            dueDate: d.dueDate,
+                            invoiceAmount: typeof d.totalAmount !== 'undefined' ? d.totalAmount : d.amount || 0,
+                            paymentStatus: d.paymentStatus || 'unpaid',
+                            billTo: d.selectedParty || d.billTo || null,
+                            isDeleted: Boolean(d.isDeleted),
+                        } as Sale;
+                    });
+                    setSales(normalized);
                 } else {
-                    // Use the error message from the API response
                     throw new Error(data.error || 'Failed to fetch sales data.');
                 }
             } catch (err: any) {
@@ -217,44 +235,9 @@ const SalesInvoicePage = () => {
             }
         };
         fetchSales();
-    }, []);
-
-    useEffect(() => {
-        // refetch when toggling archived view
-        const fetchSales = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await axios.get('/api/new_sale' + (showArchived ? '?includeDeleted=true' : ''), { withCredentials: true });
-                const data = res.data;
-                if (data.success) setSales(data.data || []);
-                else throw new Error(data.error || 'Failed to fetch');
-            } catch (err: any) {
-                setError(err.message);
-            } finally { setLoading(false); }
-        };
-        fetchSales();
     }, [showArchived]);
 
-    const handleDeleteClick = (id: string) => {
-        setDeletingId(id);
-        setShowDeleteConfirm(true);
-        setOpenDropdownId(null);
-    };
-
-    const confirmDelete = async () => {
-        if (!deletingId) return;
-        try {
-            await axios.delete(`/api/new_sale/${deletingId}`, { withCredentials: true });
-            setSales(prev => prev.filter(s => s._id !== deletingId));
-        } catch (err: any) {
-            alert(err?.response?.data?.error || err?.message || 'Failed to delete');
-        } finally {
-            setShowDeleteConfirm(false);
-            setDeletingId(null);
-        }
-    };
-        const filteredSales = useMemo(() => {
+    const filteredSales = useMemo(() => {
         const getStartDate = (range: string): Date | null => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -278,25 +261,27 @@ const SalesInvoicePage = () => {
 
         let dateFilteredSales = sales;
 
-            if (selectedDateRange === 'Custom Date Range' && customDate) {
+        if (selectedDateRange === 'Custom Date Range' && customDate) {
             dateFilteredSales = sales.filter(sale => {
-                const saleDate = sale.invoiceDate ? new Date(sale.invoiceDate) : null;
-                return saleDate ? saleDate.toDateString() === customDate.toDateString() : false;
+                if (!sale.date) return false;
+                const saleDate = new Date(sale.date as any);
+                return saleDate.toDateString() === customDate.toDateString();
             });
         } else if (selectedDateRange !== 'All Time') {
             const startDate = getStartDate(selectedDateRange);
             if (startDate) {
                  dateFilteredSales = sales.filter(sale => {
-                     const saleDate = sale.invoiceDate ? new Date(sale.invoiceDate) : null;
-                     return saleDate ? saleDate >= startDate : false;
+                     if (!sale.date) return false;
+                     return new Date(sale.date as any) >= startDate;
                  });
             }
         }
 
-                return dateFilteredSales.filter(sale => {
+        return dateFilteredSales.filter(sale => {
+            const isPaid = sale.paymentStatus && sale.paymentStatus !== 'unpaid';
             const matchesStatus =
                 selectedCard === 'Total Sales' ||
-                (selectedCard === 'Paid' && (sale.paymentStatus === 'cash' || sale.paymentStatus === 'online')) ||
+                (selectedCard === 'Paid' && isPaid) ||
                 (selectedCard === 'Unpaid' && sale.paymentStatus === 'unpaid');
 
             if (!matchesStatus) return false;
@@ -304,38 +289,27 @@ const SalesInvoicePage = () => {
             const lowercasedTerm = searchTerm.toLowerCase();
             if (lowercasedTerm === '') return true;
 
+            const invoiceNoStr = (sale.invoiceNo || '').toString().toLowerCase();
+            const partyName = (typeof sale.billTo === 'string') ? sale.billTo : (sale.billTo?.name || '');
+            const partyNameStr = (partyName || '').toString().toLowerCase();
+            const amountStr = String(sale.invoiceAmount || '');
             return (
-                (String(sale.invoiceNo || sale.invoiceNumber || '')).toLowerCase().includes(lowercasedTerm) ||
-                (typeof sale.selectedParty === 'string' ? sale.selectedParty.toLowerCase() : (sale.selectedParty?.name || '').toLowerCase()).includes(lowercasedTerm) ||
-                String(sale.totalAmount || '').includes(lowercasedTerm)
+                invoiceNoStr.includes(lowercasedTerm) ||
+                partyNameStr.includes(lowercasedTerm) ||
+                amountStr.includes(lowercasedTerm)
             );
         });
     }, [sales, selectedCard, searchTerm, selectedDateRange, customDate]);
 
-    // global totals from the full sales list (these stay constant when user clicks a StatCard)
     const { totalSalesAll, paidAmountAll, unpaidAmountAll } = useMemo(() => {
         return sales.reduce((acc, sale) => {
-            const amt = sale.totalAmount || 0;
+            const amt = sale.invoiceAmount || 0;
             acc.totalSalesAll += amt;
             if (sale.paymentStatus === 'unpaid') acc.unpaidAmountAll += amt;
             else acc.paidAmountAll += amt;
             return acc;
-        }, { totalSalesAll: 0, paidAmountAll: 0, unpaidAmountAll: 0 } as { totalSalesAll: number; paidAmountAll: number; unpaidAmountAll: number; });
+        }, { totalSalesAll: 0, paidAmountAll: 0, unpaidAmountAll: 0 });
     }, [sales]);
-
-    // compute totals from filteredSales (kept for any future needs) but not used for StatCard amounts
-    const { totalSales, paidAmount, unpaidAmount } = useMemo(() => {
-        return filteredSales.reduce((acc, sale) => {
-            const amt = sale.totalAmount || 0;
-            acc.totalSales += amt;
-            if (sale.paymentStatus === 'unpaid') {
-                acc.unpaidAmount += amt;
-            } else {
-                acc.paidAmount += amt;
-            }
-            return acc;
-        }, { totalSales: 0, paidAmount: 0, unpaidAmount: 0 });
-    }, [filteredSales]);
 
     const formatDisplayCurrency = (amount: number) => {
         return new Intl.NumberFormat('en-IN').format(amount);
@@ -349,7 +323,7 @@ const SalesInvoicePage = () => {
     };
 
     const getFormattedDateRange = (key: string): string => {
-        const today = new Date("2025-09-18T12:00:00Z");
+        const today = new Date(); // Using real-time 'today'
         let startDate: Date;
         let endDate: Date;
         switch (key) {
@@ -375,13 +349,10 @@ const SalesInvoicePage = () => {
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            // Close date dropdown/picker if click is outside
             if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
                 setIsDateDropdownOpen(false);
                 setIsDatePickerOpen(false);
             }
-
-            // Close action dropdown if click is outside
             if (openDropdownId && dropdownRefs.current[openDropdownId] && !dropdownRefs.current[openDropdownId]!.contains(event.target as Node)) {
                 setOpenDropdownId(null);
             }
@@ -389,7 +360,26 @@ const SalesInvoicePage = () => {
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [openDropdownId]); // Re-run effect if openDropdownId changes
+    }, [openDropdownId]);
+
+    const handleDeleteClick = (id: string) => {
+        setDeletingId(id);
+        setShowDeleteConfirm(true);
+        setOpenDropdownId(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingId) return;
+        try {
+            await axios.delete(`/api/new_sale/${deletingId}`, { withCredentials: true });
+            setSales(prev => prev.filter(s => s._id !== deletingId));
+        } catch (err: any) {
+            alert(err?.response?.data?.error || err?.message || 'Failed to delete');
+        } finally {
+            setShowDeleteConfirm(false);
+            setDeletingId(null);
+        }
+    };
 
     const handleDateButtonClick = () => {
         if (isDatePickerOpen) {
@@ -408,7 +398,6 @@ const SalesInvoicePage = () => {
             >
                 <div className="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                     <h2 className="text-lg font-semibold text-gray-900">Are you sure you want to delete this Sales Invoice?</h2>
-                    {/* <p className="mt-2 text-sm text-gray-600">Once deleted, it cannot be recovered.</p> */}
                     <div className="mt-6 flex justify-end gap-3">
                         <Button
                             variant="outline"
@@ -427,22 +416,25 @@ const SalesInvoicePage = () => {
                 </div>
             </div>
         )}
-        <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-6">
+
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-4">
             <header className="flex items-center justify-between pb-4 border-b">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Sales Invoices</h1>
+        <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">Sales Invoices</h1>
                 <div className="flex items-center gap-2">
                     <DropdownMenu>
-                        <DropdownMenuTrigger>
-                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2">
+                            <DropdownMenuTrigger>
+                                <Link href="/dashboard/reports/sales/SalesSummary">
+                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
                                 <FileBarChart className="h-4 w-4 mr-2" />
                                 Reports
                                 <ChevronDown className="h-4 w-4 ml-2" />
                             </Button>
+                            </Link>
                         </DropdownMenuTrigger>
                     </DropdownMenu>
                 </div>
             </header>
-            <main className="flex-1 py-6 space-y-6">
+            <main className="flex-1 pt-4 space-y-4 flex flex-col overflow-hidden">
                 <div className="grid gap-6 md:grid-cols-3">
                     <StatCard title="Total Sales" amount={formatDisplayCurrency(totalSalesAll)} icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCard('Total Sales')} isSelected={selectedCard === 'Total Sales'} />
                     <StatCard title="Paid" amount={formatDisplayCurrency(paidAmountAll)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Paid')} isSelected={selectedCard === 'Paid'} />
@@ -453,13 +445,13 @@ const SalesInvoicePage = () => {
                     <div className="flex items-center gap-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input placeholder="Search..." className="pl-10 pr-4 py-2 border rounded-md w-64 bg-white" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                            <Input placeholder="Search..." className="pl-10 pr-4 py-1.5 border rounded-md w-64 bg-white" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         </div>
 
                         <div ref={datePickerRef} className="relative">
                             <Button
                                 variant="outline"
-                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2 w-64"
+                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5 w-64"
                                 onClick={handleDateButtonClick}
                             >
                                 <div className="flex items-center justify-between w-full">
@@ -503,37 +495,33 @@ const SalesInvoicePage = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger>
-                                <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2">
-                                    Bulk Actions
-                                    <ChevronDown className="h-4 w-4 ml-2" />
+                            <DropdownMenu>
+                                <DropdownMenuTrigger>
+                                    <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
+                                        Bulk Actions
+                                        <ChevronDown className="h-4 w-4 ml-2" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                            </DropdownMenu>
+                            <Link href="/dashboard/sale/sales-invoice">
+                                <Button className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5">
+                                    Create Sales Invoice
                                 </Button>
-                            </DropdownMenuTrigger>
-                        </DropdownMenu>
-                        <Button
-                            className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2"
-                            onClick={() => {
-                                // Open the editor in NEW mode (no editId) — editor will fetch a preview invoiceNo if needed
-                                router.push('/dashboard/sale/sales-invoice');
-                            }}
-                        >
-                            Create Sales Invoice
-                        </Button>
+                            </Link>
                     </div>
                 </div>
 
-                <div className="border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm">
+                <div className="border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm flex-1 overflow-y-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow className="border-b dark:border-gray-700">
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice Number</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party Name</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due In</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
-                                <TableHead className="p-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</TableHead>
+                            <TableRow className="border-b dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice Number</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party Name</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due In</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
+                                <TableHead className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -541,7 +529,7 @@ const SalesInvoicePage = () => {
                                 (() => {
                                     if (loading) return <TableRow><TableCell colSpan={7} className="text-center py-20">Loading...</TableCell></TableRow>;
                                     if (error) return <TableRow><TableCell colSpan={7} className="text-center py-20 text-red-500">{error}</TableCell></TableRow>;
-                                    if (filteredSales.length === 0) return (
+                                    if (sales.length === 0) return (
                                         <TableRow>
                                             <TableCell colSpan={7} className="text-center py-20">
                                                 <div className="flex flex-col items-center gap-4">
@@ -552,26 +540,24 @@ const SalesInvoicePage = () => {
                                         </TableRow>
                                     );
 
-                                    return filteredSales.map(sale => {
-                                        const idOrNo = sale._id || sale.invoiceNo || sale.invoiceNumber;
-                        return (
-                            <TableRow key={sale._id} className="border-b dark:border-gray-700 hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/sale/sales-invoice/${encodeURIComponent(String(idOrNo))}`)}>
-                                                <TableCell className="p-4">{sale.invoiceDate ? new Date(sale.invoiceDate).toLocaleDateString() : 'N/A'}</TableCell>
-                                                <TableCell className="p-4">{sale.invoiceNo || (sale.invoiceNumber ? String(sale.invoiceNumber) : 'N/A')}</TableCell>
-                                                <TableCell className="p-4">{typeof sale.selectedParty === 'string' ? sale.selectedParty : (sale.selectedParty?.name || sale.selectedParty?.partyName || 'N/A')}</TableCell>
-                                                <TableCell className="p-4">{sale.dueDate ? new Date(sale.dueDate).toLocaleDateString() : 'N/A'}</TableCell>
-                                                <TableCell className="p-4">₹{formatDisplayCurrency(sale.totalAmount || 0)}</TableCell>
-                                                <TableCell className="p-4">
+                                    return filteredSales.map(sale => (
+                                            <TableRow key={sale._id} className="border-b dark:border-gray-700 hover:bg-gray-50 cursor-pointer text-sm" onClick={() => router.push(`/dashboard/sale/sales-invoice/${encodeURIComponent(String(sale._id))}`)}>
+                                                <TableCell className="px-3 py-2">{sale.date ? new Date(sale.date as any).toLocaleDateString() : 'N/A'}</TableCell>
+                                                <TableCell className="px-3 py-2">{sale.invoiceNumber ? `#${sale.invoiceNumber}` : (sale.invoiceNo || 'N/A')}</TableCell>
+                                                <TableCell className="px-3 py-2">{(typeof sale.billTo === 'string') ? sale.billTo : (sale.billTo?.name || 'N/A')}</TableCell>
+                                                <TableCell className="px-3 py-2">{sale.dueDate ? new Date(sale.dueDate as any).toLocaleDateString() : 'N/A'}</TableCell>
+                                                <TableCell className="px-3 py-2">₹{formatDisplayCurrency(sale.invoiceAmount || 0)}</TableCell>
+                                                <TableCell className="px-3 py-2">
                                                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                                                         sale.paymentStatus === 'unpaid' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
                                                     }`}>
-                                                        {sale.paymentStatus ? (sale.paymentStatus.charAt(0).toUpperCase() + sale.paymentStatus.slice(1)) : 'Unknown'}
+                                                        {(sale.paymentStatus || 'unpaid').charAt(0).toUpperCase() + (sale.paymentStatus || 'unpaid').slice(1)}
                                                     </span>
                                                 </TableCell>
-                                                <TableCell ref={(el) => { dropdownRefs.current[sale._id] = el; }} className="p-4 text-right relative">
+                                                <td ref={el => { dropdownRefs.current[sale._id] = el as any; }} className="px-3 py-2 text-right relative">
                                                     <Button
                                                         variant="ghost"
-                                                        size="icon" 
+                                                        size="icon"
                                                         className="h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
                                                         onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === sale._id ? null : sale._id); }}
                                                     >
@@ -585,28 +571,18 @@ const SalesInvoicePage = () => {
                                                             >
                                                                 <Edit className="h-4 w-4 mr-2" /> Edit
                                                             </button>
-                                                            {sale.isDeleted ? (
-                                                                <button className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-100 flex items-center" onClick={async (e) => { e.stopPropagation();
-                                                                    if (!confirm('Restore this invoice?')) return;
-                                                                    try {
-                                                                        await axios.put(`/api/new_sale/${sale._id}`, { isDeleted: false }, { withCredentials: true });
-                                                                        setSales(prev => prev.map(s => s._id === sale._id ? { ...s, isDeleted: false } : s));
-                                                                        setOpenDropdownId(null);
-                                                                    } catch (e: any) { alert(e?.response?.data?.error || e?.message || 'Restore failed'); }
-                                                                }}>
-                                                                    <Edit className="h-4 w-4 mr-2" /> Restore
-                                                                </button>
-                                                            ) : (
-                                                                <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center" onClick={(e) => { e.stopPropagation(); handleDeleteClick(sale._id); }}>
-                                                                    <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                                                </button>
-                                                            )}
+                                                            <button
+                                                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
+                                                                onClick={(e) => { e.stopPropagation(); handleDeleteClick(sale._id); }}
+                                                            >
+                                                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                                            </button>
                                                         </div>
                                                     )}
-                                                </TableCell>
+                                                </td>
                                             </TableRow>
-                                        );
-                                    });
+                                        )
+                                    );
                                 })()
                             }
                         </TableBody>
@@ -618,4 +594,4 @@ const SalesInvoicePage = () => {
     );
 };
 
-export default SalesInvoicePage;
+export default SalesDataPage;

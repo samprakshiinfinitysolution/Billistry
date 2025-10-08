@@ -1,5 +1,6 @@
 'use client'
 
+import toast from 'react-hot-toast';
 import { useState } from "react"
 import {
   Github,
@@ -15,11 +16,38 @@ import Link from "next/link"
 
 export default function Footer() {
   const [email, setEmail] = useState("")
+  const [loading, setLoading] = useState(false);
 
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault()
-    alert(`Subscribed with: ${email}`)
-    setEmail("")
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast.error("Please enter an email address.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Newsletter Subscriber',
+          email: email,
+          subject: 'Newsletter Subscription',
+          message: `Please add ${email} to the newsletter.`,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Successfully subscribed to the newsletter!');
+        setEmail('');
+      } else {
+        toast.error(data.error || data.message || 'Subscription failed. Please try again.');
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -117,10 +145,11 @@ export default function Footer() {
             className="px-3 py-2 rounded-md border border-[#E5E7EB] bg-[#F7FBFB] text-gray-600 focus:ring-2 focus:ring-[#7B53A6] outline-none"
           />
           <button
+            disabled={loading}
             type="submit"
-            className="bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-white hover:bg-[#460F58] font-semibold py-2 rounded-md transition transform hover:scale-105"
+            className="bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-white hover:bg-[#460F58] font-semibold py-2 rounded-md transition transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            Subscribe
+            {loading ? 'Subscribing...' : 'Subscribe'}
           </button>
         </form>
       </div>

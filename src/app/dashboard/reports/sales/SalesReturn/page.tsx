@@ -41,44 +41,30 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 import autoTable from "jspdf-autotable";
 
-interface Customer {
+// --- Interfaces ---
+interface SalesReturnItem {
   _id: string;
-  name: string;
-}
-
-interface Item {
-  _id: string;
-  name: string;
-  purchasePrice: number;
-}
-
-interface SaleLine {
-  item: Item;
-  quantity: number;
-  rate: number;
-  total: number;
-}
-
-interface Sale {
-  _id: string;
-  invoiceNo: string;
-  billTo: Customer | null;
-  date: string;
-  items: SaleLine[];
-  paymentStatus: "unpaid" | "cash" | "online";
-  invoiceAmount: number;
+  returnInvoiceNo: string;
+  selectedParty: { id: string; name: string };
+  items: {
+    name: string;
+    productId?: string;
+    qty: number;
+    price: number;
+    _id: string;
+  }[];
+  totalAmount: number;
+  returnDate: string;
 }
 type FilterType = "all" | "today" | "month" | "custom";
 
 export default function SalesSummaryPage() {
   const router = useRouter();
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [loading, setLoading] = useState(false);
+  const [sales, setSales] = useState<SalesReturnItem[]>([]);
+  const [date, setDate] = useState<Date | undefined>();
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfRef, setPdfRef] = useState<HTMLDivElement | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
 
   const [open, setOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
@@ -99,42 +85,19 @@ export default function SalesSummaryPage() {
 
   useEffect(() => {
     fetchSales();
-    fetchCustomers();
-    fetchItems();
   }, []);
 
   // Fetch sales, customer and items data
   const fetchSales = async () => {
+    setLoading(true);
     try {
-      const res = await axios.get("/api/sale", { withCredentials: true });
+      const res = await axios.get("/api/new_sale_return", { withCredentials: true });
       setSales(res.data.data || []);
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message || "Failed to fetch sales");
-    }
-  };
-  const fetchCustomers = async () => {
-    try {
-      const res = await axios.get("/api/customers", { withCredentials: true });
-      setCustomers(
-        Array.isArray(res.data) ? res.data : res.data.customers || []
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const fetchItems = async () => {
-    try {
-      const res = await fetch("/api/product", { credentials: "include" });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setItems(data.products as Item[]);
-      } else {
-        console.error(data.error || "Failed to load items");
-      }
-    } catch (err) {
-      console.error("Error fetching items:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -142,16 +105,16 @@ export default function SalesSummaryPage() {
   const filteredSales = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    const bySearch = (s: Sale) => {
+    const bySearch = (s: SalesReturnItem) => {
       if (!q) return true;
-      const byName = s.billTo?.name?.toLowerCase().includes(q);
-      const byInvoice = s.invoiceNo?.toLowerCase().includes(q);
+      const byName = s.selectedParty?.name?.toLowerCase().includes(q);
+      const byInvoice = s.returnInvoiceNo?.toLowerCase().includes(q);
       return !!(byName || byInvoice);
     };
 
-    const byDate = (s: Sale) => {
-      const d =
-        typeof s.date === "string" ? parseISO(s.date) : new Date(s.date);
+    const byDate = (s: SalesReturnItem) => {
+      if (!s.returnDate) return false;
+      const d = parseISO(s.returnDate);
       if (filterType === "today") return isToday(d);
       if (filterType === "month") return isThisMonth(d);
       if (filterType === "custom" && customFrom && customTo) {
@@ -163,13 +126,8 @@ export default function SalesSummaryPage() {
       return true;
     };
 
-    const byPayment = (s: Sale) => {
-      if (paymentFilter === "all") return true;
-      return s.paymentStatus === paymentFilter;
-    };
-
     // Step 1: Apply filters
-    let result = sales.filter((s) => bySearch(s) && byDate(s) && byPayment(s));
+    let result = sales.filter((s) => bySearch(s) && byDate(s));
 
     // Step 2: Apply sorting (only if active)
     if (sortConfig.key) {
@@ -179,30 +137,28 @@ export default function SalesSummaryPage() {
 
         switch (sortConfig.key) {
           case "invoiceNo":
-            aValue = a.invoiceNo.toLowerCase();
-            bValue = b.invoiceNo.toLowerCase();
+            aValue = a.returnInvoiceNo.toLowerCase();
+            bValue = b.returnInvoiceNo.toLowerCase();
             break;
           case "customer":
-            aValue = a.billTo?.name?.toLowerCase() || "";
-            bValue = b.billTo?.name?.toLowerCase() || "";
+            aValue = a.selectedParty?.name?.toLowerCase() || "";
+            bValue = b.selectedParty?.name?.toLowerCase() || "";
             break;
           case "date":
-            aValue = new Date(a.date).getTime();
-            bValue = new Date(b.date).getTime();
+            aValue = new Date(a.returnDate).getTime();
+            bValue = new Date(b.returnDate).getTime();
             break;
           case "items":
-            aValue = a.items
-              .map((i) => i.item.name)
-              .join(", ")
-              .toLowerCase();
-            bValue = b.items
-              .map((i) => i.item.name)
-              .join(", ")
-              .toLowerCase();
+            aValue = a.items.map((i) => i.name).join(", ").toLowerCase();
+            bValue = b.items.map((i) => i.name).join(", ").toLowerCase();
+            break;
+          case "quantity":
+            aValue = a.items.reduce((sum, i) => sum + i.qty, 0);
+            bValue = b.items.reduce((sum, i) => sum + i.qty, 0);
             break;
           case "amount":
-            aValue = a.invoiceAmount;
-            bValue = b.invoiceAmount;
+            aValue = a.totalAmount;
+            bValue = b.totalAmount;
             break;
           default:
             return 0;
@@ -227,7 +183,7 @@ export default function SalesSummaryPage() {
 
   // Total invoice amount
   const totalInvoiceAmount = useMemo(() => {
-    return filteredSales.reduce((acc, s) => acc + s.invoiceAmount, 0);
+    return filteredSales.reduce((acc, s) => acc + s.totalAmount, 0);
   }, [filteredSales]);
 
   //Sort Handler
@@ -261,20 +217,18 @@ export default function SalesSummaryPage() {
           "Customer",
           "Date",
           "Items",
+          "Quantity",
           "Amount (₹)",
-          "Payment Status",
         ],
       ],
       body: filteredSales.map((s, idx) => [
         idx + 1,
-        s.invoiceNo,
-        s.billTo?.name || "",
-        format(parseISO(s.date), "dd/MM/yyyy"),
-        s.items
-          .map((it) => `${it.item?.name || ""} (x${it.quantity})`)
-          .join(", "),
-        `₹${(s.invoiceAmount || 0).toFixed(2)}`,
-        s.paymentStatus.toUpperCase(),
+        s.returnInvoiceNo,
+        s.selectedParty?.name || "",
+        format(parseISO(s.returnDate), "dd/MM/yyyy"),
+        s.items.map((it) => `${it.name || ""} (x${it.qty})`).join(", "),
+        s.items.map((it) => `${it.qty} pcs`).join(", "),
+        `₹${(s.totalAmount || 0).toFixed(2)}`,
       ]),
       styles: { fontSize: 9 },
       headStyles: { halign: "left" },
@@ -282,13 +236,12 @@ export default function SalesSummaryPage() {
       foot: [
         [
           { content: "Grand Total", colSpan: 5, styles: { halign: "right" } },
+          { content: "", styles: { halign: "right" } },
           {
-            content: `₹${filteredSales
-              .reduce((sum, s) => sum + (Number(s.invoiceAmount) || 0), 0)
+            content: `₹${filteredSales.reduce((sum, s) => sum + (Number(s.totalAmount) || 0), 0)
               .toFixed(2)}`,
             styles: { halign: "right" },
           },
-          "",
         ],
       ],
       footStyles: { fontStyle: "bold" },
@@ -301,19 +254,17 @@ export default function SalesSummaryPage() {
   const exportExcel = () => {
     const rows = filteredSales.map((s, idx) => ({
       "S.No": idx + 1,
-      "Invoice No": s.invoiceNo,
-      Customer: s.billTo?.name || "",
-      Date: format(parseISO(s.date), "dd/MM/yyyy"),
-      Items: s.items
-        .map((it) => `${it.item?.name || ""} (x${it.quantity})`)
-        .join(", "),
-      "Amount (₹)": Number(s.invoiceAmount || 0),
-      "Payment Status": s.paymentStatus.toUpperCase(),
+      "Invoice No": s.returnInvoiceNo,
+      Customer: s.selectedParty?.name || "",
+      Date: format(parseISO(s.returnDate), "dd/MM/yyyy"),
+      Items: s.items.map((it) => `${it.name || ""} (x${it.qty})`).join(", "),
+      Quantity: s.items.map((it) => `${it.qty} pcs`).join(", "),
+      "Amount (₹)": Number(s.totalAmount || 0),
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
     const total = filteredSales.reduce(
-      (sum, s) => sum + (Number(s.invoiceAmount) || 0),
+      (sum, s) => sum + (Number(s.totalAmount) || 0),
       0
     );
     XLSX.utils.sheet_add_aoa(ws, [["", "", "", "", "Grand Total", total, ""]], {
@@ -415,7 +366,7 @@ export default function SalesSummaryPage() {
                   />
                 </>
               )}
-              <Select
+              {/* <Select
                 value={paymentFilter}
                 onValueChange={(v: "all" | "unpaid" | "cash" | "online") =>
                   setPaymentFilter(v)
@@ -450,7 +401,7 @@ export default function SalesSummaryPage() {
                     </div>
                   </SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
             </div>
 
             <div className="flex items-center gap-3">
@@ -581,22 +532,12 @@ export default function SalesSummaryPage() {
                       </div>
                     </TableHead>
 
-                    <TableHead
-                      onClick={() => handleSort("items")}
-                      className="cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        Items
-                        <ArrowUpDown
-                          className={`w-4 h-4 transition-transform ${
-                            sortConfig.key === "items"
-                              ? sortConfig.direction === "asc"
-                                ? "rotate-180 text-blue-600"
-                                : "text-blue-600"
-                              : "opacity-70"
-                          }`}
-                        />
-                      </div>
+                    <TableHead>
+                      <div className="flex items-center gap-1">Items</div>
+                    </TableHead>
+
+                    <TableHead>
+                      <div className="flex items-center gap-1">Quantity</div>
                     </TableHead>
 
                     <TableHead
@@ -617,7 +558,7 @@ export default function SalesSummaryPage() {
                       </div>
                     </TableHead>
 
-                    <TableHead>Payment Status</TableHead>
+                    {/* <TableHead>Payment Status</TableHead> */}
                   </TableRow>
                 </TableHeader>
 
@@ -625,48 +566,60 @@ export default function SalesSummaryPage() {
                   {loading ? (
                     <TableRow>
                       <TableCell
-                        colSpan={7}
+                        colSpan={8}
                         className="text-center py-4 text-gray-500"
                       >
-                        Loading sales data...
+                        <div className="flex items-center justify-center gap-2">
+                          <svg
+                            className="animate-spin h-5 w-5 text-gray-500"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v8H4z"
+                            ></path>
+                          </svg>
+                          Loading sales returns...
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : filteredSales.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={7}
+                        colSpan={8}
                         className="text-center py-4 text-gray-500"
                       >
-                        No sales found
+                        No sales returns found
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredSales.map((sale, index) => (
                       <TableRow key={sale._id}>
                         <TableCell>{index + 1}</TableCell>
-                        <TableCell>{sale.invoiceNo}</TableCell>
-                        <TableCell>{sale.billTo?.name || "N/A"}</TableCell>
+                        <TableCell>{sale.returnInvoiceNo}</TableCell>
+                        <TableCell>{sale.selectedParty?.name || "N/A"}</TableCell>
                         <TableCell>
-                          {format(new Date(sale.date), "dd/MM/yyyy")}
+                          {format(parseISO(sale.returnDate), "dd/MM/yyyy")}
                         </TableCell>
                         <TableCell>
-                          {sale.items.map((i) => i.item.name).join(", ")}
+                          {sale.items.map((i) => i.name).join(", ")}
                         </TableCell>
                         <TableCell>
-                          ₹{sale.invoiceAmount.toLocaleString()}
+                          {sale.items.map((i) => `${i.qty} pcs`).join(", ")}
                         </TableCell>
                         <TableCell>
-                          <span
-                            className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                              sale.paymentStatus === "unpaid"
-                                ? "bg-red-100 text-red-600"
-                                : sale.paymentStatus === "cash"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-blue-100 text-blue-700"
-                            }`}
-                          >
-                            {sale.paymentStatus.toUpperCase()}
-                          </span>
+                          ₹{sale.totalAmount.toLocaleString()}
                         </TableCell>
                       </TableRow>
                     ))

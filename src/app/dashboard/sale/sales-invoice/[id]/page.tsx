@@ -6,10 +6,13 @@ import { ArrowLeft, Download, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import InvoiceDownload from '../../../../../components/InvoiceDownload';
 
-const PurchaseInvoiceViewer = ({ params }: { params: any }) => {
+
+
+const SalesInvoiceViewer = ({ params }: { params: any }) => {
     const router = useRouter();
-    // Try to unwrap params using React.use() when available; otherwise resolve the promise in an effect
-    
+    // Try to unwrap params using React.use (new Next.js/React pattern). If not available,
+    // fall back to awaiting the params promise inside an effect.
+   
     const maybeParams = (React as any).use ? (React as any).use(params) : undefined;
     const initialId = maybeParams?.id ?? null;
     const [id, setId] = useState<string | null>(initialId);
@@ -20,7 +23,7 @@ const PurchaseInvoiceViewer = ({ params }: { params: any }) => {
         const fetchMeta = async () => {
             try {
                 const safeId = String(id);
-                const res = await fetch(`/api/new_purchase/${encodeURIComponent(safeId)}`, { credentials: 'include' });
+                const res = await fetch(`/api/new_sale/${encodeURIComponent(safeId)}`, { credentials: 'include' });
                 const body = await res.json().catch(() => null);
                 if (!mounted) return;
                 if (body && body.success && body.data) setMeta(body.data);
@@ -35,6 +38,7 @@ const PurchaseInvoiceViewer = ({ params }: { params: any }) => {
     }, [id]);
 
     useEffect(() => {
+        // If React.use wasn't available to synchronously unwrap params, resolve the promise here
         if (id) return;
         let mounted = true;
         (async () => {
@@ -65,7 +69,7 @@ const PurchaseInvoiceViewer = ({ params }: { params: any }) => {
             const blob = await res.blob();
             const partyName = meta?.selectedParty?.name || meta?.selectedParty?.partyName || meta?.partyName || meta?.businessName || 'Client';
             const clean = String(partyName).replace(/\s+/g, '_');
-            const filename = `${clean}_Purchase.pdf`;
+            const filename = `${clean}_Sales.pdf`;
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -96,11 +100,11 @@ const PurchaseInvoiceViewer = ({ params }: { params: any }) => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
                     <div className="flex justify-between items-center">
                         <div className="flex items-center gap-4">
-                            <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100 rounded-md p-2" onClick={() => router.push('/dashboard/purchase/purchase-data')}>
+                            <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100 rounded-md p-2" onClick={() => router.back()}>
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
                             <div className="flex items-center gap-3">
-                                <h1 className="text-xl font-semibold text-gray-800">Purchase {invoiceLabel ? invoiceLabel : ''}</h1>
+                                <h1 className="text-xl font-semibold text-gray-800">Sale {invoiceLabel ? invoiceLabel : ''}</h1>
                                 {paymentStatus && (
                                     <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${statusColorClass}`}>
                                         {statusText}
@@ -122,11 +126,11 @@ const PurchaseInvoiceViewer = ({ params }: { params: any }) => {
 
             <main className="flex-1 overflow-auto">
                 <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-                    <InvoiceDownload invoiceType="purchase" invoiceId={id} />
+                    <InvoiceDownload invoiceType="sale" invoiceId={id} />
                 </div>
             </main>
         </div>
     );
 };
 
-export default PurchaseInvoiceViewer;
+export default SalesInvoiceViewer;

@@ -1,271 +1,10 @@
-// // // src/app/dashboard/reports/page.tsx
-// // "use client";
-
-// // import { useEffect, useMemo, useState } from "react";
-// // import jsPDF from "jspdf";
-// // import autoTable from "jspdf-autotable";
-// // import Link from "next/link";
-
-// // type PartyType = "Customer" | "Supplier" | "All";
-// // type Row = {
-// //   _id: string;
-// //   partyType: "Customer" | "Supplier";
-// //   name: string;
-// //   phone: string;
-// //   totalGot: number;
-// //   totalGave: number;
-// //   balance: number;
-// //   status: "You Will Get" | "You Will Give" | "Settled";
-// // };
-
-// // type Report = {
-// //   youWillGet: number;
-// //   youWillGive: number;
-// //   net: number;
-// //   count: number;
-// //   details: Row[];
-// // };
-
-// // export default function ReportsPage() {
-// //   const [startDate, setStartDate] = useState<string>("");
-// //   const [endDate, setEndDate] = useState<string>("");
-// //   const [partyType, setPartyType] = useState<PartyType>("All");
-// //   const [loading, setLoading] = useState(false);
-// //   const [report, setReport] = useState<Report | null>(null);
-
-// //   const fetchReport = async () => {
-// //     setLoading(true);
-// //     const params = new URLSearchParams();
-// //     if (startDate) params.set("startDate", startDate);
-// //     if (endDate) params.set("endDate", endDate);
-// //     if (partyType) params.set("partyType", partyType);
-
-// //     const res = await fetch(`/api/reports/party-balances?${params.toString()}`);
-// //     const data = await res.json();
-// //     setReport(data);
-// //     setLoading(false);
-// //   };
-
-// //   useEffect(() => {
-// //     fetchReport();
-// //     // eslint-disable-next-line react-hooks/exhaustive-deps
-// //   }, []);
-
-// //   const exportCSV = () => {
-// //     if (!report) return;
-// //     const header = [
-// //       "Type",
-// //       "Name",
-// //       "Phone",
-// //       "Total Got",
-// //       "Total Gave",
-// //       "Balance",
-// //       "Status",
-// //     ];
-// //     const rows = report.details.map((d) => [
-// //       d.partyType,
-// //       d.name,
-// //       d.phone,
-// //       d.totalGot,
-// //       d.totalGave,
-// //       d.balance,
-// //       d.status,
-// //     ]);
-
-// //     const blob = new Blob(
-// //       [header.join(",") + "\n" + rows.map((r) => r.join(",")).join("\n")],
-// //       { type: "text/csv;charset=utf-8" }
-// //     );
-
-// //     const url = URL.createObjectURL(blob);
-// //     const a = document.createElement("a");
-// //     a.href = url;
-// //     a.download = "party-balance-report.csv";
-// //     a.click();
-// //     URL.revokeObjectURL(url);
-// //   };
-
-// //   const exportPDF = () => {
-// //     if (!report) return;
-
-// //     const doc = new jsPDF();
-// //     doc.text("Party Balance Report", 14, 14);
-// //     const sub = [
-// //       startDate ? `From: ${startDate}` : "",
-// //       endDate ? `To: ${endDate}` : "",
-// //       partyType !== "All" ? `Type: ${partyType}` : "",
-// //     ]
-// //       .filter(Boolean)
-// //       .join("   ");
-// //     if (sub) doc.text(sub, 14, 22);
-
-// //     autoTable(doc, {
-// //       startY: 28,
-// //       head: [["Type", "Name", "Phone", "Total Got", "Total Gave", "Balance", "Status"]],
-// //       body: report.details.map((d) => [
-// //         d.partyType,
-// //         d.name,
-// //         d.phone,
-// //         d.totalGot.toFixed(2),
-// //         d.totalGave.toFixed(2),
-// //         d.balance.toFixed(2),
-// //         d.status,
-// //       ]),
-// //       styles: { fontSize: 9 },
-// //     });
-
-// //     // Totals section
-// //     const y = (doc as any).lastAutoTable.finalY + 8;
-// //     doc.text(
-// //       `You Will Get: ₹${report.youWillGet.toFixed(2)}    You Will Give: ₹${report.youWillGive.toFixed(
-// //         2
-// //       )}    Net: ₹${report.net.toFixed(2)}`,
-// //       14,
-// //       y
-// //     );
-
-// //     doc.save("party-balance-report.pdf");
-// //   };
-
-// //   const totals = useMemo(() => {
-// //     if (!report) return { get: 0, give: 0, net: 0, count: 0 };
-// //     return {
-// //       get: report.youWillGet,
-// //       give: report.youWillGive,
-// //       net: report.net,
-// //       count: report.count,
-// //     };
-// //   }, [report]);
-
-// //   return (
-// //     <div className="p-6 max-w-6xl mx-auto">
-// //       <h1 className="text-2xl font-bold mb-4">Reports — Party Balances</h1>
-
-// //       {/* Filters */}
-// //       <div className="grid md:grid-cols-5 gap-3 items-end">
-// //         <div className="flex flex-col">
-// //           <label className="text-sm text-gray-600">Start Date</label>
-// //           <input
-// //             type="date"
-// //             value={startDate}
-// //             onChange={(e) => setStartDate(e.target.value)}
-// //             className="border rounded p-2"
-// //           />
-// //         </div>
-// //         <div className="flex flex-col">
-// //           <label className="text-sm text-gray-600">End Date</label>
-// //           <input
-// //             type="date"
-// //             value={endDate}
-// //             onChange={(e) => setEndDate(e.target.value)}
-// //             className="border rounded p-2"
-// //           />
-// //         </div>
-// //         <div className="flex flex-col">
-// //           <label className="text-sm text-gray-600">Party Type</label>
-// //           <select
-// //             value={partyType}
-// //             onChange={(e) => setPartyType(e.target.value as PartyType)}
-// //             className="border rounded p-2"
-// //           >
-// //             <option value="All">All</option>
-// //             <option value="Customer">Customer</option>
-// //             <option value="Supplier">Supplier</option>
-// //           </select>
-// //         </div>
-// //         <button
-// //           onClick={fetchReport}
-// //           disabled={loading}
-// //           className="bg-black text-white rounded p-2"
-// //         >
-// //           {loading ? "Loading..." : "Apply Filters"}
-// //         </button>
-// //         <div className="flex gap-2">
-// //           <button onClick={exportCSV} className="border rounded p-2 w-full">
-// //             Export CSV
-// //           </button>
-// //           <button onClick={exportPDF} className="bg-blue-600 text-white rounded p-2 w-full">
-// //             Export PDF
-// //           </button>
-// //         </div>
-// //       </div>
-
-// //       {/* Totals */}
-// //       <div className="grid md:grid-cols-3 gap-4 mt-6">
-// //         <div className="border rounded p-4">
-// //           <div className="text-gray-600 text-sm">You Will Get</div>
-// //           <div className="text-2xl font-semibold text-green-600">₹{totals.get.toLocaleString()}</div>
-// //         </div>
-// //         <div className="border rounded p-4">
-// //           <div className="text-gray-600 text-sm">You Will Give</div>
-// //           <div className="text-2xl font-semibold text-red-600">₹{totals.give.toLocaleString()}</div>
-// //         </div>
-// //         <div className="border rounded p-4">
-// //           <div className="text-gray-600 text-sm">Net</div>
-// //           <div className="text-2xl font-semibold">₹{totals.net.toLocaleString()}</div>
-// //         </div>
-// //       </div>
-
-// //       {/* Table */}
-// //       <div className="mt-6 overflow-x-auto">
-// //         <table className="w-full text-sm">
-// //           <thead>
-// //             <tr className="text-left border-b">
-// //               <th className="py-2">Type</th>
-// //               <th className="py-2">Name</th>
-// //               <th className="py-2">Phone</th>
-// //               <th className="py-2">Total Got</th>
-// //               <th className="py-2">Total Gave</th>
-// //               <th className="py-2">Balance</th>
-// //               <th className="py-2">Status</th>
-// //               <th className="py-2">Ledger</th>
-// //             </tr>
-// //           </thead>
-// //           <tbody>
-// //             {report?.details.length ? (
-// //               report.details.map((d) => (
-// //                 <tr key={`${d.partyType}-${d._id}`} className="border-b">
-// //                   <td className="py-2">{d.partyType}</td>
-// //                   <td className="py-2">{d.name}</td>
-// //                   <td className="py-2">{d.phone || "-"}</td>
-// //                   <td className="py-2">₹{d.totalGot.toLocaleString()}</td>
-// //                   <td className="py-2">₹{d.totalGave.toLocaleString()}</td>
-// //                   <td className={`py-2 ${d.balance >= 0 ? "text-green-700" : "text-red-700"}`}>
-// //                     ₹{d.balance.toLocaleString()}
-// //                   </td>
-// //                   <td className="py-2">{d.status}</td>
-// //                   <td className="py-2">
-// //                     <Link
-// //                       className="text-blue-600 underline"
-// //                       href={`/dashboard/ledger/${d.partyType}/${d._id}`}
-// //                     >
-// //                       View
-// //                     </Link>
-// //                   </td>
-// //                 </tr>
-// //               ))
-// //             ) : (
-// //               <tr>
-// //                 <td className="py-6 text-center text-gray-500" colSpan={8}>
-// //                   No data
-// //                 </td>
-// //               </tr>
-// //             )}
-// //           </tbody>
-// //         </table>
-// //       </div>
-// //     </div>
-// //   );
-// // }
-
-
-
-
 
 
 "use client";
 
 import Link from "next/link";
+import React, { useState, useMemo } from 'react';
+import { ChartBar, FileText, Box, AlertTriangle, Search, Filter } from "lucide-react";
 
 const reportSections = [
   // {
@@ -291,6 +30,7 @@ const reportSections = [
       { name: "Low Stock Summary", href: "/dashboard/reports/inventory/low-stock" },
       { name: "Sales Return", href: "/dashboard/reports/sales/SalesReturn" },
       { name: "Purchase Return", href: "/dashboard/reports/purchase/PurchaseReturn" },
+      { name: "Expense Report", href: "/dashboard/reports/expense" },
 
       // { name: "Cashbook Report", href: "/dashboard/reports/bills/cashbook" },
     ],
@@ -313,37 +53,93 @@ const reportSections = [
 ];
 
 export default function ReportsPage() {
+  const [query, setQuery] = useState('');
+  const [selectedRange, setSelectedRange] = useState('Last 30 Days');
+
+  const allLinks = reportSections.flatMap(s => s.links.map(l => ({...l, section: s.title})));
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return allLinks.filter(l => !q || l.name.toLowerCase().includes(q));
+  }, [query, allLinks]);
+
+  // Stat cards similar to sales page
+  const statItems = [
+    { title: 'Total Reports', amount: String(allLinks.length), color: 'bg-blue-50', icon: <ChartBar className="w-5 h-5 text-blue-600" /> },
+    { title: 'Export Types', amount: 'PDF • XLSX • CSV', color: 'bg-green-50', icon: <FileText className="w-5 h-5 text-green-600" /> },
+    { title: 'Data Range', amount: selectedRange, color: 'bg-violet-50', icon: <AlertTriangle className="w-5 h-5 text-violet-600" /> },
+  ];
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-6">Reports Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {reportSections.map((section) => (
-          <div
-            key={section.title}
-            className="border rounded-xl shadow-sm p-6 hover:shadow-md transition"
-          >
-            <h2 className="text-lg font-semibold mb-4">{section.title}</h2>
-            <ul className="space-y-2">
-              {section.links.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-blue-600 hover:underline"
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+    <div className="p-6 max-w-7xl mx-auto">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-extrabold text-gray-900">Reports</h1>
+          <p className="text-sm text-gray-600 mt-1">A centralized place for your exports and analytics.</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-white border rounded-lg px-3 py-2 shadow-sm">
+            <Search className="w-4 h-4 text-gray-400 mr-2" />
+            <input aria-label="Search reports" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search reports" className="outline-none text-sm w-56" />
+          </div>
+          <div className="hidden sm:flex items-center bg-white border rounded-lg px-3 py-2 shadow-sm">
+            <Filter className="w-4 h-4 text-gray-400 mr-2" />
+            <select value={selectedRange} onChange={(e) => setSelectedRange(e.target.value)} className="bg-transparent outline-none text-sm">
+              <option>Last 7 Days</option>
+              <option>Last 30 Days</option>
+              <option>Last 365 Days</option>
+              <option>All Time</option>
+            </select>
+          </div>
+        </div>
+      </header>
+
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {statItems.map(s => (
+          <div key={s.title} className="bg-gradient-to-br from-white to-gray-50 border rounded-xl p-5 shadow-md flex items-center justify-between">
+            <div>
+              <div className="text-sm text-gray-500">{s.title}</div>
+              <div className="mt-1 text-2xl font-bold text-gray-900">{s.amount}</div>
+            </div>
+            <div className="p-3 rounded-lg bg-white shadow-sm">
+              <div className="w-10 h-10 flex items-center justify-center">{s.icon}</div>
+            </div>
           </div>
         ))}
-      </div>
+      </section>
+
+      <section>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filtered.map(link => (
+            <Link key={link.href} href={link.href} className="block">
+              <article className="bg-white rounded-lg border hover:border-gray-200 shadow-sm hover:shadow-md transition p-4 flex items-center justify-between h-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-100">
+                <div className="flex items-center gap-3">
+                  <span className="p-2 bg-blue-50 text-blue-600 rounded-md inline-flex">
+                    {link.name.toLowerCase().includes('sales') || link.name.toLowerCase().includes('purchase') ? (
+                      <FileText className="w-5 h-5" />
+                    ) : link.name.toLowerCase().includes('stock') || link.name.toLowerCase().includes('inventory') ? (
+                      <Box className="w-5 h-5" />
+                    ) : (
+                      <ChartBar className="w-5 h-5" />
+                    )}
+                  </span>
+                  <div>
+                    <h3 className="text-md font-medium text-gray-900">{link.name}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">{link.section}</p>
+                  </div>
+                </div>
+                <div className="text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </article>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
-
-
-
-
-
 

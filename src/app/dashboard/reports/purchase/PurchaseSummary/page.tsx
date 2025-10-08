@@ -45,16 +45,17 @@ import axios from "axios";
 interface PurchaseItem {
   _id: string;
   invoiceNo: string;
-  billTo: { name: string };
+  selectedParty: { id: string; name: string };
   items: {
-    item: { _id: string; name: string; unit?: string };
-    quantity: number;
-    rate: number;
-    total: number;
+    name: string;
+    productId?: string;
+    qty: number;
+    price: number;
+    _id: string;
   }[];
-  invoiceAmount: number;
+  totalAmount: number;
   paymentStatus: "unpaid" | "cash" | "online";
-  date: string;
+  invoiceDate: string;
 }
 
 type FilterType = "all" | "today" | "month" | "custom";
@@ -85,7 +86,7 @@ export default function PurchaseSummaryPage() {
       const { data } = await axios.get("/api/new_purchase", {
         withCredentials: true,
       });
-      setPurchases(data.purchases || []);
+      setPurchases(data.data || []);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to fetch purchases");
@@ -107,12 +108,12 @@ export default function PurchaseSummaryPage() {
         const matchSearch =
           !query ||
           p.invoiceNo.toLowerCase().includes(query) ||
-          p.billTo?.name.toLowerCase().includes(query);
+          p.selectedParty?.name.toLowerCase().includes(query);
 
         const matchPayment =
           paymentFilter === "all" || p.paymentStatus === paymentFilter;
 
-        const purchaseDate = parseISO(p.date);
+        const purchaseDate = parseISO(p.invoiceDate);
         let matchDate = true;
         if (filterType === "today") matchDate = isToday(purchaseDate);
         else if (filterType === "month") matchDate = isThisMonth(purchaseDate);
@@ -134,16 +135,16 @@ export default function PurchaseSummaryPage() {
             bValue = b.invoiceNo.toLowerCase();
             break;
           case "supplier":
-            aValue = a.billTo?.name.toLowerCase() || "";
-            bValue = b.billTo?.name.toLowerCase() || "";
+            aValue = a.selectedParty?.name.toLowerCase() || "";
+            bValue = b.selectedParty?.name.toLowerCase() || "";
             break;
           case "date":
-            aValue = new Date(a.date).getTime();
-            bValue = new Date(b.date).getTime();
+            aValue = new Date(a.invoiceDate).getTime();
+            bValue = new Date(b.invoiceDate).getTime();
             break;
           case "amount":
-            aValue = a.invoiceAmount;
-            bValue = b.invoiceAmount;
+            aValue = a.totalAmount;
+            bValue = b.totalAmount;
             break;
           default:
             return 0;
@@ -166,7 +167,7 @@ export default function PurchaseSummaryPage() {
   const totalPurchaseAmount = useMemo(
     () =>
       filteredPurchases.reduce(
-        (acc, p) => acc + (Number(p.invoiceAmount) || 0),
+        (acc, p) => acc + (Number(p.totalAmount) || 0),
         0
       ),
     [filteredPurchases]
@@ -203,11 +204,11 @@ export default function PurchaseSummaryPage() {
       body: filteredPurchases.map((p, i) => [
         i + 1,
         p.invoiceNo,
-        p.billTo?.name ?? "N/A",
-        format(parseISO(p.date), "dd/MM/yyyy"),
-        p.items.map((i) => i.item.name).join(", "),
-        p.items.map((i) => `${i.quantity} ${i.item?.unit ?? "pcs"}`).join(", "),
-        `₹${p.invoiceAmount.toFixed(2)}`,
+        p.selectedParty?.name ?? "N/A",
+        format(parseISO(p.invoiceDate), "dd/MM/yyyy"),
+        p.items.map((i) => i.name).join(", "),
+        p.items.map((i) => `${i.qty} pcs`).join(", "),
+        `₹${p.totalAmount.toFixed(2)}`,
         p.paymentStatus.toUpperCase(),
       ]),
     });
@@ -219,13 +220,11 @@ export default function PurchaseSummaryPage() {
     const rows = filteredPurchases.map((p, i) => ({
       "S.No": i + 1,
       Invoice: p.invoiceNo,
-      Supplier: p.billTo?.name ?? "N/A",
-      Date: format(parseISO(p.date), "dd/MM/yyyy"),
-      Items: p.items.map((i) => i.item.name).join(", "),
-      Quantity: p.items
-        .map((i) => `${i.quantity} ${i.item?.unit ?? "pcs"}`)
-        .join(", "),
-      Amount: p.invoiceAmount,
+      Supplier: p.selectedParty?.name ?? "N/A",
+      Date: format(parseISO(p.invoiceDate), "dd/MM/yyyy"),
+      Items: p.items.map((i) => i.name).join(", "),
+      Quantity: p.items.map((i) => `${i.qty} pcs`).join(", "),
+      Amount: p.totalAmount,
       Payment: p.paymentStatus.toUpperCase(),
     }));
 
@@ -268,7 +267,7 @@ export default function PurchaseSummaryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 p-4 flex items-center">
         <div className="flex items-center text-lg font-semibold text-gray-800">
           <svg
@@ -290,11 +289,12 @@ export default function PurchaseSummaryPage() {
         </div>
       </header>
 
-      <main className="container mx-auto p-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+      <main className="container mx-auto p-6 flex-1 flex flex-col overflow-hidden">
+        <div className="bg-white p-6 rounded-lg shadow-md flex-1 flex flex-col overflow-hidden">
           {/* Filter & Action Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
             <div className="flex flex-wrap gap-2 items-center">
+              {/* ...existing filter inputs... */}
               <Input
                 placeholder="Search supplier or invoice..."
                 value={search}
@@ -391,7 +391,6 @@ export default function PurchaseSummaryPage() {
                     </svg>
                   </Button>
                 </DropdownMenuTrigger>
-
                 <DropdownMenuContent>
                   <DropdownMenuItem onClick={exportExcel}>
                     Download Excel
@@ -412,111 +411,148 @@ export default function PurchaseSummaryPage() {
             </div>
           </div>
 
-          {/* Total */}
-          <div ref={setPdfRef} className="mb-6">
-            {/* Total Invoice Amount */}
+          <div ref={setPdfRef} className="flex-1 flex flex-col overflow-hidden" id="report-content">
+            {/* Total */}
             <div className="mb-6 pb-4 border-b border-gray-200">
               <h2 className="text-lg font-medium text-gray-700">
-                Total Purchase Amount:{" "}
+                Total Purchase Amount: {" "}
                 <span className="text-xl font-bold text-gray-900">
-                  ₹{" "}
+                  ₹ {" "}
                   <AnimatedNumber value={totalPurchaseAmount} duration={1200} />
                 </span>
               </h2>
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto">
-              <Table className="min-w-full">
-                <TableHeader className="bg-gray-100">
-                  <TableRow>
-                    <TableHead>S. No.</TableHead>
-                    <TableHead
-                      onClick={() => handleSort("invoiceNo")}
-                      className="cursor-pointer"
-                    >
-                      Invoice No. <ArrowUpDown className="inline w-4 h-4" />
-                    </TableHead>
-                    <TableHead
-                      onClick={() => handleSort("supplier")}
-                      className="cursor-pointer"
-                    >
-                      Supplier <ArrowUpDown className="inline w-4 h-4" />
-                    </TableHead>
-                    <TableHead
-                      onClick={() => handleSort("date")}
-                      className="cursor-pointer"
-                    >
-                      Date <ArrowUpDown className="inline w-4 h-4" />
-                    </TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead
-                      onClick={() => handleSort("amount")}
-                      className="cursor-pointer"
-                    >
-                      Amount <ArrowUpDown className="inline w-4 h-4" />
-                    </TableHead>
-                    <TableHead>Payment Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
+            <div className="relative flex-1 overflow-auto">
+              <div className="w-full">
+                <table className="min-w-full w-full">
+                  <TableHeader className="bg-gray-100 sticky top-0 z-20">
                     <TableRow>
-                      <TableCell
-                        colSpan={8}
-                        className="text-center py-4 text-gray-500"
+                      <TableHead className="sticky top-0 bg-gray-100 z-20">S. No.</TableHead>
+                      <TableHead
+                        onClick={() => handleSort("invoiceNo")}
+                        className="cursor-pointer select-none sticky top-0 bg-gray-100 z-20"
                       >
-                        Loading purchases...
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredPurchases.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={8}
-                        className="text-center py-4 text-gray-500"
+                        <div className="flex items-center gap-1">
+                          Invoice No.
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortConfig.key === "invoiceNo"
+                                ? sortConfig.direction === "asc"
+                                  ? "rotate-180 text-blue-600"
+                                  : "text-blue-600"
+                                : "opacity-70"
+                            }`}
+                          />
+                        </div>
+                      </TableHead>
+
+                      <TableHead
+                        onClick={() => handleSort("supplier")}
+                        className="cursor-pointer select-none sticky top-0 bg-gray-100 z-20"
                       >
-                        No purchases found
-                      </TableCell>
+                        <div className="flex items-center gap-1">
+                          Supplier
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortConfig.key === "supplier"
+                                ? sortConfig.direction === "asc"
+                                  ? "rotate-180 text-blue-600"
+                                  : "text-blue-600"
+                                : "opacity-70"
+                            }`}
+                          />
+                        </div>
+                      </TableHead>
+
+                      <TableHead
+                        onClick={() => handleSort("date")}
+                        className="cursor-pointer select-none sticky top-0 bg-gray-100 z-20"
+                      >
+                        <div className="flex items-center gap-1">
+                          Date
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortConfig.key === "date"
+                                ? sortConfig.direction === "asc"
+                                  ? "rotate-180 text-blue-600"
+                                  : "text-blue-600"
+                                : "opacity-70"
+                            }`}
+                          />
+                        </div>
+                      </TableHead>
+
+                      <TableHead className="sticky top-0 bg-gray-100 z-20">Items</TableHead>
+                      <TableHead className="sticky top-0 bg-gray-100 z-20">Quantity</TableHead>
+
+                      <TableHead
+                        onClick={() => handleSort("amount")}
+                        className="cursor-pointer select-none sticky top-0 bg-gray-100 z-20"
+                      >
+                        <div className="flex items-center gap-1">
+                          Amount
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortConfig.key === "amount"
+                                ? sortConfig.direction === "asc"
+                                  ? "rotate-180 text-blue-600"
+                                  : "text-blue-600"
+                                : "opacity-70"
+                            }`}
+                          />
+                        </div>
+                      </TableHead>
+
+                      <TableHead className="sticky top-0 bg-gray-100 z-20">Payment Status</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredPurchases.map((p, i) => (
-                      <TableRow key={p._id}>
-                        <TableCell>{i + 1}</TableCell>
-                        <TableCell>{p.invoiceNo}</TableCell>
-                        <TableCell>{p.billTo?.name ?? "N/A"}</TableCell>
-                        <TableCell>
-                          {format(parseISO(p.date), "dd/MM/yyyy")}
+                  </TableHeader>
+
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-4 text-gray-500">
+                          <div className="flex items-center justify-center gap-2">
+                            <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                            </svg>
+                            Loading purchases...
+                          </div>
                         </TableCell>
-                        <TableCell>
-                          {p.items.map((i) => i.item.name).join(", ")}
-                        </TableCell>
-                        <TableCell>
-                          {p.items
-                            .map(
-                              (i) => `${i.quantity} ${i.item?.unit ?? "pcs"}`
-                            )
-                            .join(", ")}
-                        </TableCell>
-                        <TableCell>₹{p.invoiceAmount.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <span
-                            className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      </TableRow>
+                    ) : filteredPurchases.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-4 text-gray-500">No purchases found</TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredPurchases.map((p, i) => (
+                        <TableRow key={p._id}>
+                          <TableCell>{i + 1}</TableCell>
+                          <TableCell>{p.invoiceNo}</TableCell>
+                          <TableCell>{p.selectedParty?.name ?? "N/A"}</TableCell>
+                          <TableCell>{format(parseISO(p.invoiceDate), "dd/MM/yyyy")}</TableCell>
+                          <TableCell>{p.items.map((it) => it.name).join(", ")}</TableCell>
+                          <TableCell>{p.items.map((it) => `${it.qty} pcs`).join(", ")}</TableCell>
+                          <TableCell>₹{p.totalAmount.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                               p.paymentStatus === "unpaid"
                                 ? "bg-red-100 text-red-600"
                                 : p.paymentStatus === "cash"
                                 ? "bg-green-100 text-green-700"
                                 : "bg-blue-100 text-blue-700"
-                            }`}
-                          >
-                            {p.paymentStatus.toUpperCase()}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                            }`}>
+                              {p.paymentStatus.toUpperCase()}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

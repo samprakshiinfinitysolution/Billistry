@@ -128,7 +128,7 @@ const ItemsPageUI = () => {
 
   const lowStockCount = useMemo(() => {
     return products.filter(
-      (p) => Number(p.openingStock || 0) <= Number(p.lowStockAlert || 0)
+      (p) => Number(p.currentStock || 0) <= Number(p.lowStockAlert || 0)
     ).length;
   }, [products]);
 

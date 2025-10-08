@@ -73,7 +73,7 @@ export default function ProductTable({
             <TableRow
               key={p._id}
               className={`${
-                Number(p.openingStock ?? 0) <= Number(p.lowStockAlert ?? 0)
+                Number(p.currentStock ?? 0) <= Number(p.lowStockAlert ?? 0)
                   ? "!bg-red-200"
                   : ""
               }`}

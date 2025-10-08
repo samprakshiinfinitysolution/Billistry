@@ -191,6 +191,91 @@ const CreatePurchaseReturnInvoicePage = () => {
         return () => { cancelled = true; };
     }, []);
 
+    // If we have an editId in query params, fetch the existing purchase return and populate form
+    useEffect(() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const editId = params.get('editId');
+            if (!editId) return;
+            (async () => {
+                try {
+                    const res = await fetch(`/api/new_purchase_return/${editId}`, { credentials: 'include' });
+                    if (!res.ok) { 
+                        const txt = await res.text().catch(() => null);
+                        console.error('Failed to fetch purchase return for edit', editId, 'status', res.status, 'body:', txt);
+                        return; 
+                    }
+                    const body = await res.json().catch(() => ({}));
+                    const d = body?.data;
+                    if (!d) return;
+
+                    // Basic fields
+                    setReturnInvoiceNo(d.invoiceNo || d.returnInvoiceNo || '');
+                    setInvoiceNumber(d.invoiceNumber || invoiceNumber);
+                    setInvoiceDate(d.returnDate || d.invoiceDate || (d.savedAt ? new Date(d.savedAt).toISOString().split('T')[0] : invoiceDate));
+                    setNotes(d.notes || '');
+                    if (d.notes && String(d.notes).trim() !== '') { setShowNotesInput(true); }
+                    if (typeof d.terms !== 'undefined' && d.terms !== null) setTerms(String(d.terms || ''));
+
+                    // Additional charges
+                    setAdditionalCharges(Array.isArray(d.additionalCharges) ? d.additionalCharges.map((c: any, i: number) => ({ id: c.id ?? i, name: c.name || '', amount: String(c.amount || '') })) : []);
+
+                    // Items
+                    if (Array.isArray(d.items)) {
+                        nextItemId.current = 0;
+                        const loadedItems = d.items.map((it: any) => ({
+                            id: nextItemId.current++,
+                            name: it.name || '',
+                            hsn: it.hsn || it.hsnCode || '',
+                            qty: Number(it.qty || 0),
+                            price: Number(it.price || 0),
+                            discountPercentStr: it.discountPercentStr || it.discountPercent || '',
+                            discountAmountStr: it.discountAmountStr || it.discountAmount || '',
+                            lastDiscountInput: (it.lastDiscountInput === 'flat' ? 'flat' : 'percent'),
+                            taxPercentStr: it.taxPercentStr || it.taxPercent || '0',
+                            taxAmountStr: it.taxAmountStr || it.taxAmount || '',
+                        }));
+                        setItems(loadedItems);
+                    }
+
+                    // Selected party
+                    if (d.selectedParty) {
+                        const sp = d.selectedParty;
+                        setSelectedParty({
+                            id: sp._id || sp.id,
+                            name: sp.partyName || sp.name || '',
+                            balance: sp.balance || 0,
+                            phone: sp.mobileNumber || sp.mobile || '',
+                            address: sp.billingAddress || sp.address || ''
+                        });
+                    }
+
+                    // Discount & payment fields
+                    if (typeof d.discountPercentStr !== 'undefined') setDiscountPercentStr(String(d.discountPercentStr || ''));
+                    if (typeof d.discountFlatStr !== 'undefined') setDiscountFlatStr(String(d.discountFlatStr || ''));
+                    if (d.discountOption) setDiscountOption(d.discountOption);
+                    if ((d.discountPercentStr && String(d.discountPercentStr).trim() !== '') || (d.discountFlatStr && String(d.discountFlatStr).trim() !== '') || d.discountOption) {
+                        setShowDiscountInput(true);
+                    }
+                    if (d.amountReceived !== undefined) setAmountReceivedStr(String(d.amountReceived));
+                    if (d.paymentStatus) setPaymentMode(d.paymentStatus as any);
+                    if (d.balanceAmount !== undefined) {
+                        setIsFullyPaid(Number(d.balanceAmount) === 0);
+                    }
+                    if (typeof d.autoRoundOff !== 'undefined') setAutoRoundOff(Boolean(d.autoRoundOff));
+                    if (d.adjustmentType) setAdjustmentType(d.adjustmentType === 'subtract' ? 'subtract' : 'add');
+                    if (typeof d.manualAdjustment !== 'undefined') {
+                        const m = Number(d.manualAdjustment) || 0;
+                        setCommittedAdjustment(m);
+                        setManualAdjustmentStr(m ? String(m) : '');
+                    }
+                } catch (err) {
+                    console.error('Error loading purchase return for edit', err);
+                }
+            })();
+        } catch (e) {}
+    }, []);
+
     const handleSelectInvoice = async (invoice: Invoice) => {
         if (!invoice?.id) return;
         try { setSearchInvoiceTerm(invoice.invoiceNo || (invoice.invoiceNumber ? String(invoice.invoiceNumber) : '')); } catch(e) {}

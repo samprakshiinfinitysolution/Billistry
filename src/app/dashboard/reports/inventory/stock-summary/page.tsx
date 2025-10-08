@@ -486,7 +486,7 @@ export default function StockSummaryPage() {
                     <TableHead>SELLING PRICE (₹)</TableHead>
                     <TableHead>CURRENT STOCK</TableHead>
                     <TableHead>STOCK VALUE</TableHead>
-                    <TableHead>Restock Product</TableHead>
+                    {/* <TableHead>Restock Product</TableHead> */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>

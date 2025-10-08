@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import {
     BadgeIndianRupee,
@@ -13,6 +14,9 @@ import {
     Search,
     ChevronLeft,
     ChevronRight,
+    MoreVertical,
+    Edit,
+    Trash2,
 } from 'lucide-react';
 
 // Mock UI components
@@ -141,14 +145,14 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
             <button onClick={onPress} className="absolute inset-0 z-10 focus:outline-none rounded-lg" aria-label={`View ${title}`}>
                 {/* This button is for accessibility and interaction, but is visually transparent */}
             </button>
-            <CardHeader className="p-4">
+            <CardHeader className="p-3">
                 <CardTitle className={`flex items-center text-sm font-semibold ${titleColor}`}>
                     <div className={`mr-3 ${iconColor}`}>{icon}</div>
                     {title}
                 </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-                <div className="text-3xl font-bold text-gray-900 dark:text-gray-50">₹ {amount}</div>
+            <CardContent className="p-3 pt-0">
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-50">₹ {amount}</div>
             </CardContent>
         </Card>
     );
@@ -181,6 +185,10 @@ const PurchaseReturnDataPage = () => {
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [customDate, setCustomDate] = useState<Date | null>(null);
     const datePickerRef = useRef<HTMLDivElement>(null);
+    const dropdownRefs = useRef<{ [key: string]: HTMLTableCellElement | null }>({});
+    const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const getFormattedDate = (date: Date): string => {
         const day = String(date.getDate()).padStart(2, '0');
@@ -224,6 +232,35 @@ const PurchaseReturnDataPage = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (openDropdownId && dropdownRefs.current[openDropdownId] && !dropdownRefs.current[openDropdownId]!.contains(event.target as Node)) {
+                setOpenDropdownId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [openDropdownId]);
+
+    const handleDeleteClick = (id: string) => {
+        setDeletingId(id);
+        setShowDeleteConfirm(true);
+        setOpenDropdownId(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingId) return;
+        try {
+            await axios.delete(`/api/new_purchase_return/${deletingId}`, { withCredentials: true });
+            setReturnsList(prev => prev.filter(r => r._id !== deletingId));
+        } catch (err: any) {
+            alert(err?.response?.data?.error || err?.message || 'Failed to delete');
+        } finally {
+            setShowDeleteConfirm(false);
+            setDeletingId(null);
+        }
+    };
 
     useEffect(() => {
         let mounted = true;
@@ -319,22 +356,24 @@ const PurchaseReturnDataPage = () => {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-6">
+        <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-4">
             <header className="flex items-center justify-between pb-4 border-b">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Purchase Returns</h1>
+                <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">Purchase Returns</h1>
                 <div className="flex items-center gap-2">
                     <DropdownMenu>
                         <DropdownMenuTrigger>
-                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2">
+                            <Link href="/dashboard/reports/purchase/PurchaseReturn">
+                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
                                 <FileBarChart className="h-4 w-4 mr-2" />
                                 Reports
                                 <ChevronDown className="h-4 w-4 ml-2" />
                             </Button>
+                            </Link>
                         </DropdownMenuTrigger>
                     </DropdownMenu>
                 </div>
             </header>
-            <main className="flex-1 py-6 space-y-6">
+            <main className="flex-1 pt-4 space-y-4 flex flex-col overflow-hidden">
                 <div className="grid gap-6 md:grid-cols-3">
                     <StatCard title="Total Returns" amount={formatCurrency(totals.totalReturns)} icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCardLocal('Total Returns')} isSelected={selectedCardLocal === 'Total Returns'} />
                     <StatCard title="Refunded" amount={formatCurrency(totals.refunded)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCardLocal('Paid')} isSelected={selectedCardLocal === 'Paid'} />
@@ -345,13 +384,13 @@ const PurchaseReturnDataPage = () => {
                     <div className="flex items-center gap-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input placeholder="Search..." className="pl-10 pr-4 py-2 border rounded-md w-64 bg-white" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                            <Input placeholder="Search..." className="pl-10 pr-4 py-1.5 border rounded-md w-64 bg-white" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         </div>
 
                         <div ref={datePickerRef} className="relative">
                             <Button
                                 variant="outline"
-                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2 w-64"
+                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5 w-64"
                                 onClick={handleDateButtonClick}
                             >
                                 <div className="flex items-center justify-between w-full">
@@ -395,42 +434,43 @@ const PurchaseReturnDataPage = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger>
-                                <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2">
-                                    Bulk Actions
-                                    <ChevronDown className="h-4 w-4 ml-2" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                        </DropdownMenu>
-                    <Link href="/dashboard/return/purchase/purchase-return-invoice">
-                        <Button className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2">
-                            Create Purchase Return
-                        </Button>
-                    </Link>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger>
+                                    <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
+                                        Bulk Actions
+                                        <ChevronDown className="h-4 w-4 ml-2" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                            </DropdownMenu>
+                        <Link href="/dashboard/return/purchase/purchase-return-invoice">
+                            <Button className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5">
+                                Create Purchase Return
+                            </Button>
+                        </Link>
                     </div>
                 </div>
 
-                <div className="border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm">
+                <div className="border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm flex-1 overflow-y-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow className="border-b dark:border-gray-700">
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return No.</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier Name</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due In</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</TableHead>
-                                <TableHead className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
+                            <TableRow className="border-b dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return No.</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier Name</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due In</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</TableHead>
+                                <TableHead className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
+                                <TableHead className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoadingReturns ? (
                                 <TableRow>
-                                    <td colSpan={6} className="text-center py-20">Loading...</td>
+                                    <td colSpan={7} className="text-center py-20">Loading...</td>
                                 </TableRow>
                             ) : returnsList.length === 0 ? (
                                 <TableRow>
-                                    <td colSpan={6} className="text-center py-20">
+                                    <td colSpan={7} className="text-center py-20">
                                         <div className="flex flex-col items-center gap-4">
                                             <ClipboardX className="h-16 w-16 text-gray-300 dark:text-gray-600" strokeWidth={1} />
                                             <p className="text-gray-500 dark:text-gray-400">No Transactions Matching the current filter</p>
@@ -455,13 +495,24 @@ const PurchaseReturnDataPage = () => {
 
                                     const idOrNo = r._id || r.returnInvoiceNo || r.returnInvoiceNumber;
                                         return (
-                                            <TableRow key={r._id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/return/purchase/purchase-return-invoice/${encodeURIComponent(String(idOrNo))}`)}>
-                                            <td className="p-4">{date.toLocaleDateString()}</td>
-                                            <td className="p-4">{r.returnInvoiceNo || r.returnInvoiceNumber}</td>
-                                            <td className="p-4">{r.selectedParty?.name || r.selectedParty?.partyName || ''}</td>
-                                            <td className="p-4">{dueIn}</td>
-                                            <td className="p-4">₹ {total.toFixed(2)}</td>
-                                            <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-medium ${statusColor}`}>{status}</span></td>
+                                            <TableRow key={r._id} className="border-b hover:bg-gray-50 cursor-pointer text-sm" onClick={() => router.push(`/dashboard/return/purchase/purchase-return-invoice/${encodeURIComponent(String(r._id))}`)}>
+                                            <td className="px-3 py-2">{date.toLocaleDateString()}</td>
+                                            <td className="px-3 py-2">{r.returnInvoiceNumber ? `#${r.returnInvoiceNumber}` : (r.returnInvoiceNo || 'N/A')}</td>
+                                            <td className="px-3 py-2">{r.selectedParty?.name || r.selectedParty?.partyName || ''}</td>
+                                            <td className="px-3 py-2">{dueIn}</td>
+                                            <td className="px-3 py-2">₹ {total.toFixed(2)}</td>
+                                            <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs font-medium ${statusColor}`}>{status}</span></td>
+                                            <td ref={el => { dropdownRefs.current[r._id] = el as any; }} className="px-3 py-2 text-right relative">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === r._id ? null : r._id); }}>
+                                                    <MoreVertical className="h-4 w-4" />
+                                                </Button>
+                                                {openDropdownId === r._id && (
+                                                    <div className="absolute right-0 mt-2 w-40 bg-white border rounded-md shadow-lg z-10">
+                                                        <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center" onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); router.push(`/dashboard/return/purchase/purchase-return-invoice?editId=${r._id}`); }}><Edit className="h-4 w-4 mr-2"/> Edit</button>
+                                                        <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center" onClick={(e) => { e.stopPropagation(); handleDeleteClick(r._id); }}><Trash2 className="h-4 w-4 mr-2"/> Delete</button>
+                                                    </div>
+                                                )}
+                                            </td>
                                         </TableRow>
                                     );
                                 })
@@ -469,6 +520,17 @@ const PurchaseReturnDataPage = () => {
                         </TableBody>
                     </Table>
                 </div>
+                {showDeleteConfirm && (
+                    <div className={`fixed inset-0 bg-black/40 z-50 flex justify-center items-center p-4`} onClick={() => setShowDeleteConfirm(false)}>
+                        <div className="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                            <h2 className="text-lg font-semibold text-gray-900">Are you sure you want to delete this Purchase Return?</h2>
+                            <div className="mt-6 flex justify-end gap-3">
+                                <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+                                <Button className="bg-red-600 text-white hover:bg-red-700 px-4 py-2" onClick={confirmDelete}>Yes, Delete</Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

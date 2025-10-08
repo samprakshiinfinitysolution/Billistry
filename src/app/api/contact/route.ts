@@ -9,13 +9,13 @@ export async function POST(req: NextRequest) {
 
     if (!name || !email || !message) {
       return NextResponse.json(
-        { error: "Name, email, and message are required" },
+        { success: false, error: "Name, email, and message are required" },
         { status: 400 }
       );
     }
 
     const newContact = await createContact({ name, email, subject, message });
-    return NextResponse.json(newContact, { status: 201 });
+    return NextResponse.json({ success: true, contact: newContact }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

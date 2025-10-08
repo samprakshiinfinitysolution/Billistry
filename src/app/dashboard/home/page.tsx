@@ -233,7 +233,7 @@ export default function Dashboard() {
           products.forEach((p) => {
             const cat = p.category && p.category.trim() !== "" ? p.category : "Uncategorized";
             // Prioritize currentStock if available, otherwise fallback to openingStock
-            categoryMap[cat] = (categoryMap[cat] || 0) + (p.currentStock ?? 0);
+            categoryMap[cat] = (categoryMap[cat] || 0) + (p.currentStock ?? p.currentStock ?? 0);
           });
 
           // Assign colors dynamically (fallback if more categories than colors)
@@ -359,7 +359,7 @@ export default function Dashboard() {
             if (Array.isArray(products)) {
               // add low stock alerts
               products.slice(0,5).forEach((pr: any) => {
-                const qty = pr.currentStock ?? 0;
+                const qty = pr.currentStock ?? pr.currentStock ?? 0;
                 const threshold = pr.lowStockAlert ?? 0;
                 if (threshold > 0 && qty <= threshold) {
                   activities.push(`Low stock: ${pr.name ?? pr.sku ?? 'Item'} — ${qty} left`);

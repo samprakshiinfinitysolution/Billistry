@@ -315,7 +315,7 @@ const BusinessSettingsPage = () => {
                         <div className="flex justify-between items-center">
                              <div><h1 className="text-2xl font-bold text-gray-900">Business Settings</h1><p className="text-sm text-gray-500">Edit Your Company Settings And Information</p></div>
                             <div className="flex items-center gap-3">
-                                <button  onClick={() => setIsModalOpen(true)} type="button" className="px-4 py-2 text-sm font-semibold text-white bg-orange-500 rounded-md hover:bg-orange-600">Create new business</button>
+                                {/* <button  onClick={() => setIsModalOpen(true)} type="button" className="px-4 py-2 text-sm font-semibold text-white bg-orange-500 rounded-md hover:bg-orange-600">Create new business</button> */}
                                 <button type="button" className="hidden lg:flex items-center gap-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-100 rounded-md hover:bg-blue-200"><MessageSquare size={16} /> Chat Support</button>
                                 <button type="button" className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"><CalendarX size={16} /> Close Financial Year</button>
                                 <button type="button" onClick={handleCancel} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancel</button>
@@ -413,9 +413,9 @@ const BusinessSettingsPage = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200">
+                        {/* <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200">
                             <button type="button" className="font-semibold text-gray-800 hover:text-indigo-600">Add New Business</button>
-                        </div>
+                        </div> */}
                     </main>
                 </div>
             </form>

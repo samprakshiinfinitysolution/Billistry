@@ -10,24 +10,38 @@ import { Mail, Phone, MapPin, MessageCircleMore, Twitter, Linkedin, Github } fro
 
 export default function ContactUs() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    if (errors[e.target.name]) setErrors({ ...errors, [e.target.name]: '' });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/contact', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
-    if (data.success) {
-      toast.success('Message sent successfully!');
-      setForm({ name: '', email: '', subject: '', message: '' });
-    } else {
-      toast.error(`Error: ${data.error}`);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Message sent successfully!');
+        setForm({ name: '', email: '', subject: '', message: '' });
+        setErrors({});
+      } else if (data.fieldErrors) {
+        setErrors(data.fieldErrors);
+        toast.error('Please correct the errors in the form.');
+      } else {
+        toast.error(data.error || data.message || 'Something went wrong.');
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -106,24 +120,30 @@ export default function ContactUs() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            type="text"
-            name="name"
-            placeholder="Name"
-            value={form.name}
-            onChange={handleChange}
-            className="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl font-['Poppins'] placeholder-gray-400 focus:ring-2 focus:ring-[#7B53A6] focus:outline-none transition"
-            required
-          />
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            className="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl font-['Poppins'] placeholder-gray-400 focus:ring-2 focus:ring-[#7B53A6] focus:outline-none transition"
-            required
-          />
+          <div>
+            <input
+              type="text"
+              name="name"
+              placeholder="Name"
+              value={form.name}
+              onChange={handleChange}
+              className={`w-full px-4 py-3 border rounded-xl font-['Poppins'] placeholder-gray-400 focus:ring-2 focus:ring-[#7B53A6] focus:outline-none transition ${errors.name ? 'border-red-500' : 'border-[#E5E7EB]'}`}
+              required
+            />
+            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+          </div>
+          <div>
+            <input
+              type="email"
+              name="email"
+              placeholder="Email"
+              value={form.email}
+              onChange={handleChange}
+              className={`w-full px-4 py-3 border rounded-xl font-['Poppins'] placeholder-gray-400 focus:ring-2 focus:ring-[#7B53A6] focus:outline-none transition ${errors.email ? 'border-red-500' : 'border-[#E5E7EB]'}`}
+              required
+            />
+            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+          </div>
         </div>
 
         <input
@@ -132,8 +152,9 @@ export default function ContactUs() {
           placeholder="Subject"
           value={form.subject}
           onChange={handleChange}
-          className="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl font-['Poppins'] placeholder-gray-400 focus:ring-2 focus:ring-[#7B53A6] focus:outline-none transition"
+          className={`w-full px-4 py-3 border rounded-xl font-['Poppins'] placeholder-gray-400 focus:ring-2 focus:ring-[#7B53A6] focus:outline-none transition ${errors.subject ? 'border-red-500' : 'border-[#E5E7EB]'}`}
         />
+        {errors.subject && <p className="text-red-500 text-xs mt-1">{errors.subject}</p>}
 
         <textarea
           name="message"
@@ -141,15 +162,17 @@ export default function ContactUs() {
           rows={5}
           value={form.message}
           onChange={handleChange}
-          className="w-full px-4 py-3 border border-[#E5E7EB] rounded-xl font-['Poppins'] placeholder-gray-400 focus:ring-2 focus:ring-[#7B53A6] focus:outline-none transition"
+          className={`w-full px-4 py-3 border rounded-xl font-['Poppins'] placeholder-gray-400 focus:ring-2 focus:ring-[#7B53A6] focus:outline-none transition ${errors.message ? 'border-red-500' : 'border-[#E5E7EB]'}`}
           required
         ></textarea>
+        {errors.message && <p className="text-red-500 text-xs mt-1">{errors.message}</p>}
 
         <button
           type="submit"
-          className="w-60 bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-white font-['Poppins'] font-semibold py-3 rounded-xl transition transform hover:scale-105"
+          disabled={loading}
+          className="w-60 bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-white font-['Poppins'] font-semibold py-3 rounded-xl transition transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          Send
+          {loading ? 'Sending...' : 'Send'}
         </button>
       </form>
     </div>

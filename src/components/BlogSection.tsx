@@ -76,19 +76,19 @@ export default function BlogSection() {
       title: 'Top 5 Tips for Smarter Inventory Management',
       excerpt: 'Discover practical ways to reduce stockouts and overstock issues in your warehouse.',
       date: 'June 18, 2025',
-      image: '/images/blog.svg',
+      image: '/images/SmarterIn.webp',
     },
     {
       title: 'Real-Time Tracking vs Traditional Logging',
       excerpt: 'How real-time inventory visibility saves hours and increases accuracy.',
       date: 'June 30, 2025',
-      image: '/images/blog.svg',
+      image: '/images/SmartTracking.webp',
     },
     {
       title: 'Is Your Inventory System Scalable?',
       excerpt: 'Signs you need to upgrade from Excel or legacy tools.',
       date: 'July 2, 2025',
-      image: '/images/blog.svg',
+      image: '/images/Scalable.webp',
     },
   ]
 

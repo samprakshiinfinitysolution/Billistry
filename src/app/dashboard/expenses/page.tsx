@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import Link from "next/link";
 
 
 interface Expense {
@@ -186,7 +187,9 @@ export default function ExpensePage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-800">Expenses</h1>
-        <Button variant="outline">Reports</Button>
+        <Link href="/dashboard/reports/expense">
+      <Button variant="outline">Reports</Button>
+    </Link>
       </div>
 
       {/* Add/Edit Modal */}

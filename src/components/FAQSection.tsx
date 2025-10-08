@@ -1,5 +1,6 @@
 import { ChevronDown, Info } from 'lucide-react'
 import { useState } from 'react'
+import toast from 'react-hot-toast';
 
 export default function FAQSection() {
   const faqs = [
@@ -12,16 +13,34 @@ export default function FAQSection() {
 
   const [open, setOpen] = useState<number | null>(null)
   const [formData, setFormData] = useState({ name: '', email: '', question: '' })
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    alert(`Question submitted!\nName: ${formData.name}\nEmail: ${formData.email}\nQuestion: ${formData.question}`)
-    setFormData({ name: '', email: '', question: '' })
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, message: formData.question, subject: '' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Question submitted successfully!');
+        setFormData({ name: '', email: '', question: '' });
+      } else {
+        toast.error(data.error || data.message || 'Something went wrong.');
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <section className="bg-[#F7FBFB] py-20 px-6 font-poppins">
@@ -60,10 +79,11 @@ export default function FAQSection() {
         />
         <button
           type="submit"
-          className="w-full py-3 rounded-full bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-white font-semibold shadow-md hover:bg-[#460F58] transition"
+          disabled={loading}
+          className="w-full py-3 rounded-full bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-white font-semibold shadow-md hover:bg-[#460F58] transition disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          Submit Question
-        </button> 
+          {loading ? 'Submitting...' : 'Submit Question'}
+        </button>
       </form>
     </div>
 

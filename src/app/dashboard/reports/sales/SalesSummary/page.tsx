@@ -20,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -47,45 +46,32 @@ import jsPDF from "jspdf";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import autoTable from "jspdf-autotable";
-
-interface Customer {
-  _id: string;
-  name: string;
-}
-
-interface Item {
-  _id: string;
-  name: string;
-  purchasePrice: number;
-}
-
-interface SaleLine {
-  item: Item;
-  quantity: number;
-  rate: number;
-  total: number;
-}
-
-interface Sale {
+ 
+// --- Interfaces ---
+interface SaleItem {
   _id: string;
   invoiceNo: string;
-  billTo: Customer | null;
-  date: string;
-  items: SaleLine[];
+  selectedParty: { id: string; name: string };
+  invoiceDate: string;
+  items: {
+    name: string;
+    productId?: string;
+    qty: number;
+    price: number;
+    _id: string;
+  }[];
+  totalAmount: number;
   paymentStatus: "unpaid" | "cash" | "online";
-  invoiceAmount: number;
 }
 type FilterType = "all" | "today" | "month" | "custom";
 
 export default function SalesSummaryPage() {
   const router = useRouter();
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [sales, setSales] = useState<SaleItem[]>([]);
+  const [date, setDate] = useState<Date | undefined>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pdfRef, setPdfRef] = useState<HTMLDivElement | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
 
   const [open, setOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
@@ -106,42 +92,19 @@ export default function SalesSummaryPage() {
 
   useEffect(() => {
     fetchSales();
-    fetchCustomers();
-    fetchItems();
   }, []);
 
   // Fetch sales, customer and items data
   const fetchSales = async () => {
+    setLoading(true);
     try {
       const res = await axios.get("/api/new_sale", { withCredentials: true });
       setSales(res.data.data || []);
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message || "Failed to fetch sales");
-    }
-  };
-  const fetchCustomers = async () => {
-    try {
-      const res = await axios.get("/api/customers", { withCredentials: true });
-      setCustomers(
-        Array.isArray(res.data) ? res.data : res.data.customers || []
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const fetchItems = async () => {
-    try {
-      const res = await fetch("/api/product", { credentials: "include" });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setItems(data.products as Item[]);
-      } else {
-        console.error(data.error || "Failed to load items");
-      }
-    } catch (err) {
-      console.error("Error fetching items:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -149,16 +112,16 @@ export default function SalesSummaryPage() {
   const filteredSales = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    const bySearch = (s: Sale) => {
+    const bySearch = (s: SaleItem) => {
       if (!q) return true;
-      const byName = s.billTo?.name?.toLowerCase().includes(q);
+      const byName = s.selectedParty?.name?.toLowerCase().includes(q);
       const byInvoice = s.invoiceNo?.toLowerCase().includes(q);
       return !!(byName || byInvoice);
     };
 
-    const byDate = (s: Sale) => {
-      const d =
-        typeof s.date === "string" ? parseISO(s.date) : new Date(s.date);
+    const byDate = (s: SaleItem) => {
+      if (!s.invoiceDate) return false; // Guard against missing date
+      const d = parseISO(s.invoiceDate);
       if (filterType === "today") return isToday(d);
       if (filterType === "month") return isThisMonth(d);
       if (filterType === "custom" && customFrom && customTo) {
@@ -170,7 +133,7 @@ export default function SalesSummaryPage() {
       return true;
     };
 
-    const byPayment = (s: Sale) => {
+    const byPayment = (s: SaleItem) => {
       if (paymentFilter === "all") return true;
       return s.paymentStatus === paymentFilter;
     };
@@ -186,30 +149,28 @@ export default function SalesSummaryPage() {
 
         switch (sortConfig.key) {
           case "invoiceNo":
-            aValue = a.invoiceNo.toLowerCase();
-            bValue = b.invoiceNo.toLowerCase();
+            aValue = (a.invoiceNo || "").toString().toLowerCase();
+            bValue = (b.invoiceNo || "").toString().toLowerCase();
             break;
           case "customer":
-            aValue = a.billTo?.name?.toLowerCase() || "";
-            bValue = b.billTo?.name?.toLowerCase() || "";
+            aValue = (a.selectedParty?.name || "").toString().toLowerCase();
+            bValue = (b.selectedParty?.name || "").toString().toLowerCase();
             break;
           case "date":
-            aValue = new Date(a.date).getTime();
-            bValue = new Date(b.date).getTime();
+            aValue = new Date(a.invoiceDate).getTime();
+            bValue = new Date(b.invoiceDate).getTime();
             break;
           case "items":
-            aValue = a.items
-              .map((i) => i.item.name)
-              .join(", ")
-              .toLowerCase();
-            bValue = b.items
-              .map((i) => i.item.name)
-              .join(", ")
-              .toLowerCase();
+            aValue = a.items.map((i) => i.name).join(", ").toLowerCase();
+            bValue = b.items.map((i) => i.name).join(", ").toLowerCase();
+            break;
+          case "quantity":
+            aValue = a.items.reduce((sum, i) => sum + i.qty, 0);
+            bValue = b.items.reduce((sum, i) => sum + i.qty, 0);
             break;
           case "amount":
-            aValue = a.invoiceAmount;
-            bValue = b.invoiceAmount;
+            aValue = a.totalAmount;
+            bValue = b.totalAmount;
             break;
           default:
             return 0;
@@ -234,7 +195,7 @@ export default function SalesSummaryPage() {
 
   // Total invoice amount
   const totalInvoiceAmount = useMemo(() => {
-    return filteredSales.reduce((acc, s) => acc + s.invoiceAmount, 0);
+    return filteredSales.reduce((acc, s) => acc + s.totalAmount, 0);
   }, [filteredSales]);
 
   //Sort Handler
@@ -268,6 +229,7 @@ export default function SalesSummaryPage() {
           "Customer",
           "Date",
           "Items",
+          "Quantity",
           "Amount (₹)",
           "Payment Status",
         ],
@@ -275,13 +237,12 @@ export default function SalesSummaryPage() {
       body: filteredSales.map((s, idx) => [
         idx + 1,
         s.invoiceNo,
-        s.billTo?.name || "",
-        format(parseISO(s.date), "dd/MM/yyyy"),
-        s.items
-          .map((it) => `${it.item?.name || ""} (x${it.quantity})`)
-          .join(", "),
-        `₹${(s.invoiceAmount || 0).toFixed(2)}`,
-        s.paymentStatus.toUpperCase(),
+        s.selectedParty?.name || "",
+        format(parseISO(s.invoiceDate), "dd/MM/yyyy"),
+        s.items.map((it) => `${it.name || ""} (x${it.qty})`).join(", "),
+        s.items.map((it) => `${it.qty} pcs`).join(", "),
+        `₹${(s.totalAmount || 0).toFixed(2)}`,
+        (s.paymentStatus || "N/A").toUpperCase(),
       ]),
       styles: { fontSize: 9 },
       headStyles: { halign: "left" },
@@ -289,9 +250,10 @@ export default function SalesSummaryPage() {
       foot: [
         [
           { content: "Grand Total", colSpan: 5, styles: { halign: "right" } },
+          { content: "", styles: { halign: "right" } },
           {
             content: `₹${filteredSales
-              .reduce((sum, s) => sum + (Number(s.invoiceAmount) || 0), 0)
+              .reduce((sum, s) => sum + (Number(s.totalAmount) || 0), 0)
               .toFixed(2)}`,
             styles: { halign: "right" },
           },
@@ -309,22 +271,21 @@ export default function SalesSummaryPage() {
     const rows = filteredSales.map((s, idx) => ({
       "S.No": idx + 1,
       "Invoice No": s.invoiceNo,
-      Customer: s.billTo?.name || "",
-      Date: format(parseISO(s.date), "dd/MM/yyyy"),
-      Items: s.items
-        .map((it) => `${it.item?.name || ""} (x${it.quantity})`)
-        .join(", "),
-      "Amount (₹)": Number(s.invoiceAmount || 0),
-      "Payment Status": s.paymentStatus.toUpperCase(),
+      Customer: s.selectedParty?.name || "",
+      Date: format(parseISO(s.invoiceDate), "dd/MM/yyyy"),
+      Items: s.items.map((it) => `${it.name || ""} (x${it.qty})`).join(", "),
+      Quantity: s.items.map((it) => `${it.qty} pcs`).join(", "),
+      "Amount (₹)": Number(s.totalAmount || 0),
+      "Payment Status": (s.paymentStatus || "N/A").toUpperCase(),
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
     const total = filteredSales.reduce(
-      (sum, s) => sum + (Number(s.invoiceAmount) || 0),
+      (sum, s) => sum + (Number(s.totalAmount) || 0),
       0
     );
     XLSX.utils.sheet_add_aoa(ws, [["", "", "", "", "Grand Total", total, ""]], {
-      origin: -1,
+      origin: -1, // This will need to be adjusted for the new column
     });
 
     const wb = XLSX.utils.book_new();
@@ -361,7 +322,7 @@ export default function SalesSummaryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 p-4 flex items-center">
         <div className="flex items-center text-lg font-semibold text-gray-800">
           <svg
@@ -383,10 +344,10 @@ export default function SalesSummaryPage() {
         </div>
       </header>
 
-      <main className="container mx-auto p-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+      <main className="container mx-auto p-6 flex-1 flex flex-col overflow-hidden">
+        <div className="bg-white p-6 rounded-lg shadow-md flex-1 flex flex-col overflow-hidden">
           {/* Filter and Action Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div className="flex flex-wrap gap-2 items-center">
               <Input
                 placeholder="Search customer or invoice..."
@@ -516,7 +477,7 @@ export default function SalesSummaryPage() {
             </div>
           </div>
 
-          <div ref={setPdfRef}>
+          <div ref={setPdfRef} className="flex-1 flex flex-col overflow-hidden" id="report-content">
             {/* Total Invoice Amount */}
             <div className="mb-6 pb-4 border-b border-gray-200">
               <h2 className="text-lg font-medium text-gray-700">
@@ -529,157 +490,174 @@ export default function SalesSummaryPage() {
             </div>
 
             {/* Sales Table */}
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-gray-100">
-                  <TableRow>
-                    <TableHead>S. No.</TableHead>
-                    <TableHead
-                      onClick={() => handleSort("invoiceNo")}
-                      className="cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        Invoice No.
-                        <ArrowUpDown
-                          className={`w-4 h-4 transition-transform ${
-                            sortConfig.key === "invoiceNo"
-                              ? sortConfig.direction === "asc"
-                                ? "rotate-180 text-blue-600"
-                                : "text-blue-600"
-                              : "opacity-70"
-                          }`}
-                        />
-                      </div>
-                    </TableHead>
-
-                    <TableHead
-                      onClick={() => handleSort("customer")}
-                      className="cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        Customer
-                        <ArrowUpDown
-                          className={`w-4 h-4 transition-transform ${
-                            sortConfig.key === "customer"
-                              ? sortConfig.direction === "asc"
-                                ? "rotate-180 text-blue-600"
-                                : "text-blue-600"
-                              : "opacity-70"
-                          }`}
-                        />
-                      </div>
-                    </TableHead>
-
-                    <TableHead
-                      onClick={() => handleSort("date")}
-                      className="cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        Date
-                        <ArrowUpDown
-                          className={`w-4 h-4 transition-transform ${
-                            sortConfig.key === "date"
-                              ? sortConfig.direction === "asc"
-                                ? "rotate-180 text-blue-600"
-                                : "text-blue-600"
-                              : "opacity-70"
-                          }`}
-                        />
-                      </div>
-                    </TableHead>
-
-                    <TableHead
-                      onClick={() => handleSort("items")}
-                      className="cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        Items
-                        <ArrowUpDown
-                          className={`w-4 h-4 transition-transform ${
-                            sortConfig.key === "items"
-                              ? sortConfig.direction === "asc"
-                                ? "rotate-180 text-blue-600"
-                                : "text-blue-600"
-                              : "opacity-70"
-                          }`}
-                        />
-                      </div>
-                    </TableHead>
-
-                    <TableHead
-                      onClick={() => handleSort("amount")}
-                      className="cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        Amount
-                        <ArrowUpDown
-                          className={`w-4 h-4 transition-transform ${
-                            sortConfig.key === "amount"
-                              ? sortConfig.direction === "asc"
-                                ? "rotate-180 text-blue-600"
-                                : "text-blue-600"
-                              : "opacity-70"
-                          }`}
-                        />
-                      </div>
-                    </TableHead>
-
-                    <TableHead>Payment Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-
-                <TableBody>
-                  {loading ? (
+            <div className="relative flex-1 overflow-auto">
+              <div className="w-full">
+                <table className="min-w-full w-full">
+                  <TableHeader className="bg-gray-100 sticky top-0 z-20">
                     <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="text-center py-4 text-gray-500"
+                      <TableHead className="sticky top-0 bg-gray-100 z-20">S. No.</TableHead>
+                      <TableHead
+                        onClick={() => handleSort("invoiceNo")}
+                        className="cursor-pointer select-none sticky top-0 bg-gray-100 z-20"
                       >
-                        Loading sales data...
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredSales.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="text-center py-4 text-gray-500"
-                      >
-                        No sales found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredSales.map((sale, index) => (
-                      <TableRow key={sale._id}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>{sale.invoiceNo}</TableCell>
-                        <TableCell>{sale.billTo?.name || "N/A"}</TableCell>
-                        <TableCell>
-                          {format(new Date(sale.date), "dd/MM/yyyy")}
-                        </TableCell>
-                        <TableCell>
-                          {sale.items.map((i) => i.item.name).join(", ")}
-                        </TableCell>
-                        <TableCell>
-                          ₹{sale.invoiceAmount.toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                              sale.paymentStatus === "unpaid"
-                                ? "bg-red-100 text-red-600"
-                                : sale.paymentStatus === "cash"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-blue-100 text-blue-700"
+                        <div className="flex items-center gap-1">
+                          Invoice No.
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortConfig.key === "invoiceNo"
+                                ? sortConfig.direction === "asc"
+                                  ? "rotate-180 text-blue-600"
+                                  : "text-blue-600"
+                                : "opacity-70"
                             }`}
-                          >
-                            {sale.paymentStatus.toUpperCase()}
-                          </span>
+                          />
+                        </div>
+                      </TableHead>
+
+                      <TableHead
+                        onClick={() => handleSort("customer")}
+                        className="cursor-pointer select-none sticky top-0 bg-gray-100 z-20"
+                      >
+                        <div className="flex items-center gap-1">
+                          Customer
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortConfig.key === "customer"
+                                ? sortConfig.direction === "asc"
+                                  ? "rotate-180 text-blue-600"
+                                  : "text-blue-600"
+                                : "opacity-70"
+                            }`}
+                          />
+                        </div>
+                      </TableHead>
+
+                      <TableHead
+                        onClick={() => handleSort("date")}
+                        className="cursor-pointer select-none sticky top-0 bg-gray-100 z-20"
+                      >
+                        <div className="flex items-center gap-1">
+                          Date
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortConfig.key === "date"
+                                ? sortConfig.direction === "asc"
+                                  ? "rotate-180 text-blue-600"
+                                  : "text-blue-600"
+                                : "opacity-70"
+                            }`}
+                          />
+                        </div>
+                      </TableHead>
+
+                      <TableHead className="sticky top-0 bg-gray-100 z-20">
+                        <div className="flex items-center gap-1">Items</div>
+                      </TableHead>
+
+                      <TableHead className="sticky top-0 bg-gray-100 z-20">
+                        <div className="flex items-center gap-1">Quantity</div>
+                      </TableHead>
+
+                      <TableHead
+                        onClick={() => handleSort("amount")}
+                        className="cursor-pointer select-none sticky top-0 bg-gray-100 z-20"
+                      >
+                        <div className="flex items-center gap-1">
+                          Amount
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortConfig.key === "amount"
+                                ? sortConfig.direction === "asc"
+                                  ? "rotate-180 text-blue-600"
+                                  : "text-blue-600"
+                                : "opacity-70"
+                            }`}
+                          />
+                        </div>
+                      </TableHead>
+
+                      <TableHead className="sticky top-0 bg-gray-100 z-20">Payment Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={8}
+                          className="text-center py-4 text-gray-500"
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <svg
+                              className="animate-spin h-5 w-5 text-gray-500"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v8H4z"
+                              ></path>
+                            </svg>
+                            Loading sales data...
+                          </div>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : filteredSales.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={8}
+                          className="text-center py-4 text-gray-500"
+                        >
+                          No sales found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredSales.map((sale, index) => (
+                        <TableRow key={sale._id}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>{sale.invoiceNo}</TableCell>
+                          <TableCell>{sale.selectedParty?.name || "N/A"}</TableCell>
+                          <TableCell>
+                            {format(parseISO(sale.invoiceDate), "dd/MM/yyyy")}
+                          </TableCell>
+                          <TableCell>
+                            {sale.items.map((i) => i.name).join(", ")}
+                          </TableCell>
+                          <TableCell>
+                            {sale.items.map((i) => `${i.qty} pcs`).join(", ")}
+                          </TableCell>
+                          <TableCell>
+                            ₹{sale.totalAmount.toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                sale.paymentStatus === "unpaid"
+                                  ? "bg-red-100 text-red-600"
+                                  : sale.paymentStatus === "cash"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-blue-100 text-blue-700"
+                              }`}
+                            >
+                              {(sale.paymentStatus || "N/A").toUpperCase()}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

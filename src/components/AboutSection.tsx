@@ -69,12 +69,12 @@ export default function AboutSection() {
             bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] bg-clip-text text-transparent"
             style={{ fontFamily: "Roboto, sans-serif" }} // ✅ Roboto for heading
           >
-            About <br/> 
-            <span className="px-2 rounded-lg text-[#390F59]">“Used Our Mind”</span>
+            About <br/>
+            <span className="px-2 rounded-lg text-[#390F59]">“Billistry”</span>
           </h2>
 
           <p className="text-gray-500 text-base sm:text-lg mb-5">
-            Our mission is to empower businesses with
+            Our mission is to empower businesses with a
              <span className="font-semibold text-[#7B53A6]"> smart inventory tools<br/>
               </span> built for speed and simplicity.
           </p>
@@ -121,6 +121,3 @@ export default function AboutSection() {
     </section>
   )
 }
-
-
-
