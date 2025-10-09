@@ -44,12 +44,12 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
     }
   };
   useEffect(() => {
-  if (value) {
-    setSelected(value);
-  } else {
-    setSelected(null);
-  }
-}, [value]);
+    if (value) {
+      setSelected(value);
+    } else {
+      setSelected(null);
+    }
+  }, [value]);
 
   useEffect(() => {
     fetchCategories();
@@ -103,7 +103,12 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
     <div className="w-full relative">
       <Combobox
         value={selected}
-        onChange={(cat: Category) => {
+        // onChange={(cat: Category) => {
+        //   setSelected(cat);
+        //   onChange(cat);
+        // }}
+        onChange={(cat: Category | null) => {
+          if (!cat) return; // handle null case
           setSelected(cat);
           onChange(cat);
         }}
