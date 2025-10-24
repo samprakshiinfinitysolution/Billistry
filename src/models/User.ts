@@ -173,10 +173,16 @@ export interface IPermissions {
     update?: boolean;
     delete?: boolean;
   };
+  parties?: {
+    create?: boolean;
+    read?: boolean;
+    update?: boolean;
+    delete?: boolean;
+  };
 
   products?: {
     create?: boolean;
-    read?: boolean;
+    purchaseprice?: boolean;
     update?: boolean;
     delete?: boolean;
   };
@@ -194,7 +200,24 @@ export interface IPermissions {
     update?: boolean;
     delete?: boolean;
   };
-
+  salesReturn?: {
+    create?: boolean;
+    read?: boolean;
+    update?: boolean;
+    delete?: boolean;
+  };
+  purchasesReturn?: {
+    create?: boolean;
+    read?: boolean;
+    update?: boolean;
+    delete?: boolean;
+  };
+  cashbook?: {
+    create?: boolean;
+    read?: boolean;
+    update?: boolean;
+    delete?: boolean;
+  };
   expenses?: {
     create?: boolean;
     read?: boolean;
@@ -217,6 +240,7 @@ export interface IPermissions {
     viewAmounts?: boolean;
     viewProfit?: boolean;
     viewSensitiveReports?: boolean;
+    
   };
 }
 
@@ -232,6 +256,18 @@ export interface IUser extends Document {
   otp?: string;
   otpExpiresAt?: Date;
   permissions: IPermissions;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  upiId?: string;
+  profileImageUrl?: string;
+  dob?: string;
+  address?: string;
+  idProofType?: string;
+  idProofUrl?: string;
+  joiningDate?: string;
+  jobType?: string;
+  emergencyContact?: string;
   comparePassword(candidate: string): Promise<boolean>;
   setOtp(otp: string): void;
   verifyOtp(candidateOtp: string): boolean;
@@ -253,9 +289,15 @@ const PermissionSchema = new Schema<IPermissions>(
       update: { type: Boolean, default: false },
       delete: { type: Boolean, default: false },
     },
-    products: {
+    parties: {
       create: { type: Boolean, default: false },
       read: { type: Boolean, default: false },
+      update: { type: Boolean, default: false },
+      delete: { type: Boolean, default: false },
+    },
+    products: {
+      create: { type: Boolean, default: false },
+      purchaseprice: { type: Boolean, default: false },
       update: { type: Boolean, default: false },
       delete: { type: Boolean, default: false },
     },
@@ -266,6 +308,24 @@ const PermissionSchema = new Schema<IPermissions>(
       delete: { type: Boolean, default: false },
     },
     purchases: {
+      create: { type: Boolean, default: false },
+      read: { type: Boolean, default: false },
+      update: { type: Boolean, default: false },
+      delete: { type: Boolean, default: false },
+    },
+    salesReturn: {
+      create: { type: Boolean, default: false },
+      read: { type: Boolean, default: false },
+      update: { type: Boolean, default: false },
+      delete: { type: Boolean, default: false },
+    },
+    purchasesReturn: {
+      create: { type: Boolean, default: false },
+      read: { type: Boolean, default: false },
+      update: { type: Boolean, default: false },
+      delete: { type: Boolean, default: false },
+    },
+    cashbook: {
       create: { type: Boolean, default: false },
       read: { type: Boolean, default: false },
       update: { type: Boolean, default: false },
@@ -320,6 +380,18 @@ const UserSchema = new Schema<IUser>(
 
     // ✅ Nested permissions field
     permissions: { type: PermissionSchema, default: {} },
+    bankName: { type: String, trim: true },
+    accountNumber: { type: String, trim: true },
+    ifscCode: { type: String, trim: true },
+    upiId: { type: String, trim: true },
+    profileImageUrl: { type: String, trim: true },
+    dob: { type: String, trim: true },
+    address: { type: String, trim: true },
+    idProofType: { type: String, trim: true },
+    idProofUrl: { type: String, trim: true },
+    joiningDate: { type: String, trim: true },
+    jobType: { type: String, trim: true },
+    emergencyContact: { type: String, trim: true },
   },
   { timestamps: true }
 );

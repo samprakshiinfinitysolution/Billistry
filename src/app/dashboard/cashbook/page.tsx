@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DeleteIcon, Edit2, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import useAuthGuard from "@/hooks/useAuthGuard";
 
 type CashbookSummary = {
   totalBalance: number;
@@ -41,6 +42,7 @@ type EntryForm = {
 };
 
 export default function CashbookPage(): React.JSX.Element {
+  const { user } = useAuthGuard();
   const [data, setData] = useState<CashbookResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -519,12 +521,26 @@ export default function CashbookPage(): React.JSX.Element {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditModal(e)}>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (user?.permissions?.cashbook?.update) {
+                              openEditModal(e);
+                            } else {
+                              toast.error("You don't have permission to edit cashbook entries.");
+                            }
+                          }}
+                        >
                           <Edit2 className="w-4 h-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => openDeleteModal(e)}
+                          onClick={() => {
+                            if (user?.permissions?.cashbook?.delete) {
+                              openDeleteModal(e);
+                            } else {
+                              toast.error("You don't have permission to delete cashbook entries.");
+                            }
+                          }}
                           className="text-red-600"
                         >
                           <Trash2 className="w-4 h-4 mr-2" />

@@ -18,6 +18,8 @@ import {
     Edit,
     Trash2,
 } from 'lucide-react';
+import useAuthGuard from '@/hooks/useAuthGuard';
+import { toast } from 'react-hot-toast';
 
 // Mock UI components (Consistent with the reference)
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
@@ -176,6 +178,7 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
 
 
 const SalesDataPage = () => {
+    const { user } = useAuthGuard();
     const router = useRouter();
     const [sales, setSales] = useState<Sale[]>([]);
     const [loading, setLoading] = useState(true);
@@ -567,13 +570,28 @@ const SalesDataPage = () => {
                                                         <div className="absolute right-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10">
                                                             <button
                                                                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                                                                onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); router.push(`/dashboard/sale/sales-invoice?editId=${sale._id}`); }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (user?.permissions?.sales?.update) {
+                                                                        setOpenDropdownId(null);
+                                                                        router.push(`/dashboard/sale/sales-invoice?editId=${sale._id}`);
+                                                                    } else {
+                                                                        toast.error("You don't have permission to edit sales.");
+                                                                    }
+                                                                }}
                                                             >
                                                                 <Edit className="h-4 w-4 mr-2" /> Edit
                                                             </button>
                                                             <button
                                                                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
-                                                                onClick={(e) => { e.stopPropagation(); handleDeleteClick(sale._id); }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (user?.permissions?.sales?.delete) {
+                                                                        handleDeleteClick(sale._id);
+                                                                    } else {
+                                                                        toast.error("You don't have permission to delete sales.");
+                                                                    }
+                                                                }}
                                                             >
                                                                 <Trash2 className="h-4 w-4 mr-2" /> Delete
                                                             </button>

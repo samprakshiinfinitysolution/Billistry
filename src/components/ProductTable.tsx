@@ -16,6 +16,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "react-hot-toast";
+import useAuthGuard from "@/hooks/useAuthGuard";
 
 interface ProductTableProps {
   allProducts: Product[];
@@ -31,6 +33,7 @@ export default function ProductTable({
   onEdit,
   onDelete,
 }: ProductTableProps) {
+  const { user } = useAuthGuard();
   // Sort products by name ascending
   const sortedProducts = [...allProducts].sort((a, b) =>
     a.name.localeCompare(b.name)
@@ -87,7 +90,11 @@ export default function ProductTable({
               <TableCell>{p.currentStock || 0}</TableCell>
               <TableCell>{p.unit || "-"}</TableCell>
               <TableCell>{p.lowStockAlert || "-"}</TableCell>
-              <TableCell>{p.purchasePrice || "-"}</TableCell>
+              <TableCell>
+                {user?.permissions?.products?.purchaseprice
+                  ? p.purchasePrice || "-"
+                  : "-"}
+              </TableCell>
               <TableCell>{p.sellingPrice || "-"}</TableCell>
               <TableCell>
                 <DropdownMenu>
@@ -97,10 +104,26 @@ export default function ProductTable({
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="pointer-events-auto">
-                    <DropdownMenuItem onClick={() => onEdit(p,true)}>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        if (user?.permissions?.products?.update) {
+                          onEdit(p, true);
+                        } else {
+                          toast.error("You don't have permission to edit this product.");
+                        }
+                      }}
+                    >
                       <Edit className="mr-2 h-4 w-4" /> Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onDelete(p._id)}>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        if (user?.permissions?.products?.delete) {
+                          onDelete(p._id);
+                        } else {
+                          toast.error("You don't have permission to delete this product.");
+                        }
+                      }}
+                    >
                       <Trash className="mr-2 h-4 w-4 text-red-500" /> Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>

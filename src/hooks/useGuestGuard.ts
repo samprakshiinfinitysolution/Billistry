@@ -56,6 +56,14 @@ export default function useGuestGuard() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // 1. Define which routes are for guests only.
+        const guestRoutes = ['/', '/login', '/signup'];
+        const isAdminLogin = pathname === '/wp-admin';
+
+        // 2. If the user is not on a guest page, do nothing.
+        if (!guestRoutes.includes(pathname) && !isAdminLogin) {
+          throw new Error('Not a guest page');
+        }
         const res = await fetch('/api/auth/me', { credentials: 'include' });
         if (!res.ok) throw new Error('Not authenticated');
         const data: User = await res.json();
@@ -66,22 +74,20 @@ export default function useGuestGuard() {
 
           switch (data.role) {
             case 'superadmin':
-              redirectPath = '/admin';
+              redirectPath = '/wp-admin/dashboard';
               break;
             case 'shopkeeper':
               redirectPath = '/dashboard';
               break;
             case 'staff':
-              redirectPath = '/staff';
+              redirectPath = '/dashboard';
               break;
           }
 
-          if (pathname !== redirectPath) {
-            router.replace(redirectPath);
-          }
+          router.replace(redirectPath);
         }
       } catch {
-        // guest → stay on login/signup
+        // If not authenticated or not on a guest page, do nothing.
       } finally {
         setLoading(false);
       }

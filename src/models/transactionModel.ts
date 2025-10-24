@@ -1,39 +1,3 @@
-// import mongoose from "mongoose";
-
-// const transactionSchema = new mongoose.Schema(
-//   {
-//     partyType: {
-//       type: String,
-//       enum: ["Customer", "Supplier"],
-//       required: true,
-//     },
-//     partyId: {
-//       type: mongoose.Schema.Types.ObjectId,
-//       required: true,
-//       refPath: "partyType",
-//     },
-//     amount: {
-//       type: Number,
-//       required: true,
-//     },
-//     type: {
-//       type: String,
-//       enum: ["You Gave", "You Got"],
-//       required: true,
-//     },
-//     description: String,
-//     date: {
-//       type: Date,
-//       default: Date.now,
-//     },
-//   },
-//   { timestamps: true }
-// );
-
-// export const Transaction =
-//   mongoose.models.Transaction ||
-//   mongoose.model("Transaction", transactionSchema);
-
 
 
 
@@ -41,12 +5,13 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ITransaction extends Document {
   business: Types.ObjectId; // Reference to Business
-  partyType: "Customer" | "Supplier";
   partyId: Types.ObjectId;
   amount: number;
   type: "You Gave" | "You Got";
   description?: string;
   date: Date;
+  createdBy: Types.ObjectId; // Reference to User
+  updatedBy: Types.ObjectId; // Reference to User
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -59,15 +24,10 @@ const transactionSchema = new Schema<ITransaction>(
       required: true,
       index: true,
     },
-    partyType: {
-      type: String,
-      enum: ["Customer", "Supplier"],
-      required: true,
-    },
     partyId: {
       type: Schema.Types.ObjectId,
       required: true,
-      refPath: "partyType", // Dynamically references Customer or Supplier
+      ref: "Party", // 🔗 Link to the unified Party model
     },
     amount: {
       type: Number,
@@ -85,6 +45,16 @@ const transactionSchema = new Schema<ITransaction>(
     date: {
       type: Date,
       default: Date.now,
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
   },
   { timestamps: true }

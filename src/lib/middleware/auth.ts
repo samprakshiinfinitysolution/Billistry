@@ -21,7 +21,7 @@ export type Role = "superadmin" | "shopkeeper" | "staff";
 
 export interface JwtUserPayload {
   userId: string;
-  businessId: string;
+  businessId?: string; // 👈 Made optional for superadmin
   role: Role;
 }
 
@@ -48,7 +48,7 @@ export async function authMiddleware(
     }
 
     await connectDB();
-
+    
     // 🔎 Business name
     let businessName = "";
     if (decoded.businessId) {
@@ -70,7 +70,12 @@ export async function authMiddleware(
       permissions = DEFAULT_PERMISSIONS.superadmin;
     }
 
-    return { ...decoded, businessName, permissions };
+    const userPayload: UserPayload = {
+      ...decoded,
+      businessName,
+      permissions,
+    };
+    return userPayload;
   } catch (err) {
     console.error("JWT Error:", err);
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });

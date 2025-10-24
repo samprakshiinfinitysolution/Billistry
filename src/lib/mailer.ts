@@ -28,3 +28,6 @@ export async function sendOtpEmail(to: string, otp: string) {
     `Your OTP is ${otp}. It will expire in 3 minutes.`
   );
 }
+
+
+
