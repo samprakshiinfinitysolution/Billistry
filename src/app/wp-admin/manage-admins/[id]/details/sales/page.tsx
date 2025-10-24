@@ -4,6 +4,9 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import TableSkeleton from '@/components/ui/TableSkeleton';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 
 export default function SalesPage() {
   const params = useParams() as { id?: string };
@@ -201,55 +204,69 @@ export default function SalesPage() {
           <div className="mb-4 grid grid-cols-1 md:grid-cols-6 gap-2">
             <div>
               <label className="text-xs text-gray-500">From</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1" />
+              <Input type="date" value={startDate} onChange={e => setStartDate((e.target as HTMLInputElement).value)} className="mt-1" />
             </div>
             <div>
               <label className="text-xs text-gray-500">To</label>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1" />
+              <Input type="date" value={endDate} onChange={e => setEndDate((e.target as HTMLInputElement).value)} className="mt-1" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Party</label>
-              <select value={partySelect} onChange={e => setPartySelect(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1">
-                <option value="all">All</option>
-                {/* populate parties from sales list */}
-                {Array.from(new Set(sales.map(s => ((s.selectedParty && (s.selectedParty.name || s.selectedParty.partyName)) || s.partyName || '').trim()).filter(Boolean))).map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
+              <Select value={partySelect} onValueChange={(v) => setPartySelect(v)}>
+                <SelectTrigger className="w-full mt-1">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {Array.from(new Set(sales.map(s => ((s.selectedParty && (s.selectedParty.name || s.selectedParty.partyName)) || s.partyName || '').trim()).filter(Boolean))).map(p => (
+                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-xs text-gray-500">Product</label>
-              <select value={productSelect} onChange={e => setProductSelect(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1">
-                <option value="all">All</option>
-                {products.map((p: any) => (
-                  <option key={p._id} value={String(p._id)}>{p.name || p.title || p.productName}</option>
-                ))}
-              </select>
+              <Select value={productSelect} onValueChange={(v) => setProductSelect(v)}>
+                <SelectTrigger className="w-full mt-1">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {products.map((p: any) => (
+                    <SelectItem key={p._id} value={String(p._id)}>{p.name || p.title || p.productName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-xs text-gray-500">Search</label>
-              <input placeholder="Search invoice, party, product..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1" />
+              <Input placeholder="Search invoice, party, product..." value={searchQuery} onChange={e => setSearchQuery((e.target as HTMLInputElement).value)} className="mt-1" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Payment Status</label>
-              <select value={paymentStatusFilter} onChange={e => setPaymentStatusFilter(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1">
-                <option value="all">All</option>
-                <option value="paid">Paid</option>
-                <option value="partial">Partial</option>
-                <option value="unpaid">Unpaid</option>
-              </select>
+              <Select value={paymentStatusFilter} onValueChange={(v) => setPaymentStatusFilter(v)}>
+                <SelectTrigger className="w-full mt-1">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="partial">Partial</SelectItem>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-xs text-gray-500">Min Amount</label>
-              <input type="number" placeholder="Min" value={minAmount} onChange={e => setMinAmount(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1" />
+              <Input type="number" placeholder="Min" value={minAmount} onChange={e => setMinAmount((e.target as HTMLInputElement).value)} className="mt-1" />
             </div>
             <div>
               <label className="text-xs text-gray-500">Max Amount</label>
-              <input type="number" placeholder="Max" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} className="mt-1 block w-full border rounded px-2 py-1" />
+              <Input type="number" placeholder="Max" value={maxAmount} onChange={e => setMaxAmount((e.target as HTMLInputElement).value)} className="mt-1" />
             </div>
           </div>
           <div className="flex gap-2 mb-4">
-            <button onClick={() => { setStartDate(''); setEndDate(''); setPartyQuery(''); setPaymentStatusFilter('all'); setMinAmount(''); setMaxAmount(''); }} className="px-3 py-1 bg-gray-100 rounded">Clear</button>
+            <Button variant="ghost" size="sm" onClick={() => { setStartDate(''); setEndDate(''); setPartyQuery(''); setPaymentStatusFilter('all'); setMinAmount(''); setMaxAmount(''); }}>Clear</Button>
           </div>
 
           <div className="overflow-x-auto">

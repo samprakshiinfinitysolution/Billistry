@@ -6,6 +6,8 @@ import { Search, Plus, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import TableSkeleton from '@/components/ui/TableSkeleton';
+import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 
 export default function AdminPartiesPage() {
   const params = useParams() as { id?: string };
@@ -105,13 +107,18 @@ export default function AdminPartiesPage() {
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400" />
-              <input placeholder="Search parties..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8 pr-3 py-2 border rounded text-sm" />
+              <Input placeholder="Search parties..." value={searchTerm} onChange={e => setSearchTerm((e.target as HTMLInputElement).value)} className="pl-8" />
             </div>
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border rounded px-2 py-1 text-sm">
-              <option value="all">All types</option>
-              <option value="Customer">Customer</option>
-              <option value="Supplier">Supplier</option>
-            </select>
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v)}>
+              <SelectTrigger className="w-44 mt-0">
+                <SelectValue placeholder="All types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="Customer">Customer</SelectItem>
+                <SelectItem value="Supplier">Supplier</SelectItem>
+              </SelectContent>
+            </Select>
             {/* Note: no Create button for superadmin view */}
           </div>
         </div>

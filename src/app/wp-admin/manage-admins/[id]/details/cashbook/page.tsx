@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import TableSkeleton from '@/components/ui/TableSkeleton';
+import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 
 function fmtDate(d: any) {
   try { return d ? new Date(d).toLocaleString() : '' } catch (e) { return '' }
@@ -59,12 +61,17 @@ export default function CashbookPage() {
     <div className="mt-6">
       <div className="bg-white rounded-lg shadow-sm border p-4">
         <div className="flex items-center gap-2 mb-4">
-        <input className="border rounded px-2 py-1" placeholder="Search description, reference or party" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border rounded px-2 py-1">
-          <option value="">All Types</option>
-          <option value="cash">Cash</option>
-          <option value="bank">Bank</option>
-        </select>
+        <Input placeholder="Search description, reference or party" value={searchTerm} onChange={e => setSearchTerm((e.target as HTMLInputElement).value)} />
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v === '__all__' ? '' : v)}>
+          <SelectTrigger className="w-44 mt-0">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Types</SelectItem>
+            <SelectItem value="cash">Cash</SelectItem>
+            <SelectItem value="bank">Bank</SelectItem>
+          </SelectContent>
+        </Select>
         </div>
 
         {loading ? (
@@ -76,13 +83,37 @@ export default function CashbookPage() {
             <table className="w-full table-auto border-collapse">
               <thead>
                 <tr className="bg-gray-100 text-left">
-                  {cols.map((c: any) => (<th key={c.key} className="px-3 py-2 text-sm font-medium">{c.label}</th>))}
+                  {cols.map((c: any) => (
+                    <th
+                      key={c.key}
+                      className={
+                        "px-3 py-2 text-sm font-medium " +
+                        (c.key === 'description'
+                          ? 'min-w-[10rem] md:min-w-[20rem] lg:min-w-[28rem] whitespace-normal'
+                          : '')
+                      }
+                    >
+                      {c.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {entries.map((r, i) => (
                   <tr key={r._id || i} className="border-b">
-                    {cols.map((c: any) => <td key={c.key} className="px-3 py-2 text-sm">{renderCell(r, c.key)}</td>)}
+                    {cols.map((c: any) => (
+                      <td
+                        key={c.key}
+                        className={
+                          "px-3 py-2 text-sm " +
+                          (c.key === 'description'
+                            ? 'min-w-[10rem] md:min-w-[20rem] lg:min-w-[28rem] whitespace-normal break-words'
+                            : '')
+                        }
+                      >
+                        {renderCell(r, c.key)}
+                      </td>
+                    ))}
                   </tr>
                 ))}
                 {(!entries || entries.length === 0) && <tr><td colSpan={cols.length} className="px-3 py-6 text-center text-gray-500">No entries</td></tr>}

@@ -3,6 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import TableSkeleton from '@/components/ui/TableSkeleton';
+import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 function fmtDate(d: any) { try { return d ? new Date(d).toLocaleString() : '' } catch (e) { return '' } }
 function fmtCurrency(v: any) { if (v === null || v === undefined) return ''; try { return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } catch (e) { return String(v); } }
@@ -57,13 +60,18 @@ export default function ExpensesPage() {
       <div className="bg-white rounded-lg shadow-sm border p-4">
         <div className="flex items-center justify-between gap-4 mb-4">
         <div className="flex items-center gap-2">
-          <input aria-label="Search expenses" className="border rounded px-3 py-2 w-72" placeholder="Search note, payee or number" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-          <select aria-label="Category" value={category} onChange={e => setCategory(e.target.value)} className="border rounded px-3 py-2">
-            <option value="">All Categories</option>
-            <option value="office">Office</option>
-            <option value="travel">Travel</option>
-          </select>
-          <button onClick={() => fetchItems()} className="px-3 py-2 bg-white border rounded hover:bg-gray-50">Refresh</button>
+          <Input aria-label="Search expenses" className="w-72" placeholder="Search note, payee or number" value={searchTerm} onChange={e => setSearchTerm((e.target as HTMLInputElement).value)} />
+          <Select value={category} onValueChange={(v) => setCategory(v === '__all__' ? '' : v)}>
+              <SelectTrigger className="w-44 mt-0">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Categories</SelectItem>
+                <SelectItem value="office">Office</SelectItem>
+                <SelectItem value="travel">Travel</SelectItem>
+              </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={() => fetchItems()}>Refresh</Button>
         </div>
 
         <div className="flex items-center gap-3">
