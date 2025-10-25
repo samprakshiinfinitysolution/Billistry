@@ -88,9 +88,13 @@ export default function SalesSummaryPage() {
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [paymentFilter, setPaymentFilter] = useState<
-    "all" | "unpaid" | "cash" | "online"
-  >("all");
+  // make paymentFilter a string so we can support dynamic/unknown payment types (e.g. NETBANKING)
+  const [paymentFilter, setPaymentFilter] = useState<string>("all");
+
+  function capitalize(s: string) {
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  }
 
   useEffect(() => {
     fetchSales();
@@ -236,15 +240,15 @@ export default function SalesSummaryPage() {
           "Payment Status",
         ],
       ],
-      body: filteredSales.map((s, idx) => [
+  body: filteredSales.map((s, idx) => [
         idx + 1,
         s.invoiceNo,
         s.selectedParty?.name || "",
         format(parseISO(s.invoiceDate), "dd/MM/yyyy"),
-        s.items.map((it) => `${it.name || ""} (x${it.qty})`).join(", "),
+  s.items.map((it) => `${it.name || ""} (x${it.qty})`).join(", "),
         s.items.map((it) => `${it.qty} pcs`).join(", "),
         `₹${(s.totalAmount || 0).toFixed(2)}`,
-        (s.paymentStatus || "N/A").toUpperCase(),
+        capitalize(s.paymentStatus || "N/A"),
       ]),
       styles: { fontSize: 9 },
       headStyles: { halign: "left" },
@@ -278,7 +282,7 @@ export default function SalesSummaryPage() {
       Items: s.items.map((it) => `${it.name || ""} (x${it.qty})`).join(", "),
       Quantity: s.items.map((it) => `${it.qty} pcs`).join(", "),
       "Amount (₹)": Number(s.totalAmount || 0),
-      "Payment Status": (s.paymentStatus || "N/A").toUpperCase(),
+      "Payment Status": capitalize(s.paymentStatus || "N/A"),
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -385,40 +389,40 @@ export default function SalesSummaryPage() {
                   />
                 </>
               )}
-              <Select
-                value={paymentFilter}
-                onValueChange={(v: "all" | "unpaid" | "cash" | "online") =>
-                  setPaymentFilter(v)
-                }
-              >
+              <Select value={paymentFilter} onValueChange={(v: string) => setPaymentFilter(v)}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Payment Status" />
                 </SelectTrigger>
                 <SelectContent>
+                  {/**
+                   * Build a list of payment options dynamically from `sales` so
+                   * unknown types such as "NETBANKING" will appear.
+                   */}
+                  {
+                    /* 'all' option first */
+                  }
                   <SelectItem value="all">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
                       All Payments
                     </div>
                   </SelectItem>
-                  <SelectItem value="unpaid">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                      Unpaid
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="cash">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                      Cash
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="online">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                      Online
-                    </div>
-                  </SelectItem>
+
+                  {/** dynamic options derived from data */}
+                  {Array.from(new Set(sales.map((s) => (s.paymentStatus || "").toString().trim()).filter(Boolean))).map((opt) => {
+                    const key = opt;
+                    const lower = opt.toLowerCase();
+                    // color mapping for known types, fallback to gray
+                    const colorClass = lower === "unpaid" ? "bg-red-500" : lower === "cash" ? "bg-green-500" : lower === "online" ? "bg-blue-500" : "bg-gray-400";
+                    return (
+                      <SelectItem key={key} value={key}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`}></span>
+                          {capitalize(opt)}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -677,7 +681,7 @@ export default function SalesSummaryPage() {
                                   : "bg-blue-100 text-blue-700"
                               }`}
                             >
-                              {(sale.paymentStatus || "N/A").toUpperCase()}
+                              {capitalize(sale.paymentStatus || "N/A")}
                             </span>
                           </TableCell>
                         </TableRow>

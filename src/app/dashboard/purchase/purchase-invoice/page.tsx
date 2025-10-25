@@ -311,6 +311,30 @@ const CreatePurchaseInvoicePage = () => {
         }
     };
 
+    // When marking fully paid, ensure paymentMode is set to a sensible default if it's still 'unpaid'.
+    // When unchecking, restore previous amount and revert paymentMode to 'unpaid'.
+    function handleFullyPaidChangeWithMode(checked: boolean) {
+        setIsFullyPaid(checked);
+        if (checked) {
+            amountReceivedBeforePaid.current = parseFloat(amountReceivedStr) || 0;
+            if ((paymentMode as string) === 'unpaid') {
+                setPaymentMode('cash');
+            }
+        } else {
+            setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
+            setPaymentMode('unpaid');
+        }
+    }
+
+    // If user manually selects 'unpaid' while invoice is marked fully paid, treat that as intent
+    // to unmark fully-paid and restore previous amount.
+    useEffect(() => {
+        if (isFullyPaid && (paymentMode as string) === 'unpaid') {
+            setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
+            setIsFullyPaid(false);
+        }
+    }, [paymentMode]);
+
     // --- HANDLERS ---
     const handleAddItemFromModal = (itemToAdd: ItemData, quantity: number) => {
         const taxPercent = itemToAdd.taxPercent || 0;
@@ -1161,7 +1185,7 @@ const CreatePurchaseInvoicePage = () => {
                             
                             <div className="flex justify-end items-center gap-2 mt-1">
                                 <label htmlFor="fullyPaid" className="text-sm text-gray-500 cursor-pointer">Mark as fully paid</label>
-                                <Checkbox id="fullyPaid" checked={isFullyPaid} onChange={(e) => handleFullyPaidChange(e.target.checked)}/>
+                                <Checkbox id="fullyPaid" checked={isFullyPaid} onChange={(e) => handleFullyPaidChangeWithMode(e.target.checked)}/>
                             </div>
 
                             <div className="flex justify-between items-center text-sm">
@@ -1181,7 +1205,15 @@ const CreatePurchaseInvoicePage = () => {
                                         }}
                                         className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0"
                                     />
-                    <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any)} className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
+                    <select
+                        value={paymentMode}
+                        onChange={(e) => setPaymentMode(e.target.value as any)}
+                        className={`h-7 rounded-md border-none px-2 text-sm focus:outline-none ${isFullyPaid ? 'bg-white text-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                        disabled={!isFullyPaid}
+                        aria-disabled={!isFullyPaid}
+                        title={!isFullyPaid ? 'Enable "Mark as fully paid" to change payment status' : undefined}
+                    >
+                        <option value="unpaid">Unpaid</option>
                         <option value="cash">Cash</option>
                         <option value="upi">UPI</option>
                         <option value="card">Card</option>

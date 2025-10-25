@@ -73,9 +73,13 @@ export default function PurchaseSummaryPage() {
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [paymentFilter, setPaymentFilter] = useState<
-    "all" | "unpaid" | "cash" | "online"
-  >("all");
+  // allow dynamic/unknown payment types (e.g. NETBANKING)
+  const [paymentFilter, setPaymentFilter] = useState<string>("all");
+
+  function capitalize(s: string) {
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  }
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
@@ -211,7 +215,7 @@ export default function PurchaseSummaryPage() {
         p.items.map((i) => i.name).join(", "),
         p.items.map((i) => `${i.qty} pcs`).join(", "),
         `₹${p.totalAmount.toFixed(2)}`,
-        p.paymentStatus.toUpperCase(),
+        capitalize(p.paymentStatus || "N/A"),
       ]),
     });
 
@@ -227,7 +231,7 @@ export default function PurchaseSummaryPage() {
       Items: p.items.map((i) => i.name).join(", "),
       Quantity: p.items.map((i) => `${i.qty} pcs`).join(", "),
       Amount: p.totalAmount,
-      Payment: p.paymentStatus.toUpperCase(),
+      Payment: capitalize(p.paymentStatus || "N/A"),
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -334,12 +338,7 @@ export default function PurchaseSummaryPage() {
                 </>
               )}
 
-              <Select
-                value={paymentFilter}
-                onValueChange={(v: "all" | "unpaid" | "cash" | "online") =>
-                  setPaymentFilter(v)
-                }
-              >
+              <Select value={paymentFilter} onValueChange={(v: string) => setPaymentFilter(v)}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Payment Status" />
                 </SelectTrigger>
@@ -350,24 +349,20 @@ export default function PurchaseSummaryPage() {
                       All Payments
                     </div>
                   </SelectItem>
-                  <SelectItem value="unpaid">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                      Unpaid
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="cash">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                      Cash
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="online">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                      Online
-                    </div>
-                  </SelectItem>
+
+                  {Array.from(new Set(purchases.map((p) => (p.paymentStatus || "").toString().trim()).filter(Boolean))).map((opt) => {
+                    const key = opt;
+                    const lower = opt.toLowerCase();
+                    const colorClass = lower === "unpaid" ? "bg-red-500" : lower === "cash" ? "bg-green-500" : lower === "online" ? "bg-blue-500" : "bg-gray-400";
+                    return (
+                      <SelectItem key={key} value={key}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`}></span>
+                          {capitalize(opt)}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -585,7 +580,7 @@ export default function PurchaseSummaryPage() {
                                 ? "bg-green-100 text-green-700"
                                 : "bg-blue-100 text-blue-700"
                             }`}>
-                              {p.paymentStatus.toUpperCase()}
+                              {capitalize(p.paymentStatus || "N/A")}
                             </span>
                           </TableCell>
                         </TableRow>

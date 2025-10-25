@@ -476,14 +476,32 @@ const CreateSalesReturnInvoicePage = () => {
         }
     }, [isFullyPaid, finalAmountForBalance]);
 
+    // When toggling fully-paid, preserve/restore the previous amount and set a sensible
+    // default payment mode when the invoice becomes fully paid. When unchecking, revert
+    // the payment mode to 'unpaid'.
     const handleFullyPaidChange = (checked: boolean) => {
         setIsFullyPaid(checked);
         if (checked) {
             amountReceivedBeforePaid.current = parseFloat(amountReceivedStr) || 0;
+            // if paymentMode is still the placeholder 'unpaid', pick a sensible default
+            if ((paymentMode as string) === 'unpaid') {
+                setPaymentMode('cash');
+            }
         } else {
             setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
+            // when user unchecks fully paid, revert payment mode to unpaid
+            setPaymentMode('unpaid');
         }
     };
+
+    // If the user manually sets paymentMode to 'unpaid' while the invoice is marked
+    // fully paid, interpret that as intent to unmark fully-paid and restore prior amount.
+    useEffect(() => {
+        if (isFullyPaid && (paymentMode as string) === 'unpaid') {
+            setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
+            setIsFullyPaid(false);
+        }
+    }, [paymentMode]);
 
     // --- HANDLERS ---
     const handleAddItemFromModal = (itemToAdd: ItemData, quantity: number) => {
@@ -1114,28 +1132,36 @@ const CreateSalesReturnInvoicePage = () => {
                                 <span className="text-gray-500">Amount Received</span>
                                 <div className="flex items-center gap-1 w-48 bg-gray-100 rounded-md border border-gray-200 p-1">
                                     <span className="pl-2 text-gray-500 text-sm">₹</span>
-                                    <Input 
-                                        id="amountReceived" 
-                                        type="number" 
-                                        placeholder="0.00"
-                                        value={amountReceivedStr} 
-                                        onChange={(e) => {
-                                            setAmountReceivedStr(e.target.value);
-                                            if (isFullyPaid) {
-                                                setIsFullyPaid(false);
-                                            }
-                                        }}
-                                        className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0"
-                                    />
-                    <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any)} className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
-                        <option value="cash">Cash</option>
-                        <option value="upi">UPI</option>
-                        <option value="card">Card</option>
-                        <option value="netbanking">Netbanking</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="cheque">Cheque</option>
-                        <option value="online">Online</option>
-                    </select>
+                                                    <Input 
+                                                        id="amountReceived" 
+                                                        type="number" 
+                                                        placeholder="0.00"
+                                                        value={amountReceivedStr} 
+                                                        onChange={(e) => {
+                                                            setAmountReceivedStr(e.target.value);
+                                                            if (isFullyPaid) {
+                                                                setIsFullyPaid(false);
+                                                            }
+                                                        }}
+                                                        className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0"
+                                                    />
+                                    <select
+                                        value={paymentMode}
+                                        onChange={(e) => setPaymentMode(e.target.value as any)}
+                                        className={`h-7 rounded-md border-none px-2 text-sm focus:outline-none ${isFullyPaid ? 'bg-white text-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                                        disabled={!isFullyPaid}
+                                        aria-disabled={!isFullyPaid}
+                                        title={!isFullyPaid ? 'Enable "Mark as fully paid" to change payment status' : undefined}
+                                    >
+                                        <option value="unpaid">Unpaid</option>
+                                        <option value="cash">Cash</option>
+                                        <option value="upi">UPI</option>
+                                        <option value="card">Card</option>
+                                        <option value="netbanking">Netbanking</option>
+                                        <option value="bank_transfer">Bank Transfer</option>
+                                        <option value="cheque">Cheque</option>
+                                        <option value="online">Online</option>
+                                    </select>
                                 </div>
                             </div>
 

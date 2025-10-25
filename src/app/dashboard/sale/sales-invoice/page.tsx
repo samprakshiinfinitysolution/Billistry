@@ -335,6 +335,35 @@ const CreateSalesInvoicePage = () => {
         }
     };
 
+    // If user marks fully paid and payment mode is still the placeholder 'unpaid',
+    // set a sensible default so the select reflects a real payment mode and the
+    // save handler sends the correct status.
+    function handleFullyPaidChangeWithMode(checked: boolean) {
+        setIsFullyPaid(checked);
+        if (checked) {
+            amountReceivedBeforePaid.current = parseFloat(amountReceivedStr) || 0;
+            if ((paymentMode as string) === 'unpaid') {
+                setPaymentMode('cash');
+            }
+        } else {
+            setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
+            // when user unchecks fully paid, revert payment mode to unpaid
+            setPaymentMode('unpaid');
+        }
+    }
+
+    // If the user manually sets paymentMode to 'unpaid' while the invoice is marked
+    // fully paid, interpret that as the user's intent to unmark fully-paid and
+    // restore the previous amount received. This keeps UI state consistent.
+    useEffect(() => {
+        if (isFullyPaid && (paymentMode as string) === 'unpaid') {
+            // Restore prior amount and unset fully paid.
+            setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
+            setIsFullyPaid(false);
+        }
+        // Only trigger when paymentMode changes or isFullyPaid changes
+    }, [paymentMode]);
+
     // --- HANDLERS ---
     const handleAddItemFromModal = (itemToAdd: ItemData, quantity: number) => {
         const taxPercent = itemToAdd.taxPercent || 0;
@@ -699,7 +728,12 @@ const CreateSalesInvoicePage = () => {
                                         try {
                                             setSaving(true);
                                             // Consider invoice paid if user checked fully-paid OR the entered amountReceived covers the final amount.
-                                            const numericAmountReceived = parseFloat(amountReceivedStr) || 0;
+                                            let numericAmountReceived = parseFloat(amountReceivedStr) || 0;
+                                            // If user marked fully paid but amountReceivedStr hasn't updated yet (state is async),
+                                            // ensure we treat it as fully-paid for the save operation by using finalAmountForBalance.
+                                            if (isFullyPaid && numericAmountReceived < finalAmountForBalance) {
+                                                numericAmountReceived = finalAmountForBalance;
+                                            }
                                             const isPaid = isFullyPaid || numericAmountReceived >= finalAmountForBalance;
                                             const paymentStatusToSend = isPaid ? paymentMode : 'unpaid';
 
@@ -1244,7 +1278,7 @@ const CreateSalesInvoicePage = () => {
                             
                             <div className="flex justify-end items-center gap-2 mt-1">
                                 <label htmlFor="fullyPaid" className="text-sm text-gray-500 cursor-pointer">Mark as fully paid</label>
-                                <Checkbox id="fullyPaid" checked={isFullyPaid} onChange={(e) => handleFullyPaidChange(e.target.checked)}/>
+                                <Checkbox id="fullyPaid" checked={isFullyPaid} onChange={(e) => handleFullyPaidChangeWithMode(e.target.checked)}/>
                             </div>
 
                             <div className="flex justify-between items-center text-sm">
@@ -1264,15 +1298,23 @@ const CreateSalesInvoicePage = () => {
                                         }}
                                         className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0 "
                                     />
-                    <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any) } className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
-                        <option value="cash">Cash</option>
-                        <option value="upi">UPI</option>
-                        <option value="card">Card</option>
-                        <option value="netbanking">Netbanking</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="cheque">Cheque</option>
-                        <option value="online">Online</option>
-                    </select>
+                                        <select
+                                            value={paymentMode}
+                                            onChange={(e) => setPaymentMode(e.target.value as any)}
+                                            className={`h-7 rounded-md border-none px-2 text-sm focus:outline-none ${isFullyPaid ? 'bg-white text-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                                            disabled={!isFullyPaid}
+                                            aria-disabled={!isFullyPaid}
+                                            title={!isFullyPaid ? 'Enable "Mark as fully paid" to change payment status' : undefined}
+                                        >
+                                            <option value="unpaid">Unpaid</option>
+                                            <option value="cash">Cash</option>
+                                            <option value="upi">UPI</option>
+                                            <option value="card">Card</option>
+                                            <option value="netbanking">Netbanking</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="cheque">Cheque</option>
+                                            <option value="online">Online</option>
+                                        </select>
                                 </div>
                             </div>
 
