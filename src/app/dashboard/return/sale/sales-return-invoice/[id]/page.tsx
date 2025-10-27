@@ -104,7 +104,7 @@ const SalesReturnInvoiceViewer = ({ params }: { params: any }) => {
             let html2pdf: any = null;
             try {
                 // some bundlers export default, some attach to module - try both
-                // @ts-ignore
+                
                 const mod = await import('html2pdf.js');
                 html2pdf = (mod && (mod.default || mod));
             } catch (e) {

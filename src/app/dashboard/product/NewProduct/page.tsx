@@ -156,36 +156,41 @@ const ItemsPageUI = () => {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <header className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Products</h1>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
-                <FileBarChart className="h-4 w-4" />
-                Reports
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem>
-                <Link href="/dashboard/reports/inventory/stock-summary">
-                  Stock Summary
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Link href="/dashboard/reports/inventory/low-stock">
-                  Low Stock Summary
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </header>
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      <header className="flex items-center justify-between pb-4 border-b">
+        <h1 className="text-xl font-bold text-gray-800">Products</h1>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
+                  <FileBarChart className="h-4 w-4 mr-2" />
+                  Reports
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem>
+                  <Link href="/dashboard/reports/inventory/stock-summary" className="block w-full">Stock Summary</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link href="/dashboard/reports/inventory/low-stock" className="block w-full">Low Stock</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          <Button
+            onClick={() => {
+              setEditingProduct(null);
+              setOpen(true);
+            }}
+            className="ml-2"
+          >
+            Add Product
+          </Button>
+        </div>
+      </header>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <main className="flex-1 pt-4 space-y-4 flex flex-col overflow-hidden">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <Card>
             <Link href="/dashboard/reports/inventory/stock-summary">
               <CardHeader className="flex flex-row justify-between">
@@ -222,22 +227,20 @@ const ItemsPageUI = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col md:flex-row flex-wrap items-center justify-between gap-4 mb-4">
-          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-            <div className="relative w-64">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2 flex-wrap w-full">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
               <Input
                 placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                className="pl-9 pr-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 transition-all duration-200 w-full"
               />
             </div>
-            <Select
-              value={selectedCategory}
-              onValueChange={setSelectedCategory}
-            >
-              <SelectTrigger className="w-[180px]">
+
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger>
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -249,8 +252,9 @@ const ItemsPageUI = () => {
                 ))}
               </SelectContent>
             </Select>
+
             <Select value={sortOption} onValueChange={(v: any) => setSortOption(v)}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -259,6 +263,7 @@ const ItemsPageUI = () => {
                 <SelectItem value="z_a">Z to A</SelectItem>
               </SelectContent>
             </Select>
+
             <Button
               variant={showLowStockOnly ? "secondary" : "outline"}
               onClick={() => setShowLowStockOnly(!showLowStockOnly)}
@@ -270,11 +275,10 @@ const ItemsPageUI = () => {
 
           <div className="flex gap-2">
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex-1">
+              <DropdownMenuTrigger>
+                <Button variant="outline">
                   <Layers3 className="mr-2 h-4 w-4" />
                   Bulk Actions
-                  <ChevronDown className="ml-auto h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -282,24 +286,18 @@ const ItemsPageUI = () => {
                 <DropdownMenuItem>Delete Selected</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
-              onClick={() => {
-                setEditingProduct(null);
-                setOpen(true);
-              }}
-            >
-              Add Product
-            </Button>
           </div>
         </div>
 
-        {/* Product Table */}
-        <ProductTable
-          allProducts={sortedProducts}
-          loading={loading}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        {/* Product Table - full-bleed container so the card can touch page edges like sales pages */}
+        <div className="border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm flex-1 overflow-y-auto">
+            <ProductTable
+              allProducts={sortedProducts}
+              loading={loading}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+        </div>
         {/* Modal Form */}
         <AddProduct
           open={open}
@@ -308,7 +306,7 @@ const ItemsPageUI = () => {
           setEditingProduct={setEditingProduct}
           onSave={handleSave}
         />
-      </div>
+      </main>
     </div>
   );
 };
