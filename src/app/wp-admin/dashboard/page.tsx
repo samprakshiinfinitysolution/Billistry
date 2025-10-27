@@ -50,6 +50,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+
 // live data state will replace previous mock data
 const COLORS = ['#5F2EEA', '#E2E8F0'];
 
@@ -228,8 +229,10 @@ export default function DashboardPage() {
         // ignore
       }
 
-      // If superadmin viewing all, also fetch all shopkeepers
-      if (scope === 'all' && currentUser?.role === 'superadmin') {
+  // If superadmin viewing all, also fetch all shopkeepers
+  // Use the local `user` (may be the passed-in userOverride) so fetchDashboardData
+  // works correctly even before `currentUser` state is updated.
+  if (scope === 'all' && user?.role === 'superadmin') {
         try {
           const r2 = await fetch('/api/users?role=shopkeeper');
           if (r2.ok) {
@@ -256,9 +259,9 @@ export default function DashboardPage() {
     (async () => {
       try {
         const me = await fetch('/api/auth/me');
-        if (me.ok) {
-          const u = await me.json();
-          setCurrentUser(u);
+          if (me.ok) {
+            const u = await me.json();
+            setCurrentUser(u);
           // set default scope: if not logged in or not a shopkeeper/staff -> show all
           if (!u || (u.role !== 'shopkeeper' && u.role !== 'staff')) {
             setScope('all');
@@ -278,11 +281,16 @@ export default function DashboardPage() {
               console.error('failed to fetch businesses', err);
             }
           }
+
+          // pass the freshly fetched user into fetchDashboardData so the function
+          // uses the correct user immediately (state updates are async)
+          await fetchDashboardData(u);
         }
       } catch (err) {
         console.error('failed to fetch /api/auth/me', err);
+        // fallback: try fetching dashboard without a user
+        await fetchDashboardData();
       }
-      await fetchDashboardData();
     })();
     // removed automatic polling to avoid periodic reloads; dashboard will fetch once on mount and when
     // `filter` or `scope` changes via effects below.

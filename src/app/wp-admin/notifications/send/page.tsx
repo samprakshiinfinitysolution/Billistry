@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import toast from 'react-hot-toast';
 import { createPortal } from 'react-dom';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getAdmins, refreshAdmins } from '@/app/wp-admin/manage-admins/data';
 
 type Recipient = {
@@ -183,8 +184,30 @@ export default function NotificationsSendPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2 max-h-[520px] overflow-auto">
-                  {filtered.map(r => (
+                <div className="space-y-2 max-h-[380px] overflow-auto">
+                  {loadingRecipients ? (
+                    // show skeleton placeholders while recipients load
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-gray-100 overflow-hidden">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Skeleton className="h-4 w-36" />
+                            <Skeleton className="h-3 w-48" />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-6 w-20 rounded-full" />
+                          <Skeleton className="h-4 w-4 rounded" />
+                        </div>
+                      </div>
+                    ))
+                  ) : filtered.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">No recipients found</div>
+                  ) : (
+                    filtered.map(r => (
                       <div key={r.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
                         <div>
                           <div className="font-medium">{r.name}</div>
@@ -195,7 +218,8 @@ export default function NotificationsSendPage() {
                           <input type="checkbox" checked={!!selected[r.id]} onChange={() => toggleSelect(r.id)} />
                         </div>
                       </div>
-                    ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

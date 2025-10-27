@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import TableSkeleton from '@/components/ui/TableSkeleton';
 import { Button } from '@/components/ui/button';
 import { Trash2, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -128,7 +129,11 @@ export default function AdminContactPage() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8">Loading contacts...</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={4} className="p-0">
+                      <TableSkeleton rows={6} />
+                    </TableCell>
+                  </TableRow>
                 ) : filteredContacts.length === 0 ? (
                   <TableRow><TableCell colSpan={4} className="text-center py-8 text-sm text-gray-500">No submissions found.</TableCell></TableRow>
                 ) : (
