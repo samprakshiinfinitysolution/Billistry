@@ -11,8 +11,6 @@ import StockOverview from '@/components/Dashboard//StockOverview';
 import LowStockAlerts from '@/components/Dashboard//LowStockAlerts';
 import UpgradeBanner from '@/components/Dashboard/UpgradeBanner';
 import RecentActivity from '@/components/Dashboard/RecentActivity';
-import TableSkeleton from '@/components/ui/TableSkeleton';
-import { Skeleton } from '@/components/ui/skeleton';
 
 // Type Definitions
 interface SalesData {
@@ -304,16 +302,16 @@ export default function Dashboard() {
     let mounted = true;
     async function fetchRecent() {
       try {
-        // Use the admin audit-logs endpoint (existing implementation) instead of the legacy /api/audit
-        const res = await fetch('/api/admin/audit-logs?limit=5');
+        const res = await fetch('/api/audit?limit=5');
         if (!res.ok) throw new Error('Audit API error');
         const json = await res.json();
 
-        // json.items expected from /api/admin/audit-logs
-        if (Array.isArray(json.items)) {
-          const mapped = json.items.map((l: any) => {
+        // json.logs expected from /api/audit
+        if (Array.isArray(json.logs)) {
+          const mapped = json.logs.map((l: any) => {
             const when = new Date(l.createdAt).toLocaleString();
             const user = l.user?.name || (l.user?.email ?? 'Unknown');
+            // prefer action + resourceType/resourceId
             if (l.action) return `${when} — ${user}: ${l.action}`;
             return `${when} — ${user}: ${l.resourceType || 'Activity'}`;
           });
@@ -321,8 +319,8 @@ export default function Dashboard() {
           if (mounted) setRecentActivitiesState(mapped);
         }
       } catch (err) {
-        // If audit is not accessible, fallback to recent sales/purchases/products
-        console.error('Failed to load recent activities via /api/admin/audit-logs, attempting fallback:', err);
+        // If audit returns 403 or otherwise not allowed, fallback to recent sales/purchases/products
+        console.error('Failed to load recent activities via /api/audit, attempting fallback:', err);
         try {
           // attempt fallback: fetch recent sales and purchases and product low-stock
           const [salesRes, purchasesRes, productsRes] = await Promise.allSettled([
@@ -386,56 +384,20 @@ export default function Dashboard() {
       <main className="p-6 max-w-7xl mx-auto">
         <StatsCards data={statsData} loading={loading} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {loading ? (
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <h4 className="text-sm text-gray-600 mb-3"><Skeleton className="h-4 w-40" /></h4>
-              <div className="h-44 bg-white">
-                <TableSkeleton rows={3} />
-              </div>
-            </div>
-          ) : (
-            <SalesChart data={chartData} />
-          )}
-
-          {loading ? (
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <h4 className="text-sm text-gray-600 mb-3"><Skeleton className="h-4 w-40" /></h4>
-              <div className="h-44">
-                <TableSkeleton rows={4} />
-              </div>
-            </div>
-          ) : (
-            <StockOverview data={categoryData} />
-          )}
+          <SalesChart data={chartData} />
+          <StockOverview data={categoryData} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {loading ? (
-            <div>
-              <div className="mb-6">
-                <div className="bg-white rounded-xl p-4 shadow-sm">
-                  <h3 className="text-sm text-gray-600 mb-3"><Skeleton className="h-4 w-36" /></h3>
-                  <TableSkeleton rows={4} />
-                </div>
-              </div>
-            </div>
+            <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">Loading...</div>
           ) : error ? (
             <div className="bg-red-200 text-red-800 rounded-xl p-6 shadow-lg">{error}</div>
           ) : (
             <LowStockAlerts data={lowStockItems} />
           )}
-
           <div className="space-y-6">
-            {loading ? (
-              <>
-                <div className="bg-white rounded-xl p-4 shadow-sm"><Skeleton className="h-10 w-full" /></div>
-                <div className="bg-white rounded-xl p-4 shadow-sm"><TableSkeleton rows={3} /></div>
-              </>
-            ) : (
-              <>
-                <UpgradeBanner />
-                <RecentActivity data={recentActivitiesState ?? recentActivities} />
-              </>
-            )}
+            <UpgradeBanner />
+            <RecentActivity data={recentActivitiesState ?? recentActivities} />
           </div>
         </div>
       </main>

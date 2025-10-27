@@ -1,9 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,12 +14,10 @@ const PurchaseInvoiceViewer = ({ params }: { params: any }) => {
     const initialId = maybeParams?.id ?? null;
     const [id, setId] = useState<string | null>(initialId);
     const [meta, setMeta] = useState<any>(null);
-    const [isMetaLoading, setIsMetaLoading] = useState(true);
 
     useEffect(() => {
         let mounted = true;
         const fetchMeta = async () => {
-            setIsMetaLoading(true);
             try {
                 const safeId = String(id);
                 const res = await fetch(`/api/new_purchase/${encodeURIComponent(safeId)}`, { credentials: 'include' });
@@ -32,9 +27,7 @@ const PurchaseInvoiceViewer = ({ params }: { params: any }) => {
                 else if (body && body._id) setMeta(body);
                 else setMeta(null);
             } catch (e) {
-                if (mounted) setMeta(null);
-            } finally {
-                if (mounted) setIsMetaLoading(false);
+                setMeta(null);
             }
         };
         if (id) fetchMeta();
@@ -57,14 +50,33 @@ const PurchaseInvoiceViewer = ({ params }: { params: any }) => {
     }, [params, id]);
 
     const handlePrint = () => window.print();
-    // Server download endpoints removed — fall back to browser printing only.
     const handleDownload = async () => {
-        console.info('Download PDF endpoint removed; using browser Print instead');
+        if (!id) { alert('Invoice ID not available'); return; }
         try {
-            window.print();
+            let res: Response;
+            if (meta) {
+                console.debug('Downloading PDF via from-meta POST');
+                res = await fetch(`/api/download-invoice/from-meta`, { method: 'POST', credentials: 'include', body: JSON.stringify(meta) });
+            } else {
+                console.debug('Downloading PDF via GET by id');
+                res = await fetch(`/api/download-invoice/${encodeURIComponent(id)}`, { credentials: 'include' });
+            }
+            if (!res.ok) { alert('Failed to download PDF'); return; }
+            const blob = await res.blob();
+            const partyName = meta?.selectedParty?.name || meta?.selectedParty?.partyName || meta?.partyName || meta?.businessName || 'Client';
+            const clean = String(partyName).replace(/\s+/g, '_');
+            const filename = `${clean}_Purchase.pdf`;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
         } catch (e) {
-            console.error('Print failed', e);
-            alert('Unable to print');
+            console.error(e);
+            alert('Error downloading PDF');
         }
     };
 
@@ -88,22 +100,11 @@ const PurchaseInvoiceViewer = ({ params }: { params: any }) => {
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
                             <div className="flex items-center gap-3">
-                                <h1 className="text-xl font-semibold text-gray-800">
-                                    Purchase {' '}
-                                    {isMetaLoading ? (
-                                        <Skeleton className="h-6 w-40 inline-block align-middle" />
-                                    ) : (
-                                        invoiceLabel ? invoiceLabel : ''
-                                    )}
-                                </h1>
-                                {isMetaLoading ? (
-                                    <Skeleton className="h-6 w-24 inline-block rounded-full" />
-                                ) : (
-                                    paymentStatus && (
-                                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${statusColorClass}`}>
-                                            {statusText}
-                                        </span>
-                                    )
+                                <h1 className="text-xl font-semibold text-gray-800">Purchase {invoiceLabel ? invoiceLabel : ''}</h1>
+                                {paymentStatus && (
+                                    <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${statusColorClass}`}>
+                                        {statusText}
+                                    </span>
                                 )}
                             </div>
                         </div>

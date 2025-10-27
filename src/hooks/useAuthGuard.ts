@@ -112,7 +112,7 @@ export default function useAuthGuard(requiredPermissions?: string[]) {
         setUser(data);
       } catch {
         // 🚪 Redirect unauthenticated (except public routes)
-        const publicRoutes = ['/', ];
+        const publicRoutes = ['/', '/login', '/signup'];
         if (!publicRoutes.includes(pathname)) {
           router.replace('/login');
         }

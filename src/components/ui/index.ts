@@ -9,6 +9,5 @@ export * from './calendar';
 export * from './table';
 export * from './dialog';
 export * from './textarea';
-export * from './avatar';
 
 // export * from './dropdown';

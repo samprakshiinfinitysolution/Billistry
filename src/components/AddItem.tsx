@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import AddProduct from './AddProduct';
 import { Search, X, Plus } from 'lucide-react';
-import TableSkeleton from '@/components/ui/TableSkeleton';
 import {
   Select,
   SelectContent,
@@ -126,19 +124,6 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
     });
     handleCloseAndReset();
   }, [stagedItems, allItems, onAddItem, handleCloseAndReset]);
-
-  // State to control AddProduct dialog
-  const [showAddProduct, setShowAddProduct] = useState(false);
-
-  const handleProductSaved = useCallback((savedProduct: any) => {
-    // Notify other components (including this modal) that products were updated
-    try {
-      window.dispatchEvent(new Event('productsUpdated'));
-    } catch (err) {
-      console.warn('Could not dispatch productsUpdated event', err);
-    }
-    setShowAddProduct(false);
-  }, []);
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -290,17 +275,9 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 px-4 h-9 flex items-center gap-2" onClick={() => setShowAddProduct(true)}>
+          <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 px-4 h-9 flex items-center gap-2">
             <Plus className="h-4 w-4" /> Create New Item
           </Button>
-          {/* AddProduct dialog - opens when creating a new product from AddItem modal */}
-          <AddProduct
-            open={showAddProduct}
-            setOpen={(v: boolean) => setShowAddProduct(v)}
-            editingProduct={null}
-            setEditingProduct={() => {}}
-            onSave={handleProductSaved}
-          />
         </div>
 
         {/* Scrollable Table Area */}
@@ -319,9 +296,7 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="p-0">
-                    <TableSkeleton rows={6} />
-                  </td>
+                  <td colSpan={6} className="text-center py-10 text-gray-500">Loading items...</td>
                 </tr>
               ) : error ? (
                 <tr>

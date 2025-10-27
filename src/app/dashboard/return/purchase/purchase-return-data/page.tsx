@@ -19,8 +19,6 @@ import {
     Trash2,
 } from 'lucide-react';
 
-import TableSkeleton from '@/components/ui/TableSkeleton';
-
 // Mock UI components
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
     <button
@@ -47,33 +45,34 @@ const DropdownMenuTrigger = ({ children }: { children: React.ReactNode }) => <di
 const DropdownMenuContent = ({ children }: { children: React.ReactNode }) => <div className="origin-top-left absolute left-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 max-h-80 overflow-y-auto">{children}</div>;
 const DropdownMenuItem = ({ children, className = '', ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a href="#" className={`block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 ${className}`} {...props}>{children}</a>;
 
-const Calendar = ({ onSelectDate }: { onSelectDate: (d: Date) => void }) => {
-    const [calDate, setCalDate] = useState(new Date());
-
-    const changeYear = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setCalDate(new Date(parseInt(e.target.value), calDate.getMonth(), 1));
-    };
+// NEW: Advanced, Self-contained Calendar Component
+const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
+    const [currentDate, setCurrentDate] = useState(new Date());
 
     const changeMonth = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setCalDate(new Date(calDate.getFullYear(), parseInt(e.target.value), 1));
+        setCurrentDate(new Date(currentDate.getFullYear(), parseInt(e.target.value), 1));
+    };
+
+    const changeYear = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setCurrentDate(new Date(parseInt(e.target.value), currentDate.getMonth(), 1));
     };
 
     const prevMonth = () => {
-        setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() - 1, 1));
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
     };
 
     const nextMonth = () => {
-        setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() + 1, 1));
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
     };
 
-    const startOfMonth = new Date(calDate.getFullYear(), calDate.getMonth(), 1);
-    const endOfMonth = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0);
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
     const startDay = startOfMonth.getDay();
     const daysInMonth = endOfMonth.getDate();
 
     const days = Array.from({ length: startDay }, (_, i) => <div key={`empty-${i}`}></div>);
     for (let day = 1; day <= daysInMonth; day++) {
-        const fullDate = new Date(calDate.getFullYear(), calDate.getMonth(), day);
+        const fullDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
         days.push(
             <div key={day} className="flex items-center justify-center">
                 <button
@@ -86,7 +85,7 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (d: Date) => void }) => {
         );
     }
 
-    const years = Array.from({ length: 21 }, (_, i) => calDate.getFullYear() - 10 + i);
+    const years = Array.from({ length: 21 }, (_, i) => currentDate.getFullYear() - 10 + i);
     const months = Array.from({ length: 12 }, (_, i) => new Date(0, i).toLocaleString('default', { month: 'long' }));
 
     return (
@@ -94,10 +93,10 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (d: Date) => void }) => {
             <div className="flex justify-between items-center mb-3">
                 <button onClick={prevMonth} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><ChevronLeft className="w-5 h-5" /></button>
                 <div className="flex gap-2">
-                    <select value={calDate.getMonth()} onChange={changeMonth} className="p-1 border rounded-md text-sm bg-white dark:bg-gray-700 dark:border-gray-600">
+                    <select value={currentDate.getMonth()} onChange={changeMonth} className="p-1 border rounded-md text-sm bg-white dark:bg-gray-700 dark:border-gray-600">
                         {months.map((month, index) => <option key={month} value={index}>{month}</option>)}
                     </select>
-                    <select value={calDate.getFullYear()} onChange={changeYear} className="p-1 border rounded-md text-sm bg-white dark:bg-gray-700 dark:border-gray-600">
+                    <select value={currentDate.getFullYear()} onChange={changeYear} className="p-1 border rounded-md text-sm bg-white dark:bg-gray-700 dark:border-gray-600">
                         {years.map(year => <option key={year} value={year}>{year}</option>)}
                     </select>
                 </div>
@@ -367,6 +366,7 @@ const PurchaseReturnDataPage = () => {
                             <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
                                 <FileBarChart className="h-4 w-4 mr-2" />
                                 Reports
+                                <ChevronDown className="h-4 w-4 ml-2" />
                             </Button>
                             </Link>
                         </DropdownMenuTrigger>
@@ -436,15 +436,10 @@ const PurchaseReturnDataPage = () => {
                     <div className="flex items-center gap-2">
                             <DropdownMenu>
                                 <DropdownMenuTrigger>
-                                    <div className="relative inline-block group">
-                                    <Button disabled aria-disabled="true" variant="outline" className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 opacity-80 cursor-not-allowed">
+                                    <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
                                         Bulk Actions
                                         <ChevronDown className="h-4 w-4 ml-2" />
                                     </Button>
-                                    <div className="absolute -top-7 right-0 hidden group-hover:block z-50">
-                                        <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded shadow">Coming soon</div>
-                                    </div>
-                                </div>
                                 </DropdownMenuTrigger>
                             </DropdownMenu>
                         <Link href="/dashboard/return/purchase/purchase-return-invoice">
@@ -471,9 +466,7 @@ const PurchaseReturnDataPage = () => {
                         <TableBody>
                             {isLoadingReturns ? (
                                 <TableRow>
-                                    <td colSpan={7} className="p-0">
-                                        <TableSkeleton rows={6} />
-                                    </td>
+                                    <td colSpan={7} className="text-center py-20">Loading...</td>
                                 </TableRow>
                             ) : returnsList.length === 0 ? (
                                 <TableRow>

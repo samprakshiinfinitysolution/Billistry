@@ -1,84 +1,27 @@
 import Party, { IParty } from "@/models/Party";
 import { UserPayload } from "@/lib/middleware/auth";
-import mongoose from "mongoose";
-import { Transaction } from "@/models/transactionModel";
 
 // GET all parties (optional filter by type)
 export const getParties = async (
   user: UserPayload,
   type?: "Customer" | "Supplier"
 ): Promise<IParty[]> => {
-  const businessId = new mongoose.Types.ObjectId(user.businessId);
-  const matchStage: any = { business: businessId, isDeleted: false };
-  if (type) {
-    matchStage.partyType = type;
-  }
+  const query: any = { business: user.businessId, isDeleted: false };
+  if (type) query.partyType = type;
 
-  const parties = await Party.aggregate([
-    { $match: matchStage },
-    {
-      $lookup: {
-        from: "transactions",
-        let: { partyId: "$_id" },
-        pipeline: [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ["$partyId", "$$partyId"] },
-                  { $eq: ["$business", businessId] },
-                ],
-              },
-            },
-          },
-        ],
-        as: "transactions",
-      },
-    },
-    {
-      $addFields: {
-        balance: {
-          $reduce: {
-            input: "$transactions",
-            initialValue: "$openingBalance",
-            in: {
-              $add: [
-                "$$value",
-                {
-                  $cond: {
-                    if: { $eq: ["$$this.type", "You Got"] },
-                    then: "$$this.amount",
-                    else: { $multiply: ["$$this.amount", -1] },
-                  },
-                },
-              ],
-            },
-          },
-        },
-      },
-    },
-    { $sort: { createdAt: -1 } },
-    { $project: { transactions: 0 } }, // Exclude transactions array from final output
-  ]);
-
-  return parties;
+  return Party.find(query).sort({ createdAt: -1 });
 };
 
 // GET single party
 export const getPartyById = async (
   id: string,
   user: UserPayload
-): Promise<{ party: IParty; transactions: any[] } | null> => {
-  const party = await Party.findById(id).lean();
+): Promise<IParty | null> => {
+  const party = await Party.findById(id);
   if (!party || party.isDeleted || party.business.toString() !== user.businessId) {
     return null;
   }
-
-  const transactions = await Transaction.find({ partyId: id, business: user.businessId })
-    .sort({ date: -1 })
-    .lean();
-
-  return { party, transactions };
+  return party;
 };
 
 // CREATE new party

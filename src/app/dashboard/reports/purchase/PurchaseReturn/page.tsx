@@ -20,8 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import TableSkeleton from '@/components/ui/TableSkeleton';
-  import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   format,
   isToday,
@@ -269,7 +267,7 @@ export default function PurchaseSummaryPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <Table className="min-w-full text-sm">
+              <Table className="min-w-full">
                 <TableHeader className="bg-gray-100">
                   <TableRow>
                     <TableHead>S. No.</TableHead>
@@ -284,9 +282,7 @@ export default function PurchaseSummaryPage() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="p-0">
-                        <TableSkeleton rows={6} />
-                      </TableCell>
+                      <TableCell colSpan={7} className="text-center py-4 text-gray-500">Loading purchase returns...</TableCell>
                     </TableRow>
                   ) : filteredPurchases.length === 0 ? (
                     <TableRow>
@@ -299,53 +295,8 @@ export default function PurchaseSummaryPage() {
                         <TableCell>{p.returnInvoiceNo}</TableCell>
                         <TableCell>{p.selectedParty?.name ?? "N/A"}</TableCell>
                         <TableCell>{format(parseISO(p.returnDate), "dd/MM/yyyy")}</TableCell>
-                        <TableCell className="align-top">
-                          {(() => {
-                            const items = p.items || [];
-                            if (!items.length) return <span className="text-sm text-gray-600">-</span>;
-                            const first = items.slice(0, 2).map((it) => it.name || "");
-                            const remaining = items.slice(2);
-                            const fullList = items.map((it) => `${it.name || ""} (x${it.qty})`).join("\n");
-                            return (
-                              <div className="flex items-center gap-2">
-                                <div className="truncate text-sm text-gray-800">{first.join(", ")}{remaining.length ? ", ..." : ""}</div>
-                                {remaining.length > 0 && (
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <button className="text-xs text-indigo-600 hover:underline">+{remaining.length} more</button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-2">
-                                      <div className="text-sm text-gray-700 whitespace-pre-line">{fullList}</div>
-                                    </PopoverContent>
-                                  </Popover>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell className="align-top">
-                          {(() => {
-                            const items = p.items || [];
-                            if (!items.length) return <span className="text-sm text-gray-600">0</span>;
-                            const totalQty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
-                            if (items.length <= 2) return <span className="text-sm text-gray-800">{totalQty}</span>;
-                            return (
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-800">{totalQty}</span>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <button className="text-xs text-gray-500">details</button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-2">
-                                    <div className="text-sm text-gray-700">{items.map((it, idx) => (
-                                      <div key={idx} className="flex justify-between gap-4"><div className="truncate">{it.name}</div><div className="ml-4 text-gray-600">{it.qty} pcs</div></div>
-                                    ))}</div>
-                                  </PopoverContent>
-                                </Popover>
-                              </div>
-                            );
-                          })()}
-                        </TableCell>
+                        <TableCell>{p.items.map((it) => it.name).join(", ")}</TableCell>
+                        <TableCell>{p.items.map((it) => `${it.qty} pcs`).join(", ")}</TableCell>
                         <TableCell>₹{(p.totalAmount || 0).toFixed(2)}</TableCell>
                       </TableRow>
                     ))
