@@ -169,9 +169,6 @@ import Expense from "@/models/Expense";
 import Customer from "@/models/Customer";
 import Supplier from "@/models/Supplier";
 import Product from "@/models/Product";
-import Business from "@/models/Business";
-import User from "@/models/User";
-import Subscription from "@/models/Subscription";
 import { UserPayload } from "@/lib/middleware/auth";
 
 type FilterType = "day" | "month" | "custom" | "all";
@@ -215,16 +212,14 @@ async function getTrendData(
   end: Date,
   amountField: string,
   filter: FilterType,
-  businessId?: string
+  businessId: string
 ) {
   const dateFormat = filter === "day" ? "%H:00" : "%Y-%m-%d";
 
   const match: any = {
     date: { $gte: start, $lte: end },
+    business: new mongoose.Types.ObjectId(businessId), // ✅ FIXED
   };
-  if (businessId) {
-    match.business = new mongoose.Types.ObjectId(businessId);
-  }
 
   const trend = await Model.aggregate([
     { $match: match },
@@ -267,24 +262,19 @@ export async function getDashboardData(
   endDate: string | undefined,
   user: UserPayload
 ) {
-  // Allow superadmin without a businessId to request global aggregates.
-  if (!user?.businessId && user.role !== "superadmin") {
+  if (!user?.businessId) {
     throw new Error("Unauthorized: No business assigned");
   }
 
   await connectDB();
   const { start, end } = getDateRange(filter, startDate, endDate);
 
-  const isGlobal = user.role === "superadmin" && !user.businessId;
-
   const match: any = {
     date: { $gte: start, $lte: end },
+    business: new mongoose.Types.ObjectId(user.businessId), // ✅ FIXED
   };
-  if (!isGlobal) {
-    match.business = new mongoose.Types.ObjectId(user.businessId);
-  }
 
-  const businessFilter = isGlobal ? {} : { business: new mongoose.Types.ObjectId(user.businessId) };
+  const businessFilter = { business: new mongoose.Types.ObjectId(user.businessId) };
 
   const [
     salesTotal,
@@ -311,44 +301,9 @@ export async function getDashboardData(
     Customer.countDocuments(businessFilter),
     Supplier.countDocuments(businessFilter),
     Product.countDocuments(businessFilter),
-  getTrendData(Sale, start, end, "invoiceAmount", filter, user.businessId),
-  getTrendData(Purchase, start, end, "invoiceAmount", filter, user.businessId),
+    getTrendData(Sale, start, end, "invoiceAmount", filter, user.businessId),
+    getTrendData(Purchase, start, end, "invoiceAmount", filter, user.businessId),
   ]);
-
-  // For global (superadmin) view, add organization-level KPIs
-  if (isGlobal) {
-    try {
-      const [businessesCount, shopkeepersCount, staffCount, activeSubscriptions] = await Promise.all([
-        Business.countDocuments({}),
-        User.countDocuments({ role: 'shopkeeper' }),
-        User.countDocuments({ role: 'staff' }),
-        // active subscriptions: consider subscriptions marked active and not ended
-        Subscription.countDocuments({ isActive: true, $or: [{ endDate: { $exists: false } }, { endDate: { $gte: new Date() } }] }),
-      ]);
-
-      return {
-        totals: {
-          sales: salesTotal[0]?.total || 0,
-          purchases: purchaseTotal[0]?.total || 0,
-          expenses: expenseTotal[0]?.total || 0,
-          customers,
-          suppliers,
-          items,
-          businesses: businessesCount,
-          shopkeepers: shopkeepersCount,
-          staff: staffCount,
-          activeSubscriptions,
-        },
-        trends: {
-          sales: salesTrend,
-          purchases: purchaseTrend,
-        },
-      };
-    } catch (err) {
-      console.error('failed to compute global aggregates', err);
-      // fallthrough to return per-business totals if global counts fail
-    }
-  }
 
   return {
     totals: {

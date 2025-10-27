@@ -4,7 +4,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import FormSkeleton from '@/components/ui/FormSkeleton';
 import Image from 'next/image';
 import { UploadCloud, ChevronDown, Plus, X, MessageSquare, CalendarX, Tally3, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -304,7 +303,7 @@ const BusinessSettingsPage = () => {
     };
 
     if (isLoading) {
-        return <FormSkeleton />;
+        return <div className="flex justify-center items-center h-screen font-semibold text-gray-600">Loading Business Settings...</div>;
     }
 
     return (

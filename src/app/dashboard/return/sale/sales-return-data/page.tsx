@@ -18,7 +18,6 @@ import {
     Edit,
     Trash2,
 } from 'lucide-react';
-import TableSkeleton from '@/components/ui/TableSkeleton';
 
 // Mock UI components
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
@@ -368,6 +367,7 @@ const SalesReturnDataPage = () => {
                             <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
                                 <FileBarChart className="h-4 w-4 mr-2" />
                                 Reports
+                                <ChevronDown className="h-4 w-4 ml-2" />
                             </Button>
                             </Link>
                         </DropdownMenuTrigger>
@@ -437,15 +437,10 @@ const SalesReturnDataPage = () => {
                     <div className="flex items-center gap-2">
                             <DropdownMenu>
                                 <DropdownMenuTrigger>
-                                    <div className="relative inline-block group">
-                                    <Button disabled aria-disabled="true" variant="outline" className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 opacity-80 cursor-not-allowed">
+                                    <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
                                         Bulk Actions
                                         <ChevronDown className="h-4 w-4 ml-2" />
                                     </Button>
-                                    <div className="absolute -top-7 right-0 hidden group-hover:block z-50">
-                                        <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded shadow">Coming soon</div>
-                                    </div>
-                                </div>
                                 </DropdownMenuTrigger>
                             </DropdownMenu>
                         <Link href="/dashboard/return/sale/sales-return-invoice">
@@ -471,12 +466,12 @@ const SalesReturnDataPage = () => {
                         </TableHeader>
                         <TableBody>
                             {isLoadingReturns ? (
-                                    <TableRow>
-                                        <td colSpan={7} className="p-0">
-                                            <TableSkeleton rows={6} />
-                                        </td>
-                                    </TableRow>
-                                ) : returnsList.length === 0 ? (
+                                <TableRow>
+                                    <td colSpan={7} className="text-center py-20">
+                                        <div>Loading...</div>
+                                    </td>
+                                </TableRow>
+                            ) : returnsList.length === 0 ? (
                                 <TableRow>
                                     <td colSpan={7} className="text-center py-20">
                                         <div className="flex flex-col items-center gap-4">

@@ -9,7 +9,6 @@ import {
   getProductById,
   updateProduct,
   deleteProduct,
-  getAllProducts,
 } from "@/controllers/productController";
 
 // CREATE product
@@ -40,13 +39,6 @@ export const GET = asyncHandler(async (req: NextRequest) => {
       );
     }
     return NextResponse.json({ success: true, product });
-  }
-
-  // If superadmin, return all products across businesses (useful for global dashboard)
-  if (user.role === 'superadmin') {
-    // getAllProducts returns an object { products, total, page, limit }
-    const all = await getAllProducts(1, 10000);
-    return NextResponse.json({ success: true, products: all.products });
   }
 
   const products = await getProducts(user);

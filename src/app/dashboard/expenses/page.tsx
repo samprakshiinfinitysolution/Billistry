@@ -8,11 +8,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button"; 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Edit2, Trash2 } from "lucide-react";
-import TableSkeleton from '@/components/ui/TableSkeleton';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Link from "next/link";
-import { FileBarChart } from "lucide-react";
 
 
 interface Expense {
@@ -89,14 +87,11 @@ export default function ExpensePage() {
 
   const loadExpenses = async () => {
     try {
-      setLoading(true);
       const res = await fetch("/api/expenses", { credentials: "include" });
       const data = await res.json();
       if (data.success) setExpenses(data.expenses);
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -193,9 +188,7 @@ export default function ExpensePage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-800">Expenses</h1>
         <Link href="/dashboard/reports/expense">
-      <Button variant="outline" className="flex items-center gap-2">
-        <FileBarChart className="h-4 w-4" /> Reports
-      </Button>
+      <Button variant="outline">Reports</Button>
     </Link>
       </div>
 
@@ -332,19 +325,7 @@ export default function ExpensePage() {
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         <div className="overflow-y-auto max-h-[calc(100vh-26rem)]">
-        {loading ? (
-          <div className="p-0">
-            <table className="min-w-full divide-y divide-gray-200 text-sm relative">
-              <tbody>
-                <tr>
-                  <td colSpan={6} className="p-0">
-                    <TableSkeleton rows={6} />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        ) : filteredExpenses.length === 0 ? (
+        {filteredExpenses.length === 0 ? (
           <p className="p-4 text-center text-gray-500">No expenses found.</p>
         ) : (
           <table className="min-w-full divide-y divide-gray-200 text-sm relative">
