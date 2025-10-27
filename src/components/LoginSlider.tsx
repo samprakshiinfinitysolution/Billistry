@@ -119,16 +119,17 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
   if (loadingGuard) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
-      <div className="w-80 h-full bg-white p-6 shadow-lg flex flex-col transition-all">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl flex flex-col">
         {/* header */}
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Login</h2>
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
+          <p className="text-gray-500 mt-2 text-sm">Enter your details to access your account.</p>
           <button
             onClick={onClose}
-            className="text-red-500 font-bold text-xl"
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition-colors"
           >
-            &times;
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
@@ -141,18 +142,18 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="Enter phone or email"
-              className="w-full px-4 py-2 border rounded-md mb-4 focus:ring-2 focus:ring-pink-400"
+              placeholder="Enter your phone or email"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-[#460F58] focus:border-transparent"
               disabled={loading}
             />
             <button
               onClick={sendOTP}
               disabled={loading || !identifier.trim()}
-              className={`w-full ${
+              className={`w-full font-semibold py-3 rounded-lg transition-all ${
                 loading
-                  ? 'bg-pink-300 cursor-not-allowed'
-                  : 'bg-pink-500 hover:bg-pink-600'
-              } text-white py-2 rounded transition`}
+                  ? 'bg-[#460F58]/50 cursor-not-allowed'
+                  : 'bg-[#460F58] hover:bg-[#370a46]'
+              } text-white`}
             >
               {loading ? 'Sending...' : 'Send OTP'}
             </button>
@@ -160,7 +161,7 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
         ) : (
           <>
             <label className="block mb-2 text-sm font-medium text-gray-700">
-              Enter OTP
+              Enter 6-digit OTP
             </label>
             <input
               ref={otpInputRef}
@@ -168,7 +169,7 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
               placeholder="123456"
-              className="w-full px-4 py-2 border rounded-md mb-4 tracking-widest text-center focus:ring-2 focus:ring-green-400"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-[#460F58] focus:border-transparent"
               inputMode="numeric"
               maxLength={6}
               disabled={loading}
@@ -176,20 +177,20 @@ export default function LoginSlider({ onClose }: LoginSliderProps) {
             <button
               onClick={verifyOTP}
               disabled={loading || otp.length !== 6}
-              className={`w-full mb-2 ${
+              className={`w-full font-semibold mb-3 py-3 rounded-lg transition-all ${
                 loading
-                  ? 'bg-green-300 cursor-not-allowed'
-                  : 'bg-green-500 hover:bg-green-600'
-              } text-white py-2 rounded transition`}
+                  ? 'bg-[#460F58]/50 cursor-not-allowed'
+                  : 'bg-[#460F58] hover:bg-[#370a46]'
+              } text-white`}
             >
               {loading ? 'Verifying...' : 'Verify OTP'}
             </button>
             <button
               onClick={resendTimer > 0 ? undefined : sendOTP}
               disabled={resendTimer > 0 || loading}
-              className={`w-full py-2 rounded transition ${
+              className={`w-full py-2 rounded-lg transition-colors text-sm font-medium ${
                 resendTimer > 0
-                  ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
                   : 'bg-yellow-500 text-white hover:bg-yellow-600'
               }`}
             >

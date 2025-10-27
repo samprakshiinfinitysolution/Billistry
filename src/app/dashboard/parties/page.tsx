@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import useAuthGuard from "@/hooks/useAuthGuard";
 import { apiService } from "@/services/apiService";
+import Link from "next/link";
 
 // --- Types ---
 interface Party {
@@ -205,10 +206,12 @@ const PartiesHeader: React.FC<PartiesHeaderProps> = ({ onAddParty }) => (
   <header className="flex items-center justify-between px-6 py-4 bg-white shadow-sm border-b border-gray-200">
     <h1 className="text-2xl font-bold text-gray-800">Parties</h1>
     <div className="flex items-center gap-4">
+      <Link href="/dashboard/reports/parties-report">
       <Button variant="outline" className="hidden sm:flex">
         <FileText className="w-4 h-4 mr-2" /> Reports <ChevronDown className="w-4 h-4 ml-2" />
       </Button>
-      <Settings className="w-5 h-5 text-gray-600 cursor-pointer" />
+      </Link>
+      {/* <Settings className="w-5 h-5 text-gray-600 cursor-pointer" /> */}
     </div>
   </header>
 );
