@@ -169,8 +169,6 @@ import Expense from "@/models/Expense";
 import Customer from "@/models/Customer";
 import Supplier from "@/models/Supplier";
 import Product from "@/models/Product";
-import User from "@/models/User";
-import Business from "@/models/Business";
 import { UserPayload } from "@/lib/middleware/auth";
 
 type FilterType = "day" | "month" | "custom" | "all";
@@ -214,17 +212,14 @@ async function getTrendData(
   end: Date,
   amountField: string,
   filter: FilterType,
-  businessId?: string
+  businessId: string
 ) {
   const dateFormat = filter === "day" ? "%H:00" : "%Y-%m-%d";
 
   const match: any = {
     date: { $gte: start, $lte: end },
+    business: new mongoose.Types.ObjectId(businessId), // ✅ FIXED
   };
-
-  if (businessId) {
-    match.business = new mongoose.Types.ObjectId(businessId);
-  }
 
   const trend = await Model.aggregate([
     { $match: match },
@@ -267,22 +262,19 @@ export async function getDashboardData(
   endDate: string | undefined,
   user: UserPayload
 ) {
-  // allow superadmin to fetch global aggregates (no businessId required)
-  if (user.role !== "superadmin" && !user?.businessId) {
+  if (!user?.businessId) {
     throw new Error("Unauthorized: No business assigned");
   }
 
   await connectDB();
   const { start, end } = getDateRange(filter, startDate, endDate);
 
-  // When superadmin: do not restrict by business (global aggregation)
-  const match: any = { date: { $gte: start, $lte: end } };
-  const businessFilter: any = {};
+  const match: any = {
+    date: { $gte: start, $lte: end },
+    business: new mongoose.Types.ObjectId(user.businessId), // ✅ FIXED
+  };
 
-  if (user.role !== "superadmin") {
-    match.business = new mongoose.Types.ObjectId(user.businessId);
-    businessFilter.business = new mongoose.Types.ObjectId(user.businessId);
-  }
+  const businessFilter = { business: new mongoose.Types.ObjectId(user.businessId) };
 
   const [
     salesTotal,
@@ -309,28 +301,9 @@ export async function getDashboardData(
     Customer.countDocuments(businessFilter),
     Supplier.countDocuments(businessFilter),
     Product.countDocuments(businessFilter),
-    getTrendData(Sale, start, end, "invoiceAmount", filter, user.role === 'superadmin' ? undefined : user.businessId),
-    getTrendData(Purchase, start, end, "invoiceAmount", filter, user.role === 'superadmin' ? undefined : user.businessId),
+    getTrendData(Sale, start, end, "invoiceAmount", filter, user.businessId),
+    getTrendData(Purchase, start, end, "invoiceAmount", filter, user.businessId),
   ]);
-
-  // shopkeeper count: for superadmin show total shopkeeper users, for shopkeeper show 1 (or business owner count)
-  let shopkeepers = 0;
-  let staffCount = 0;
-  let businessCount = 0;
-  let activeSubscriptions = 0;
-  if (user.role === "superadmin") {
-    shopkeepers = await User.countDocuments({ role: 'shopkeeper', isDeleted: { $ne: true } });
-    staffCount = await User.countDocuments({ role: 'staff', isDeleted: { $ne: true } });
-    businessCount = await Business.countDocuments({ isDeleted: { $ne: true } });
-    const now = new Date();
-    activeSubscriptions = await Business.countDocuments({ subscriptionExpiry: { $gte: now }, isDeleted: { $ne: true } });
-  } else {
-    // for a regular shopkeeper user, count shopkeepers in this business (usually 1 owner)
-    shopkeepers = await User.countDocuments({ business: new mongoose.Types.ObjectId(user.businessId), role: 'shopkeeper', isDeleted: { $ne: true } });
-    staffCount = await User.countDocuments({ business: new mongoose.Types.ObjectId(user.businessId), role: 'staff', isDeleted: { $ne: true } });
-    businessCount = 1;
-    activeSubscriptions = await Business.countDocuments({ _id: user.businessId, subscriptionExpiry: { $gte: new Date() }, isDeleted: { $ne: true } });
-  }
 
   return {
     totals: {
@@ -340,10 +313,6 @@ export async function getDashboardData(
       customers,
       suppliers,
       items,
-      shopkeepers,
-      staff: staffCount,
-      businesses: businessCount,
-      activeSubscriptions,
     },
     trends: {
       sales: salesTrend,

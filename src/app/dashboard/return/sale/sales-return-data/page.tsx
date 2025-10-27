@@ -368,7 +368,6 @@ const SalesReturnDataPage = () => {
                             <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
                                 <FileBarChart className="h-4 w-4 mr-2" />
                                 Reports
-                                <ChevronDown className="h-4 w-4 ml-2" />
                             </Button>
                             </Link>
                         </DropdownMenuTrigger>

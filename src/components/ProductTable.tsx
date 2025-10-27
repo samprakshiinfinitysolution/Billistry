@@ -34,10 +34,8 @@ export default function ProductTable({
   onDelete,
   showActions = true,
 }: ProductTableProps) {
-  // Sort products by name ascending
-  const sortedProducts = [...allProducts].sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
+  // Use the order provided by parent (sorting is handled by caller)
+  const sortedProducts = allProducts;
 
 
   return (

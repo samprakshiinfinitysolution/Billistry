@@ -7,7 +7,6 @@ import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import Business from "@/models/Business";
 import { DEFAULT_PERMISSIONS } from "@/constants/permissions";
-import AuditLog from "@/models/AuditLog";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 if (!JWT_SECRET) throw new Error("JWT_SECRET environment variable is not set");
@@ -110,28 +109,6 @@ export async function POST(req: Request) {
       maxAge: 7 * 24 * 60 * 60,
       path: "/",
     });
-
-    // Try to write an audit log for the successful login. Don't block the response
-    try {
-      const xf = req.headers.get("x-forwarded-for") || "";
-      let ip = xf.split(',').map(s => s.trim()).find(Boolean) || req.headers.get("x-real-ip") || "";
-      // fallback to underlying Node socket address for local dev (may be ::1)
-      try {
-        const anyReq: any = req as any;
-        ip = ip || anyReq?.socket?.remoteAddress || anyReq?.connection?.remoteAddress || ip;
-      } catch (e) {}
-
-      await AuditLog.create({
-        business: businessId || undefined,
-        user: user._id,
-        action: "login",
-        resourceType: "auth",
-        after: { method: "otp" },
-        ip,
-      });
-    } catch (logErr) {
-      console.error("Failed to write login audit log:", logErr);
-    }
 
     return res;
   } catch (error) {

@@ -302,16 +302,16 @@ export default function Dashboard() {
     let mounted = true;
     async function fetchRecent() {
       try {
-        // Use the admin audit-logs endpoint (existing implementation) instead of the legacy /api/audit
-        const res = await fetch('/api/admin/audit-logs?limit=5');
+        const res = await fetch('/api/audit?limit=5');
         if (!res.ok) throw new Error('Audit API error');
         const json = await res.json();
 
-        // json.items expected from /api/admin/audit-logs
-        if (Array.isArray(json.items)) {
-          const mapped = json.items.map((l: any) => {
+        // json.logs expected from /api/audit
+        if (Array.isArray(json.logs)) {
+          const mapped = json.logs.map((l: any) => {
             const when = new Date(l.createdAt).toLocaleString();
             const user = l.user?.name || (l.user?.email ?? 'Unknown');
+            // prefer action + resourceType/resourceId
             if (l.action) return `${when} — ${user}: ${l.action}`;
             return `${when} — ${user}: ${l.resourceType || 'Activity'}`;
           });
@@ -319,8 +319,8 @@ export default function Dashboard() {
           if (mounted) setRecentActivitiesState(mapped);
         }
       } catch (err) {
-        // If audit is not accessible, fallback to recent sales/purchases/products
-        console.error('Failed to load recent activities via /api/admin/audit-logs, attempting fallback:', err);
+        // If audit returns 403 or otherwise not allowed, fallback to recent sales/purchases/products
+        console.error('Failed to load recent activities via /api/audit, attempting fallback:', err);
         try {
           // attempt fallback: fetch recent sales and purchases and product low-stock
           const [salesRes, purchasesRes, productsRes] = await Promise.allSettled([

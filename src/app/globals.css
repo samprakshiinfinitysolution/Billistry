@@ -149,22 +149,3 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
-/*
- Prevent accidental blinking text caret on non-editable elements.
- This hides the caret for any element that is not an input, textarea,
- or explicitly contenteditable. It's a safe UI-only fix to stop the
- cursor from appearing when non-editable text is clicked.
- If you'd prefer to find and remove the root cause (contentEditable/designMode),
- I can help search for that as a follow-up.
-*/
-:where(body) :not(input):not(textarea):not([contenteditable="true"]) {
-  caret-color: transparent !important;
-}
-
-/* Restore caret for actual editable controls — inputs, textareas and contenteditable regions
-   may inherit caret-color from a parent, so explicitly set caret-color here to ensure the
-   blinking text cursor appears where users expect it. */
-:where(body) input, :where(body) textarea, :where(body) [contenteditable="true"] {
-  caret-color: auto !important;
-}
-

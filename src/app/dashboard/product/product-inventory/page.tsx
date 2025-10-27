@@ -218,18 +218,13 @@ const ItemsPageUI = () => {
             </Button>
           </div>
           <div className="flex items-center gap-2 w-full md:w-auto">
-                <DropdownMenu>
+            <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <div className="relative inline-block group w-full md:w-auto">
-                <Button disabled aria-disabled="true" variant="outline" className="w-full md:w-auto flex-1 opacity-80 cursor-not-allowed">
+                <Button variant="outline" className="w-full md:w-auto flex-1">
                   <Layers3 className="mr-2 h-4 w-4" />
                   Bulk Actions
                   <ChevronDown className="ml-auto h-4 w-4" />
                 </Button>
-        <div className="absolute -top-7 right-0 hidden group-hover:block z-50">
-          <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded shadow">Coming soon</div>
-        </div>
-                </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem>Export Selected</DropdownMenuItem>

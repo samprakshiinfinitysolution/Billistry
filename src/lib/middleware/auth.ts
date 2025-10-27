@@ -21,7 +21,7 @@ export type Role = "superadmin" | "shopkeeper" | "staff";
 
 export interface JwtUserPayload {
   userId: string;
-  businessId: string;
+  businessId?: string; // 👈 Made optional for superadmin
   role: Role;
 }
 
@@ -42,41 +42,40 @@ export async function authMiddleware(
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as unknown as JwtUserPayload;
 
-    // We'll verify role and business from the DB to prevent stale/incorrect JWT claims
-    await connectDB();
-
-    const userDoc = await User.findById(decoded.userId).select("role business permissions name email");
-    if (!userDoc) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const roleFromDb = userDoc.role as Role;
-    const businessIdFromDb = userDoc.business ? String(userDoc.business) : undefined;
-
-    // Role enforcement using DB role
-    if (allowedRoles && !allowedRoles.includes(roleFromDb)) {
+    // Role enforcement
+    if (allowedRoles && !allowedRoles.includes(decoded.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // 🔎 Business name (resolve from DB if available)
+    await connectDB();
+    
+    // 🔎 Business name
     let businessName = "";
-    if (businessIdFromDb) {
-      const business = await Business.findById(businessIdFromDb).select("name");
+    if (decoded.businessId) {
+      const business = await Business.findById(decoded.businessId).select("name");
       businessName = business?.name || "";
     }
 
-    // 🔑 Permissions: prefer stored permissions on user; fallback to defaults
-    let permissions: IPermissions = (userDoc.permissions as IPermissions) || DEFAULT_PERMISSIONS[roleFromDb === 'superadmin' ? 'superadmin' : roleFromDb === 'shopkeeper' ? 'shopkeeper' : 'staff'];
+    // 🔑 Permissions resolution
+    let permissions: IPermissions;
+    if (decoded.role === "staff") {
+      const staff = await User.findById(decoded.userId).select("permissions");
+      if (!staff) {
+        return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+      }
+      permissions = staff.permissions || DEFAULT_PERMISSIONS.staff;
+    } else if (decoded.role === "shopkeeper") {
+      permissions = DEFAULT_PERMISSIONS.shopkeeper;
+    } else {
+      permissions = DEFAULT_PERMISSIONS.superadmin;
+    }
 
-    const payload = {
-      userId: decoded.userId,
-      businessId: businessIdFromDb || "",
-      role: roleFromDb,
+    const userPayload: UserPayload = {
+      ...decoded,
       businessName,
       permissions,
-    } as UserPayload;
-
-    return payload;
+    };
+    return userPayload;
   } catch (err) {
     console.error("JWT Error:", err);
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });

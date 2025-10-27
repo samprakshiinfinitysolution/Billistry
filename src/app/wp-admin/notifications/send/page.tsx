@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { addNotification } from '@/app/wp-admin/notifications/store';
 import toast from 'react-hot-toast';
 import { createPortal } from 'react-dom';
 import { getAdmins, refreshAdmins } from '@/app/wp-admin/manage-admins/data';
@@ -13,64 +12,32 @@ import { getAdmins, refreshAdmins } from '@/app/wp-admin/manage-admins/data';
 type Recipient = {
   id: string;
   name: string;
-  displayName?: string;
   email: string;
   status: string;
   planId: string;
 };
 
 export default function NotificationsSendPage() {
-  // build recipients from admins store
-  const mapAdminsToRecipients = (adminsList: any[]) =>
-    // Only include admins that have both a non-empty name and email.
-    adminsList
-      .filter((a: any) => {
-        const name = (a?.name || '').toString().trim();
-        const email = (a?.email || '').toString().trim();
-        return name.length > 0 && email.length > 0;
-      })
-      .map(a => {
-        const rawName = (a?.name || '').toString().trim();
-        const email = (a?.email || '').toString().trim();
-        let displayName = rawName;
-        // If name equals email or is empty, derive a friendly name from the email local-part
-        if (!displayName || displayName === email) {
-          displayName = (email.split('@')[0] || email).replace(/[._\-]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
-        }
-        return {
-          id: a.id,
-          name: rawName,
-          displayName,
-          email: email || '',
-          status: (a.status || '').toLowerCase(),
-          planId: (a.plan || '').toLowerCase(),
-        } as Recipient;
-      });
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
-  const [recipients, setRecipients] = useState<Recipient[]>(() => mapAdminsToRecipients(getAdmins()));
-
-  // Keep recipients in sync with the central admins store. Refresh on mount and when other parts
-  // of the app update admins (e.g. visiting subscriptions/manage-admins page triggers refreshAdmins()).
   useEffect(() => {
     let mounted = true;
-
-    // update from current in-memory store immediately
-    setRecipients(mapAdminsToRecipients(getAdmins()));
-
-    // attempt to refresh from server once (best-effort)
     (async () => {
       try {
-        await refreshAdmins();
+        setLoadingRecipients(true);
+        // Fetch admins from the API
+        const admins = await refreshAdmins();
         if (!mounted) return;
-        setRecipients(mapAdminsToRecipients(getAdmins()));
-      } catch (e) {
-        // ignore errors — we'll still honor existing in-memory admins
+        setRecipients(admins.map(a => ({ id: a.id, name: a.name, email: a.email || '', status: a.status.toLowerCase(), planId: a.plan.toLowerCase() })));
+      } catch (err) {
+        console.error('failed to load recipients', err);
+      } finally {
+        setLoadingRecipients(false);
       }
     })();
-
-    const onUpdate = () => setRecipients(mapAdminsToRecipients(getAdmins()));
-    window.addEventListener('adminsUpdated', onUpdate);
-    return () => { mounted = false; window.removeEventListener('adminsUpdated', onUpdate); };
+    return () => { mounted = false };
   }, []);
 
   const [search, setSearch] = useState('');
@@ -104,60 +71,52 @@ export default function NotificationsSendPage() {
     setSelected(prev => ({ ...prev, [id]: !prev[id] }));
   }
 
-  function handleSend() {
-    const toIds = Object.keys(selected).filter(k => selected[k]);
-    if (toIds.length === 0) {
+  async function handleSend() {
+    const to = Object.keys(selected).filter(k => selected[k] === true);
+    if (to.length === 0) {
       toast.error('Please select at least one recipient');
       return;
     }
 
-    const recipientsToSend = toIds.map(id => recipients.find(r => r.id === id)).filter(Boolean) as Recipient[];
+    setIsSending(true);
 
-    // Prepare payload
-    const payload = {
-      recipients: recipientsToSend.map(r => r.email),
-      subject: subject || 'Message from Billistry',
-      message,
-      scheduleAt: scheduleAt || null,
+    const notificationData = {
+      recipientIds: to,
+      subject: subject || 'Message',
+      message: message,
+      // scheduledAt: scheduleAt || null, // Scheduling can be added later
     };
 
-    toast.loading('Sending emails...');
+    try {
+      const response = await fetch('/api/notifications/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notificationData),
+      });
 
-    fetch('/api/admin/notifications/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      credentials: 'include',
-    }).then(async res => {
-      const json = await res.json().catch(() => ({ success: false, error: 'Invalid JSON from server' }));
-      toast.dismiss();
-      if (!res.ok) {
-        // fallback to local notification + error
-        recipientsToSend.forEach(r => addNotification({ type: 'info', title: subject || 'Message', message: `To: ${r.email}\n\n${message}` }));
-        toast.error(json?.error || 'Failed to send emails, notifications queued locally');
-        return;
+      const result = await response.json();
+      if (response.ok) {
+        toast.success(result.message || `${to.length} notification(s) sent successfully!`);
+        setSubject('');
+        setMessage('');
+        setSelected({});
+      } else {
+        throw new Error(result.error || 'Failed to send notifications.');
       }
-      // success
-      setSubject('');
-      setMessage('');
-      setSelected({});
-      toast.success(json?.message || `${recipientsToSend.length} email(s) sent`);
-    }).catch(err => {
-      toast.dismiss();
-      // fallback: queue local notifications
-      recipientsToSend.forEach(r => addNotification({ type: 'info', title: subject || 'Message', message: `To: ${r.email}\n\n${message}` }));
-      toast.error('Network error while sending emails, notifications queued locally');
-      console.error('send email failed', err);
-    });
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsSending(false);
+    }
   }
 
   return (
     <div className="flex flex-col min-h-0 h-full pt-6 pb-6">
       <div className="space-y-4">
-  <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Composer */}
-          <div className="lg:col-span-3">
-            <Card className="border border-gray-200 shadow-sm">
+          <div className="lg:col-span-1">
+            <Card className="border border-gray-200">
               <CardContent>
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -165,8 +124,8 @@ export default function NotificationsSendPage() {
                     <div className="text-sm text-gray-500">Write your message and choose recipients on the right</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" className="border border-gray-200 hover:bg-gray-50" onClick={() => setPreviewOpen(true)}>Preview</Button>
-                    <Button className="border border-violet-600 bg-violet-600 text-white hover:bg-violet-700" onClick={handleSend}>Send</Button>
+                    <Button variant="ghost" onClick={() => setPreviewOpen(true)} disabled={(!subject && !message) || Object.values(selected).filter(Boolean).length === 0}>Preview</Button>
+                    <Button className="bg-violet-600 text-white" onClick={handleSend} disabled={isSending || (!subject && !message) || Object.values(selected).filter(Boolean).length === 0}>{isSending ? 'Sending...' : 'Send'}</Button>
                   </div>
                 </div>
 
@@ -184,8 +143,8 @@ export default function NotificationsSendPage() {
           </div>
 
           {/* Recipients */}
-          <div className="lg:col-span-2 min-w-[18rem]">
-            <Card className="border border-gray-200 sticky top-20 shadow-sm">
+          <div className="lg:col-span-1">
+            <Card className="border border-gray-200 sticky top-20">
               <CardContent>
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-sm font-medium">Recipients</div>
@@ -215,9 +174,9 @@ export default function NotificationsSendPage() {
                 </div>
 
                 <div className="mb-3 flex items-center justify-between">
-                  <div className="text-sm">
-                    <button className="text-sm text-violet-600 border rounded px-2 py-1 hover:bg-violet-50" onClick={() => toggleSelectAll(true)}>Select all</button>
-                    <button className="ml-2 text-sm text-gray-500 border rounded px-2 py-1 hover:bg-gray-50" onClick={() => toggleSelectAll(false)}>Clear</button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => toggleSelectAll(true)}>Select all</Button>
+                    <Button variant="outline" size="sm" onClick={() => toggleSelectAll(false)}>Clear</Button>
                   </div>
                   <div>
                     <div className="text-xs text-gray-500">Selected: {Object.values(selected).filter(Boolean).length}</div>
@@ -226,17 +185,17 @@ export default function NotificationsSendPage() {
 
                 <div className="space-y-2 max-h-[520px] overflow-auto">
                   {filtered.map(r => (
-                    <div key={r.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:shadow-sm hover:bg-gray-50 transition">
-                      <div>
-                        <div className="font-medium">{r.displayName || r.name}</div>
-                        <div className="text-sm text-gray-500">{r.email}</div>
+                      <div key={r.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg">
+                        <div>
+                          <div className="font-medium">{r.name}</div>
+                          <div className="text-sm text-gray-500">{r.email}</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className={`px-3 py-1 rounded-full text-sm ${r.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{r.status}</div>
+                          <input type="checkbox" checked={!!selected[r.id]} onChange={() => toggleSelect(r.id)} />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className={`px-3 py-1 rounded-full text-sm ${r.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{r.status}</div>
-                        <input type="checkbox" className="form-checkbox h-4 w-4" checked={!!selected[r.id]} onChange={() => toggleSelect(r.id)} />
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </CardContent>
             </Card>
@@ -247,26 +206,26 @@ export default function NotificationsSendPage() {
         {previewOpen && typeof document !== 'undefined' && createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
             <div className="absolute inset-0 bg-black/50" onClick={() => setPreviewOpen(false)} />
-            <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-3xl mx-auto overflow-hidden z-50 ring-1 ring-gray-100">
-              <div className="flex items-center justify-between px-6 py-3 border-b bg-white">
-                <div>
-                  <h3 className="text-lg font-semibold">Preview Notification</h3>
-                  <div className="text-xs text-gray-500">Quick preview before sending — confirm recipients and content</div>
-                </div>
+            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto overflow-visible z-50">
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <h3 className="text-lg font-semibold">Preview Notification</h3>
                 <div className="flex items-center gap-3">
-                  <button className="text-sm text-gray-500 border rounded px-2 py-1 hover:bg-gray-50" onClick={() => setPreviewOpen(false)}>Close</button>
+                  <Button variant="ghost" onClick={() => setPreviewOpen(false)}>Close</Button>
                 </div>
               </div>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 space-y-4">
+                  <div>
+                    <div className="text-sm text-gray-500 mb-1">Subject</div>
+                    <div className="mb-2 font-medium text-lg">{subject || '(No subject)'}</div>
+                  </div>
 
-              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-50">
-                <div className="md:col-span-2 bg-white p-4 rounded shadow-sm">
-                  <div className="text-sm text-gray-500 mb-2">Subject</div>
-                  <div className="mb-4 font-medium text-gray-800">{subject || '(No subject)'}</div>
+                  <div>
+                    <div className="text-sm text-gray-500 mb-1">Message</div>
+                    <div className="whitespace-pre-wrap bg-gray-50 p-4 rounded shadow-sm">{message || '(No message)'}</div>
+                  </div>
 
-                  <div className="text-sm text-gray-500 mb-2">Message</div>
-                  <div className="whitespace-pre-wrap bg-gray-50 p-4 rounded mb-3 border">{message || '(No message)'}</div>
-
-                  <div className="text-xs text-gray-500 mb-3">Character count: {message.length}</div>
+                  <div className="text-xs text-gray-500">Character count: {message.length}</div>
 
                   <div className="mt-2">
                     <label className="inline-flex items-center gap-2">
@@ -279,7 +238,7 @@ export default function NotificationsSendPage() {
                         {(() => {
                           const sel = Object.keys(selected).find(k => selected[k]);
                           const r = recipients.find(x => x.id === sel);
-                          const name = r?.displayName || r?.name || 'Recipient';
+                          const name = r?.name || 'Recipient';
                           const base = (message || '(No message)');
                           return personalized ? base.replace(/\{\{\s*name\s*\}\}/gi, name) : base;
                         })()}
@@ -289,37 +248,33 @@ export default function NotificationsSendPage() {
                 </div>
 
                 <div className="md:col-span-1">
-                  <div className="bg-white p-4 rounded shadow-sm border">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-sm text-gray-500">Recipients</div>
-                        <div className="text-sm font-medium">{Object.keys(selected).filter(k => selected[k]).length} selected</div>
-                      </div>
-                      <div className="text-xs text-gray-400">Showing up to 5</div>
-                    </div>
-
-                    <div className="space-y-2 mt-3 max-h-64 overflow-auto">
-                      {Object.keys(selected).filter(k => selected[k]).slice(0,5).map(id => {
-                        const r = recipients.find(x => x.id === id);
-                        if (!r) return null;
-                        return (
-                          <div key={id} className="p-2 border rounded flex items-center justify-between">
-                            <div>
-                              <div className="font-medium text-sm">{r.displayName || r.name}</div>
-                              <div className="text-xs text-gray-500">{r.email}</div>
-                            </div>
+                  <div className="text-sm text-gray-500 mb-2">Recipients</div>
+                  <div className="text-sm mb-2 font-medium">{Object.keys(selected).filter(k => selected[k]).length} selected</div>
+                  <div className="text-sm text-gray-500 mb-3">Showing up to 5 recipients</div>
+                  <div className="space-y-2 max-h-64 overflow-auto border p-2 rounded">
+                    {Object.keys(selected).filter(k => selected[k]).slice(0,5).map(id => {
+                      const r = recipients.find(x => x.id === id);
+                      if (!r) return null;
+                      return (
+                        <div key={id} className="p-2 border rounded flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium">{(r.name || 'U').split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase()}</div>
+                          <div>
+                            <div className="font-medium">{r.name}</div>
+                            <div className="text-xs text-gray-500">{r.email}</div>
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      );
+                    })}
+                  </div>
 
-                    <div className="mt-4 text-sm text-gray-500">Scheduled</div>
-                    <div className="mb-4">{scheduleAt || 'Send now'}</div>
+                  <div className="mt-4 text-sm text-gray-500">Scheduled</div>
+                  <div className="mb-4">{scheduleAt || 'Send now'}</div>
 
-                    <div className="mt-4 flex flex-col gap-2">
-                      <Button className="border border-violet-600 bg-violet-600 text-white hover:bg-violet-700" onClick={() => { handleSend(); setPreviewOpen(false); }}>Send now</Button>
-                      <Button className="border text-gray-700 hover:bg-gray-100" variant="ghost" onClick={() => setPreviewOpen(false)}>Close</Button>
-                    </div>
+                  <div className="mt-4 flex flex-col gap-2"> 
+                    <Button className="bg-violet-600 text-white" onClick={() => { handleSend(); setPreviewOpen(false); }} disabled={isSending}>
+                      {isSending ? 'Sending...' : 'Send Now'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setPreviewOpen(false)}>Close</Button>
                   </div>
                 </div>
               </div>

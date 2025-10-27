@@ -1,8 +1,8 @@
 "use client";
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Home,
@@ -17,6 +17,7 @@ import {
   Inbox,
   Send,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const NavItem = ({ icon: Icon, text, href = '#', active = false, className = '' }: { icon: any; text: string; href?: string; active?: boolean; className?: string }) => (
   <Link
@@ -30,10 +31,29 @@ const NavItem = ({ icon: Icon, text, href = '#', active = false, className = '' 
 
 export default function AdminSidebar() {
   const pathname = usePathname() || '';
+  const router = useRouter();
 
   const isActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
   const [notifOpen, setNotifOpen] = useState(() => isActive('/wp-admin/notifications'));
   const [exitOpen, setExitOpen] = useState(false);
+
+  const handleLogout = useCallback(async () => {
+    setExitOpen(false);
+    try {
+      const res = await fetch('/api/admin/auth/logout', {
+        method: 'POST',
+      });
+
+      if (res.ok) {
+        toast.success('Logged out successfully!');
+        router.replace('/wp-admin'); // Redirect to login page
+      } else {
+        toast.error('Logout failed. Please try again.');
+      }
+    } catch (error) {
+      toast.error('An error occurred during logout.');
+    }
+  }, [router]);
 
   return (
     <aside className="w-64 bg-[#4A148C] text-white flex flex-col p-4 h-screen flex-shrink-0 sticky top-0 overflow-y-auto">
@@ -46,6 +66,7 @@ export default function AdminSidebar() {
         <NavItem icon={Home} text="Dashboard" href="/wp-admin/dashboard" active={isActive('/wp-admin/dashboard')} />
         <NavItem icon={Users} text="Manage Admin's" href="/wp-admin/manage-admins" active={isActive('/wp-admin/manage-admins')} />
         <NavItem icon={PlaySquare} text="Subscriptions" href="/wp-admin/subscriptions" active={isActive('/wp-admin/subscriptions')} />
+        <NavItem icon={PlaySquare} text="Contacts" href="/wp-admin/contacts" active={isActive('/wp-admin/contacts')} />
 
         {/* Notifications collapsible group */}
         <div>
@@ -66,7 +87,9 @@ export default function AdminSidebar() {
             <NavItem icon={Inbox} text="Inbox" href="/wp-admin/notifications/show" active={isActive('/wp-admin/notifications/show')} className="pl-12" />
             <NavItem icon={Send} text="Compose" href="/wp-admin/notifications/send" active={isActive('/wp-admin/notifications/send')} className="pl-12" />
           </div>
-  </div>
+        </div>
+
+        {/* <NavItem icon={LineChart} text="Analytics" href="/wp-admin/analytics" active={isActive('/wp-admin/analytics')} /> */}
         <NavItem icon={Settings} text="Settings" href="/wp-admin/settings" active={isActive('/wp-admin/settings')} />
         <NavItem icon={FileText} text="Audit Logs" href="/wp-admin/audit-logs" active={isActive('/wp-admin/audit-logs')} />
         {/* Exit: open confirmation popup, no navigation/action */}
@@ -119,7 +142,7 @@ export default function AdminSidebar() {
                 <button
                   type="button"
                   className="px-3 py-2 bg-red-600 text-white rounded-md"
-                  onClick={() => setExitOpen(false)}
+                  onClick={handleLogout}
                 >
                   Yes, Exit
                 </button>

@@ -3,15 +3,50 @@
 import AdminSidebar from '@/components/AdminSidebar';
 import { usePathname, useRouter } from 'next/navigation';
 import { Settings2, Bell, ChevronDown, ChevronLeft } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui';
-import { getNotifications, getUnreadCount, subscribe, markAsRead, NotificationItem } from './notifications/store';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { fetchNotifications, getUnreadCount, subscribe, addNotification, NotificationItem } from './notifications/store';
 import { getAdmin } from './manage-admins/data';
 import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import toast from 'react-hot-toast';
+import { io, Socket } from 'socket.io-client';
+
+// Centralized socket instance
+let socket: Socket;
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || '';
   const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const verifySession = async () => {
+      // Don't run auth check on the login page itself
+      if (pathname === '/wp-admin') {
+        setLoading(false);
+        setIsAuthenticated(false); // Assume not authenticated on login page
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/auth/me'); // Assuming you have a "me" endpoint
+        if (res.ok) {
+          setIsAuthenticated(true);
+        } else {
+          toast.error('Session expired. Please log in.');
+          router.replace('/wp-admin');
+        }
+      } catch (error) {
+        toast.error('Authentication check failed.');
+        router.replace('/wp-admin');
+      } finally {
+        setLoading(false);
+      }
+    };
+    verifySession();
+  }, [pathname, router]);
+
   let headerTitle = 'Admin Dashboard';
   let headerSubtitle = '';
   if (pathname.startsWith('/wp-admin/manage-admins')) headerTitle = "Manage Admin's";
@@ -46,7 +81,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     headerTitle = 'Inbox';
     headerSubtitle = '';
   }
-  
+  if (pathname.startsWith('/wp-admin/analytics')) {
+    headerTitle = 'Analytics Dashboard';
+    headerSubtitle = '';
+  }
   if (pathname.startsWith('/wp-admin/audit-logs')) {
     headerTitle = 'Audit Logs';
     headerSubtitle = '';
@@ -100,12 +138,60 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return;
   }, [notifOpen]);
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => getNotifications());
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    const unsub = subscribe((items) => setNotifications(items));
+    // Fetch initial notifications and then subscribe to updates
+    fetchNotifications();
+
+    const unsub = subscribe((items) => {
+      setNotifications(items);
+      setUnreadCount(items.filter(n => n.unread).length);
+    });
+
+    // Initialize the single socket connection for the app
+    socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001');
+    socket.on('new_notification', (newNotification: NotificationItem) => {
+      addNotification(newNotification); // Add to store, which will trigger subscription
+      toast.success('You have a new notification!');
+    });
+
     return unsub;
   }, []);
+
+  const handleLogout = async () => {
+    setExitOpen(false);
+    try {
+      const res = await fetch('/api/admin/auth/logout', {
+        method: 'POST',
+      });
+
+      if (res.ok) {
+        toast.success('Logged out successfully!');
+        setIsAuthenticated(false); // Update auth state
+        router.replace('/wp-admin'); // Redirect to login page
+      } else {
+        toast.error('Logout failed. Please try again.');
+      }
+    } catch (error) {
+      toast.error('An error occurred during logout.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+        <p>Loading & Verifying Session...</p>
+      </div>
+    );
+  }
+
+  // Render only the login page if not authenticated
+  if (!isAuthenticated && pathname === '/wp-admin') {
+    return <>{children}</>;
+  }
+
   return (
     <div className="flex min-h-screen bg-[#F8F9FA]">
       <AdminSidebar />
@@ -153,9 +239,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   className="relative inline-flex items-center justify-center w-9 h-9 rounded-md bg-white border border-gray-100 shadow-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 >
                   <Bell className="w-4 h-4" />
-                  {/* unread badge */}
-                  {getUnreadCount() > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center px-1.5 py-0.5 text-xs bg-red-500 text-white rounded-full ring-1 ring-white">{getUnreadCount()}</span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center px-1.5 py-0.5 text-xs bg-red-500 text-white rounded-full ring-1 ring-white">{unreadCount}</span>
                   )}
                 </button>
 
@@ -173,7 +258,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     className="inline-flex items-center gap-3 cursor-pointer select-none rounded-md px-2 py-1 hover:bg-gray-50"
                   >
                     <Avatar>
-                      <AvatarFallback className="w-8 h-8 text-sm font-medium">A</AvatarFallback>
+                      {/* removed external default image; show fallback initial */}
+                      <AvatarFallback>A</AvatarFallback>
                     </Avatar>
                     <div className="flex items-center gap-1">
                       <span className="text-sm text-gray-700">Admin</span>
@@ -265,14 +351,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                 <div className="p-6 flex flex-col items-center text-center">
                   <Avatar>
-                    <AvatarFallback className="w-12 h-12 text-lg font-medium">A</AvatarFallback>
+                    {/* removed external default image in exit modal; show fallback initial */}
+                    <AvatarFallback>A</AvatarFallback>
                   </Avatar>
                   <div className="mt-3 text-lg font-semibold">Admin</div>
                   <p className="mt-4 text-sm text-gray-600">Are you sure you want to exit?</p>
 
                   <div className="mt-6 flex gap-3">
                     <button className="px-3 py-2 bg-gray-100 rounded-md" onClick={() => setExitOpen(false)}>Cancel</button>
-                    <button className="px-3 py-2 bg-red-600 text-white rounded-md" onClick={() => setExitOpen(false)}>Yes, Exit</button>
+                    <button className="px-3 py-2 bg-red-600 text-white rounded-md" onClick={handleLogout}>Yes, Exit</button>
                   </div>
                 </div>
               </div>
