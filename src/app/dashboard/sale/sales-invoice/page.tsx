@@ -12,6 +12,8 @@ import {
 import { AddItemModal, ItemData } from "../../../../components/AddItem";
 import { AddParty, Party } from "../../../../components/AddParty";
 import { ScanBarcodeModal } from '../../../../components/ScanBarcode';
+import InvoiceSettingsModal from '../../../../components/InvoiceSettingsModal';
+import FormSkeleton from '@/components/ui/FormSkeleton';
 
 const formatCurrency = (amount: number) => {
     if (isNaN(amount) || amount === null) return '0.00';
@@ -138,16 +140,32 @@ const CreateSalesInvoicePage = () => {
     // --- MODAL STATE ---
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
     const [isScanBarcodeModalOpen, setIsScanBarcodeModalOpen] = useState(false);
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+    // Invoice settings (persisted in localStorage)
+    const [invoiceSettings, setInvoiceSettings] = useState(() => {
+        try {
+            if (typeof window === 'undefined') return { showTax: true, showGST: false };
+            const raw = window.localStorage.getItem('invoiceSettings');
+            if (!raw) return { showTax: true, showGST: false };
+            return JSON.parse(raw);
+        } catch (e) {
+            return { showTax: true, showGST: false };
+        }
+    });
+
+    
 
     const [selectedParty, setSelectedParty] = useState<Party | null>(null);
     const [editId, setEditId] = useState<string | null>(null);
+    const [isFetching, setIsFetching] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [savedMessage, setSavedMessage] = useState('');
     const [isAddingParty, setIsAddingParty] = useState(false);
     const [partySearchTerm, setPartySearchTerm] = useState('');
     // Business settings (fetched from API)
     const [businessName, setBusinessName] = useState<string>('Business Name');
     const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+    const [gstNumber, setGstNumber] = useState<string | null>(null);
     const [productsCache, setProductsCache] = useState<any[]>([]);
     const [paymentMode, setPaymentMode] = useState<'unpaid' | 'cash' | 'upi' | 'card' | 'netbanking' | 'bank_transfer' | 'cheque' | 'online'>('unpaid');
     // drafts UI removed
@@ -286,7 +304,16 @@ const CreateSalesInvoicePage = () => {
     // It starts with the value in the input field (or the base total if empty), then applies the manual adjustment and rounding.
     const totalFromInput = parseFloat(totalAmountStr) || 0;
     const adjustmentValue = adjustmentType === 'add' ? committedAdjustment : -committedAdjustment;
-    const totalBeforeRounding = totalFromInput + adjustmentValue + totalAdditionalCharges;
+    // Prevent double-counting: when the user manually sets the Total Amount input, that value
+    // already includes additional charges and manual adjustment (the UI writes that computed
+    // value into the input). In that case, trust the manual input as the final total. Otherwise
+    // compute from baseTotal + totalAdditionalCharges + adjustmentValue.
+    let totalBeforeRounding: number;
+    if (totalAmountManuallySet && totalFromInput > 0) {
+        totalBeforeRounding = totalFromInput;
+    } else {
+        totalBeforeRounding = baseTotal + totalAdditionalCharges + adjustmentValue;
+    }
     const finalAmountForBalance = autoRoundOff ? Math.round(totalBeforeRounding) : totalBeforeRounding;
     
     const amountReceived = parseFloat(amountReceivedStr) || 0;
@@ -307,6 +334,35 @@ const CreateSalesInvoicePage = () => {
             setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
         }
     };
+
+    // If user marks fully paid and payment mode is still the placeholder 'unpaid',
+    // set a sensible default so the select reflects a real payment mode and the
+    // save handler sends the correct status.
+    function handleFullyPaidChangeWithMode(checked: boolean) {
+        setIsFullyPaid(checked);
+        if (checked) {
+            amountReceivedBeforePaid.current = parseFloat(amountReceivedStr) || 0;
+            if ((paymentMode as string) === 'unpaid') {
+                setPaymentMode('cash');
+            }
+        } else {
+            setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
+            // when user unchecks fully paid, revert payment mode to unpaid
+            setPaymentMode('unpaid');
+        }
+    }
+
+    // If the user manually sets paymentMode to 'unpaid' while the invoice is marked
+    // fully paid, interpret that as the user's intent to unmark fully-paid and
+    // restore the previous amount received. This keeps UI state consistent.
+    useEffect(() => {
+        if (isFullyPaid && (paymentMode as string) === 'unpaid') {
+            // Restore prior amount and unset fully paid.
+            setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
+            setIsFullyPaid(false);
+        }
+        // Only trigger when paymentMode changes or isFullyPaid changes
+    }, [paymentMode]);
 
     // --- HANDLERS ---
     const handleAddItemFromModal = (itemToAdd: ItemData, quantity: number) => {
@@ -451,9 +507,11 @@ const CreateSalesInvoicePage = () => {
                 if (body?.data) {
                     if (body.data.name) setBusinessName(body.data.name);
                     if (body.data.signatureUrl) setSignatureUrl(body.data.signatureUrl);
+                    if (body.data.gstNumber) setGstNumber(body.data.gstNumber);
                 } else {
                     if (body?.name) setBusinessName(body.name);
                     if (body?.signatureUrl) setSignatureUrl(body.signatureUrl);
+                    if (body?.gstNumber) setGstNumber(body.gstNumber);
                 }
             } catch (err) {
                 console.debug('Failed to fetch business settings', err);
@@ -470,6 +528,7 @@ const CreateSalesInvoicePage = () => {
             const editId = params.get('editId');
             if (!editId) return;
             setEditId(editId);
+            setIsFetching(true);
 
             // fetch the existing NewSale
             fetch(`/api/new_sale/${editId}`, { credentials: 'include' })
@@ -578,8 +637,12 @@ const CreateSalesInvoicePage = () => {
                         setCommittedAdjustment(m);
                         setManualAdjustmentStr(m ? String(m) : '');
                     }
+                    setIsFetching(false);
                 })
-                .catch((err) => console.error('Failed to load sale for edit:', err));
+                .catch((err) => {
+                    console.error('Failed to load sale for edit:', err);
+                    setIsFetching(false);
+                });
         } catch (e) {
             // ignore
         }
@@ -616,6 +679,10 @@ const CreateSalesInvoicePage = () => {
         }
     }, []);
 
+    if (isFetching) {
+        return <div className="bg-gray-50 min-h-screen"><FormSkeleton /></div>;
+    }
+
     return (
         <div className="bg-gray-50 min-h-screen">
             <AddItemModal 
@@ -627,6 +694,15 @@ const CreateSalesInvoicePage = () => {
                 isOpen={isScanBarcodeModalOpen}
                 onClose={() => setIsScanBarcodeModalOpen(false)}
                 onAddItem={handleAddItemFromModal}
+            />
+            <InvoiceSettingsModal
+                isOpen={isSettingsModalOpen}
+                onClose={() => setIsSettingsModalOpen(false)}
+                settings={invoiceSettings}
+                onSave={(newSettings) => {
+                    setInvoiceSettings(newSettings);
+                    try { window.localStorage.setItem('invoiceSettings', JSON.stringify(newSettings)); } catch (e) {}
+                }}
             />
             {/* Header */}
             <header className="bg-white shadow-sm sticky top-0 z-10">
@@ -640,7 +716,7 @@ const CreateSalesInvoicePage = () => {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2">
+                            <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2" onClick={() => setIsSettingsModalOpen(true)}>
                                 <Settings className="h-4 w-4 mr-2" /> Settings
                             </Button>
 
@@ -652,7 +728,12 @@ const CreateSalesInvoicePage = () => {
                                         try {
                                             setSaving(true);
                                             // Consider invoice paid if user checked fully-paid OR the entered amountReceived covers the final amount.
-                                            const numericAmountReceived = parseFloat(amountReceivedStr) || 0;
+                                            let numericAmountReceived = parseFloat(amountReceivedStr) || 0;
+                                            // If user marked fully paid but amountReceivedStr hasn't updated yet (state is async),
+                                            // ensure we treat it as fully-paid for the save operation by using finalAmountForBalance.
+                                            if (isFullyPaid && numericAmountReceived < finalAmountForBalance) {
+                                                numericAmountReceived = finalAmountForBalance;
+                                            }
                                             const isPaid = isFullyPaid || numericAmountReceived >= finalAmountForBalance;
                                             const paymentStatusToSend = isPaid ? paymentMode : 'unpaid';
 
@@ -717,19 +798,17 @@ const CreateSalesInvoicePage = () => {
                                                 });
                                             }
 
-                                            if (!res.ok) {
+                                                if (!res.ok) {
                                                 // If the POST failed, clear temporary placeholder if we set it
                                                 const hadInvoiceNo = invoiceNo === 'Assigning…';
                                                 if (hadInvoiceNo) setInvoiceNo('');
                                                 const errBody = await res.json().catch(() => ({}));
                                                 console.error('Server responded with error', errBody);
-                                                const msg = errBody?.error || errBody?.message || 'Failed to save to server';
-                                                setSavedMessage(msg);
-                                                setTimeout(() => setSavedMessage(''), 5000);
+                                                // previously showed savedMessage; now just log
+                                                console.debug('Save failed:', errBody?.error || errBody?.message || 'Failed to save to server');
                                             } else {
                                                 const data = await res.json().catch(() => ({}));
-                                                setSavedMessage(data?.message || 'Saved to server');
-                                                setTimeout(() => setSavedMessage(''), 3000);
+                                                console.debug('Saved to server', data?.message || 'Saved to server');
                                                 // If it was a new POST, and server returned id, set editId so further saves update
                                                 if (!editId && data?.data?._id) setEditId(data.data._id);
                                                 // Set server-assigned invoiceNo in UI if returned
@@ -737,13 +816,23 @@ const CreateSalesInvoicePage = () => {
                                                 if (returnedInvoiceNo) setInvoiceNo(returnedInvoiceNo);
                                                 // Notify other UI that product stocks may have changed
                                                 try { window.dispatchEvent(new Event('productsUpdated')); } catch (e) {}
+                                                // Redirect user to the invoice download/view page for this invoice
+                                                try {
+                                                    const returnedId = data?.data?._id || data?._id || editId;
+                                                    if (returnedId) {
+                                                        // navigate to the download/view page which renders InvoiceDownload
+                                                        router.push(`/dashboard/sale/sales-invoice/${returnedId}`);
+                                                        return; // stop further execution in this handler after redirect
+                                                    }
+                                                } catch (e) {
+                                                    // ignore routing errors
+                                                }
                                             }
                                         } catch (err) {
                                             console.error('Failed to save to server', err);
-                                            setSavedMessage('Failed to save');
+                                            console.debug('Failed to save to server', err);
                                             // clear temporary assigning label if present
                                             try { if (!editId) setInvoiceNo(''); } catch (e) {}
-                                            setTimeout(() => setSavedMessage(''), 3000);
                                         } finally {
                                             setSaving(false);
                                         }
@@ -752,7 +841,7 @@ const CreateSalesInvoicePage = () => {
                                 {saving ? 'Saving…' : 'Save Sales Invoice'}
                             </Button>
 
-                            {savedMessage && <div className="text-sm text-green-600 ml-2">{savedMessage}</div>}
+                            
                         </div>
                     </div>
                 </div>
@@ -838,7 +927,9 @@ const CreateSalesInvoicePage = () => {
                                     <th className="px-2 py-2 text-left text-xs font-medium text-black w-20">QTY</th>
                                     <th className="px-2 py-2 text-left text-xs font-medium text-black w-32">PRICE/ITEM (₹)</th>
                                     <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">DISCOUNT</th>
-                                    <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">TAX</th>
+                                    {invoiceSettings.showTax && (
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">TAX</th>
+                                    )}
                                     <th className="px-2 py-2 text-right text-xs font-medium text-black w-32">AMOUNT (₹)</th>
                                     <th className="w-12"></th>
                                 </tr>
@@ -897,32 +988,34 @@ const CreateSalesInvoicePage = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-2 py-2 w-32">
-                                            <div className="flex flex-col gap-1">
-                                                <Select
-                                                    value={item.taxPercentStr}
-                                                    onValueChange={(value) => handleItemTaxChange(item.id, value)}
-                                                >
-                                                    <SelectTrigger className="h-9 w-full">
-                                                        {/* This will display the short version e.g., "5%" */}
-                                                        <span>{item.taxPercentStr}%</span>
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {/* This will show the full text in the dropdown list */}
-                                                        {GST_OPTIONS.map(rate => (<SelectItem key={rate} value={rate}>GST @ {rate}%</SelectItem>))}
-                                                    </SelectContent>
-                                                </Select>
-                                                <div className="relative">
-                                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                                                    <Input 
-                                                        type="number" 
-                                                        value={item.taxAmountStr}
-                                                        readOnly
-                                                        className="pl-6 text-right bg-gray-100 cursor-not-allowed"
-                                                    />
+                                        {invoiceSettings.showTax ? (
+                                            <td className="px-2 py-2 w-32">
+                                                <div className="flex flex-col gap-1">
+                                                    <Select
+                                                        value={item.taxPercentStr}
+                                                        onValueChange={(value) => handleItemTaxChange(item.id, value)}
+                                                    >
+                                                        <SelectTrigger className="h-9 w-full">
+                                                            {/* This will display the short version e.g., "5%" */}
+                                                            <span>{item.taxPercentStr}%</span>
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {/* This will show the full text in the dropdown list */}
+                                                            {GST_OPTIONS.map(rate => (<SelectItem key={rate} value={rate}>GST @ {rate}%</SelectItem>))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <div className="relative">
+                                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                                        <Input 
+                                                            type="number" 
+                                                            value={item.taxAmountStr}
+                                                            readOnly
+                                                            className="pl-6 text-right bg-gray-100 cursor-not-allowed"
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
+                                            </td>
+                                        ) : null}
                                         <td className="px-2 py-2 text-sm text-gray-800 text-right">{formatCurrency(calculateItemAmount(item))}</td>
                                         <td className="px-2 py-2 text-center">
                                             <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="text-gray-400 hover:text-red-500 rounded-full p-1">
@@ -951,7 +1044,9 @@ const CreateSalesInvoicePage = () => {
                     <div className="flex w-full min-w-[900px] bg-gray-100 border-b border-x">
                         <div className="flex-1 px-2 py-2 text-right text-xs font-medium text-black">SUBTOTAL</div>
                         <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalItemDiscount)}</div>
-                        <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalTax)}</div>
+                        {invoiceSettings.showTax && (
+                            <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalTax)}</div>
+                        )}
                         <div className="w-32 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(itemsGrandTotal)}</div>
                         <div className="w-12"></div>
                     </div>
@@ -1037,7 +1132,7 @@ const CreateSalesInvoicePage = () => {
                                     <span className="font-medium text-gray-800">₹ {formatCurrency(taxableAmount)}</span>
                                 </div>
                             {/* GST Breakdown */}
-                            {gstBreakdown.length > 0 && (
+                            {gstBreakdown.length > 0 && invoiceSettings.showTax && (
                                 <div className="mt-2 space-y-1 text-sm">
                                     {gstBreakdown.map(g => {
                                         const halfTax = g.tax / 2;
@@ -1057,7 +1152,7 @@ const CreateSalesInvoicePage = () => {
                                         );
                                     })}
                                 </div>
-                            )}
+                                )}
                             <div className="flex justify-between items-center text-sm">
                                 {!showDiscountInput ? (
                                     <>
@@ -1183,7 +1278,7 @@ const CreateSalesInvoicePage = () => {
                             
                             <div className="flex justify-end items-center gap-2 mt-1">
                                 <label htmlFor="fullyPaid" className="text-sm text-gray-500 cursor-pointer">Mark as fully paid</label>
-                                <Checkbox id="fullyPaid" checked={isFullyPaid} onChange={(e) => handleFullyPaidChange(e.target.checked)}/>
+                                <Checkbox id="fullyPaid" checked={isFullyPaid} onChange={(e) => handleFullyPaidChangeWithMode(e.target.checked)}/>
                             </div>
 
                             <div className="flex justify-between items-center text-sm">
@@ -1203,15 +1298,23 @@ const CreateSalesInvoicePage = () => {
                                         }}
                                         className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0 "
                                     />
-                    <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any) } className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
-                        <option value="cash">Cash</option>
-                        <option value="upi">UPI</option>
-                        <option value="card">Card</option>
-                        <option value="netbanking">Netbanking</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="cheque">Cheque</option>
-                        <option value="online">Online</option>
-                    </select>
+                                        <select
+                                            value={paymentMode}
+                                            onChange={(e) => setPaymentMode(e.target.value as any)}
+                                            className={`h-7 rounded-md border-none px-2 text-sm focus:outline-none ${isFullyPaid ? 'bg-white text-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                                            disabled={!isFullyPaid}
+                                            aria-disabled={!isFullyPaid}
+                                            title={!isFullyPaid ? 'Enable "Mark as fully paid" to change payment status' : undefined}
+                                        >
+                                            <option value="unpaid">Unpaid</option>
+                                            <option value="cash">Cash</option>
+                                            <option value="upi">UPI</option>
+                                            <option value="card">Card</option>
+                                            <option value="netbanking">Netbanking</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="cheque">Cheque</option>
+                                            <option value="online">Online</option>
+                                        </select>
                                 </div>
                             </div>
 
@@ -1228,6 +1331,7 @@ const CreateSalesInvoicePage = () => {
                             <div className="border-b border-gray-400 pb-2 mb-2">
                             </div>
                             <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">{businessName}</span></p>
+                            {gstNumber && invoiceSettings.showGST && <p className="text-sm text-gray-500 mt-1">GST: <span className="font-medium">{gstNumber}</span></p>}
                             <div className="ml-auto mt-4 h-25 w-45 border bg-white flex items-center justify-center overflow-hidden">
                                 {signatureUrl ? (
                                     // show signature image if present

@@ -175,27 +175,57 @@ export const getNewPurchaseReturnById = async (id: string, user: UserPayload) =>
 
   if (!mongoose.Types.ObjectId.isValid(id)) throw new Error('Invalid id');
 
-  const doc = await NewPurchaseReturn.findOne({ _id: id, business: user.businessId, isDeleted: false })
-    .populate({ path: 'selectedParty', select: 'partyName mobileNumber billingAddress shippingAddress gstin openingBalance balance' })
-    .lean();
+  // Try to populate selectedParty; if Party model isn't registered (MissingSchemaError),
+  // fall back to a manual lookup from the parties collection to avoid a 500.
+  try {
+    const doc = await NewPurchaseReturn.findOne({ _id: id, business: user.businessId, isDeleted: false })
+      .populate({ path: 'selectedParty', select: 'partyName mobileNumber billingAddress shippingAddress gstin openingBalance balance' })
+      .lean();
 
-  if (!doc) throw new Error('Not found or unauthorized');
+    if (!doc) throw new Error('Not found or unauthorized');
 
-  if (doc.selectedParty && typeof doc.selectedParty === 'object') {
-    const sp = doc.selectedParty as any;
-    doc.selectedParty = {
-      id: sp._id || sp.id,
-      name: sp.partyName || sp.name || '',
-      mobileNumber: sp.mobileNumber || sp.mobile || '',
-      billingAddress: sp.billingAddress || sp.address || sp.shippingAddress || '',
-      shippingAddress: sp.shippingAddress || '',
-      gstin: sp.gstin || '',
-      openingBalance: sp.openingBalance || 0,
-      balance: sp.balance || 0,
-    };
+    if (doc.selectedParty && typeof doc.selectedParty === 'object') {
+      const sp = doc.selectedParty as any;
+      doc.selectedParty = {
+        id: sp._id || sp.id,
+        name: sp.partyName || sp.name || '',
+        mobileNumber: sp.mobileNumber || sp.mobile || '',
+        billingAddress: sp.billingAddress || sp.address || sp.shippingAddress || '',
+        shippingAddress: sp.shippingAddress || '',
+        gstin: sp.gstin || '',
+        openingBalance: sp.openingBalance || 0,
+        balance: sp.balance || 0,
+      };
+    }
+
+    return doc;
+  } catch (err: any) {
+    // populate failed (possibly MissingSchemaError). Fallback to manual resolution.
+    const raw = await NewPurchaseReturn.findOne({ _id: id, business: user.businessId, isDeleted: false }).lean();
+    if (!raw) throw new Error('Not found or unauthorized');
+
+    if (raw.selectedParty && mongoose.connection && mongoose.connection.db) {
+      try {
+        const p = await mongoose.connection.db.collection('parties').findOne({ _id: new mongoose.Types.ObjectId(String(raw.selectedParty)) }, { projection: { partyName: 1, mobileNumber: 1, billingAddress: 1, shippingAddress: 1, gstin: 1, openingBalance: 1, balance: 1 } });
+        if (p) {
+          raw.selectedParty = {
+            id: p._id,
+            name: p.partyName || '',
+            mobileNumber: p.mobileNumber || '',
+            billingAddress: p.billingAddress || p.address || p.shippingAddress || '',
+            shippingAddress: p.shippingAddress || '',
+            gstin: p.gstin || '',
+            openingBalance: p.openingBalance || 0,
+            balance: p.balance || 0,
+          };
+        }
+      } catch (e) {
+        // ignore lookup failure
+      }
+    }
+
+    return raw;
   }
-
-  return doc;
 };
 
 export const updateNewPurchaseReturn = async (id: string, body: any, user: UserPayload) => {

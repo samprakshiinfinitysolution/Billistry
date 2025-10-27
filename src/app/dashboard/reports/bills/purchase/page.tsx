@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 import * as XLSX from 'xlsx';
 import 'jspdf-autotable';
 import jsPDF from "jspdf";
@@ -237,10 +238,18 @@ const downloadPDF = () => {
 
       {/* Table */}
       {loading ? (
-        <div className="text-center py-10">Loading...</div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-200 text-sm">
+            <tbody>
+              <tr>
+                <td colSpan={5} className="p-0"><TableSkeleton rows={4} /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200">
+          <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-100">
               <tr>
                 <th className="border px-4 py-2">Invoice No</th>

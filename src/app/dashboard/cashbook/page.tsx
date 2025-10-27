@@ -10,9 +10,11 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { DeleteIcon, Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, Search, ChevronDown, FileBarChart } from "lucide-react";
+import TableSkeleton from '@/components/ui/TableSkeleton';
 import toast from "react-hot-toast";
-
+import Link from "next/link";
+ 
 type CashbookSummary = {
   totalBalance: number;
   cashInHand: number;
@@ -70,6 +72,10 @@ export default function CashbookPage(): React.JSX.Element {
   });
 
   const [submitting, setSubmitting] = useState(false);
+
+  const formatDisplayCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN').format(amount);
+  };
 
   useEffect(() => {
     fetchData();
@@ -338,35 +344,36 @@ export default function CashbookPage(): React.JSX.Element {
   }
 
   // UI states
-  if (loading) return <div className="p-6 text-center">Loading...</div>;
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
-  if (!data)
-    return <div className="p-6 text-center text-gray-500">No data found</div>;
 
   const summaryItems = [
-    { label: "Total Balance", value: data.totalBalance },
-    { label: "Cash In Hand", value: data.cashInHand },
-    { label: "Online", value: data.online },
-    { label: "Today's Balance", value: data.todaysBalance },
-    { label: "Today's Cash In Hand", value: data.todaysCashInHand },
-    { label: "Today's Online", value: data.todaysOnline },
+    { label: "Total Balance", value: data?.totalBalance ?? 0 },
+    { label: "Cash In Hand", value: data?.cashInHand ?? 0 },
+    { label: "Online", value: data?.online ?? 0 },
+    { label: "Today's Balance", value: data?.todaysBalance ?? 0 },
+    { label: "Today's Cash In Hand", value: data?.todaysCashInHand ?? 0 },
+    { label: "Today's Online", value: data?.todaysOnline ?? 0 },
   ];
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Cashbook</h1>
-
-        <div className="flex gap-2">
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="flex items-center justify-between pb-4 border-b">
+        <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">Cashbook</h1>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/reports/cashbook-report">
+            <Button variant="outline" className="flex items-center gap-2">
+              <FileBarChart className="h-4 w-4" /> Reports
+            </Button>
+          </Link>
           <button
             onClick={() => openAddModal("IN")}
-            className="bg-green-600 text-white px-3 py-2 rounded"
+            className="bg-indigo-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             + Add IN
           </button>
           <button
             onClick={() => openAddModal("OUT")}
-            className="bg-red-600 text-white px-3 py-2 rounded"
+            className="bg-black text-white px-3 py-1.5 rounded-md text-sm hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-black/40"
           >
             + Add OUT
           </button>
@@ -374,50 +381,70 @@ export default function CashbookPage(): React.JSX.Element {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-3 lg:grid-cols-6 mb-6 mt-4">
         {summaryItems.map((item) => (
           <div
             key={item.label}
-            className="bg-white shadow rounded-lg p-4 text-center border"
+            className="bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-lg shadow-sm p-4 text-center"
           >
             <div className="text-sm text-gray-500">{item.label}</div>
-            <div className="text-lg font-semibold">{item.value}</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-50">₹ {formatDisplayCurrency(item.value)}</div>
           </div>
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="bg-white shadow rounded-lg p-4 mb-4 flex flex-wrap gap-3 items-end">
+  {/* Filters */}
+        <div className="bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700 rounded-lg p-4 mb-4 flex flex-wrap gap-3 items-end">
         <div>
           <label className="text-sm block mb-1">Type</label>
-          <select
-            value={typeFilter}
-            onChange={(e) => {
-              setTypeFilter(e.target.value as any);
-              setPage(1);
-            }}
-            className="border rounded px-3 py-2"
-          >
-            <option value="ALL">All</option>
-            <option value="IN">IN</option>
-            <option value="OUT">OUT</option>
-          </select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 border rounded-md px-3 py-1.5 text-sm bg-white dark:bg-gray-700">
+                <span className="inline-flex items-center">
+                  <span className={`w-2 h-2 rounded-full mr-2 ${typeFilter === 'ALL' ? 'bg-gray-400' : typeFilter === 'IN' ? 'bg-indigo-600' : 'bg-black'}`}></span>
+                  <span className="capitalize">{typeFilter.toLowerCase() === 'all' ? 'All' : typeFilter}</span>
+                </span>
+                <ChevronDown className="w-4 h-4 text-gray-400 ml-2" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => { setTypeFilter('ALL'); setPage(1); }}>
+                <span className="w-2 h-2 rounded-full mr-2 inline-block bg-gray-400" /> All
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setTypeFilter('IN'); setPage(1); }}>
+                <span className="w-2 h-2 rounded-full mr-2 inline-block bg-indigo-600" /> IN
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setTypeFilter('OUT'); setPage(1); }}>
+                <span className="w-2 h-2 rounded-full mr-2 inline-block bg-black" /> OUT
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div>
           <label className="text-sm block mb-1">Mode</label>
-          <select
-            value={modeFilter}
-            onChange={(e) => {
-              setModeFilter(e.target.value as any);
-              setPage(1);
-            }}
-            className="border rounded px-3 py-2"
-          >
-            <option value="ALL">All</option>
-            <option value="Cash">Cash</option>
-            <option value="Online">Online</option>
-          </select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 border rounded-md px-3 py-1.5 text-sm bg-white dark:bg-gray-700">
+                <span className="inline-flex items-center">
+                  <span className={`w-2 h-2 rounded-full mr-2 ${modeFilter === 'ALL' ? 'bg-gray-400' : modeFilter === 'Cash' ? 'bg-emerald-500' : 'bg-indigo-600'}`}></span>
+                  <span className="capitalize">{modeFilter.toLowerCase() === 'all' ? 'All' : modeFilter}</span>
+                </span>
+                <ChevronDown className="w-4 h-4 text-gray-400 ml-2" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => { setModeFilter('ALL'); setPage(1); }}>
+                <span className="w-2 h-2 rounded-full mr-2 inline-block bg-gray-400" /> All
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setModeFilter('Cash'); setPage(1); }}>
+                <span className="w-2 h-2 rounded-full mr-2 inline-block bg-emerald-500" /> Cash
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setModeFilter('Online'); setPage(1); }}>
+                <span className="w-2 h-2 rounded-full mr-2 inline-block bg-indigo-600" /> Online
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div>
@@ -426,7 +453,7 @@ export default function CashbookPage(): React.JSX.Element {
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="border rounded px-3 py-2"
+            className="border rounded-md px-3 py-1.5 text-sm bg-white dark:bg-gray-700"
           />
         </div>
 
@@ -436,34 +463,39 @@ export default function CashbookPage(): React.JSX.Element {
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="border rounded px-3 py-2"
+            className="border rounded-md px-3 py-1.5 text-sm bg-white dark:bg-gray-700"
           />
         </div>
 
         <div className="flex-1">
           <label className="text-sm block mb-1">Search</label>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search description or mode"
-            className="border rounded px-3 py-2 w-full"
-          />
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="w-4 h-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search description or mode"
+              className="border rounded-md px-3 py-1.5 text-sm w-full bg-white dark:bg-gray-700 pl-10"
+            />
+          </div>
         </div>
 
         <div className="ml-auto flex gap-2">
           <button
             onClick={exportCSV}
-            className="bg-gray-200 px-3 py-2 rounded hover:bg-gray-300"
+            className="bg-white border px-3 py-1.5 rounded-md text-sm hover:bg-gray-50"
           >
             Export CSV
           </button>
           <button
             onClick={exportPDF}
-            className="bg-gray-200 px-3 py-2 rounded hover:bg-gray-300"
+            className="bg-white border px-3 py-1.5 rounded-md text-sm hover:bg-gray-50"
           >
             Export PDF
           </button>
@@ -471,50 +503,42 @@ export default function CashbookPage(): React.JSX.Element {
       </div>
 
       {/* Table */}
-      <div className="bg-white shadow rounded-lg overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-3 text-left">Date</th>
-              <th className="p-3 text-left">Type</th>
-              <th className="p-3 text-left">Amount</th>
-              <th className="p-3 text-left">Mode</th>
-              <th className="p-3 text-left">Description</th>
-              <th className="p-3 text-left">Actions</th>
+      <div className="border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-white sticky top-0 z-10 border-b">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {paginatedEntries.length === 0 ? (
+            {loading ? (
               <tr>
-                <td colSpan={6} className="text-center p-4 text-gray-500">
-                  No entries found
+                <td colSpan={6} className="p-0">
+                  <TableSkeleton rows={5} />
                 </td>
+              </tr>
+            ) : paginatedEntries.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-8 text-gray-500">No entries found</td>
               </tr>
             ) : (
               paginatedEntries.map((e) => (
-                <tr key={e._id} className="border-t">
-                  <td className="p-3">
-                    {new Date(e.createdAt).toLocaleString()}
-                  </td>
-                  <td
-                    className={`p-3 font-semibold ${
-                      e.type === "IN" ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {e.type}
-                  </td>
-                  <td className="p-3">{e.amount}</td>
-                  <td className="p-3">{e.mode}</td>
-                  <td className="p-3">{e.description}</td>
-                  {/* <td className="p-3 space-x-2">
-                    <button onClick={() => openEditModal(e)} className="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
-                    <button onClick={() => openDeleteModal(e)} className="px-2 py-1 bg-red-500 text-white rounded">Delete</button>
-                  </td> */}
-                  <td className="p-3">
+                <tr key={e._id} className="border-b hover:bg-gray-50 cursor-pointer text-sm">
+                  <td className="px-3 py-2 align-top">{new Date(e.createdAt).toLocaleString()}</td>
+                  <td className={`px-3 py-2 font-semibold ${e.type === "IN" ? 'text-indigo-600' : 'text-slate-800 dark:text-slate-200'}`}>{e.type}</td>
+                  <td className="px-3 py-2">₹{formatDisplayCurrency(e.amount)}</td>
+                  <td className="px-3 py-2">{e.mode}</td>
+                  <td className="px-3 py-2">{e.description}</td>
+                  <td className="px-3 py-2 text-right relative">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
                           ⋮
                         </Button>
                       </DropdownMenuTrigger>
@@ -523,10 +547,7 @@ export default function CashbookPage(): React.JSX.Element {
                           <Edit2 className="w-4 h-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => openDeleteModal(e)}
-                          className="text-red-600"
-                        >
+                        <DropdownMenuItem onClick={() => openDeleteModal(e)} className="text-red-600">
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete
                         </DropdownMenuItem>
@@ -555,7 +576,7 @@ export default function CashbookPage(): React.JSX.Element {
               key={p}
               onClick={() => setPage(p)}
               className={`border px-3 py-1 rounded ${
-                p === page ? "bg-blue-500 text-white" : ""
+                p === page ? "bg-indigo-600 text-white" : ""
               }`}
             >
               {p}
@@ -645,7 +666,7 @@ export default function CashbookPage(): React.JSX.Element {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-blue-500 text-white rounded"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
                 >
                   {submitting ? "Saving..." : "Save"}
                 </button>

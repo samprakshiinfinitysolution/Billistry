@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Download, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,13 +18,15 @@ import InvoiceDownload from '../../../../../../components/InvoiceDownload';
         const initialId = maybeParams?.id ?? null;
         const [id, setId] = useState<string | null>(initialId);
 
-        const [meta, setMeta] = useState<any>(null);
+    const [meta, setMeta] = useState<any>(null);
+    const [isMetaLoading, setIsMetaLoading] = useState(true);
         const [returnInvoiceNo, setReturnInvoiceNo] = useState<string>('');
         const [returnInvoiceNumber, setReturnInvoiceNumber] = useState<number>(1);
 
         useEffect(() => {
             let mounted = true;
             const fetchMeta = async () => {
+                setIsMetaLoading(true);
                 try {
                     const safeId = String(id);
                     let res = await fetch(`/api/new_purchase_return/${encodeURIComponent(safeId)}`, { credentials: 'include' });
@@ -45,6 +50,8 @@ import InvoiceDownload from '../../../../../../components/InvoiceDownload';
                 } catch (e) {
                     console.error('Failed to fetch purchase return meta', e);
                     if (mounted) setMeta(null);
+                } finally {
+                    if (mounted) setIsMetaLoading(false);
                 }
             };
             if (id) fetchMeta();
@@ -108,32 +115,17 @@ import InvoiceDownload from '../../../../../../components/InvoiceDownload';
 
         const handleDownload = async () => {
             if (!id) { alert('Invoice ID not available'); return; }
-                try {
-                    let res: Response;
-                    if (meta) {
-                        console.debug('Downloading PDF via from-meta POST');
-                        res = await fetch(`/api/download-invoice/from-meta`, { method: 'POST', credentials: 'include', body: JSON.stringify(meta) });
-                    } else {
-                        console.debug('Downloading PDF via GET by id');
-                        res = await fetch(`/api/download-invoice/${encodeURIComponent(id)}`, { credentials: 'include' });
-                    }
-                    if (!res.ok) { alert('Failed to download PDF'); return; }
-                    const blob = await res.blob();
-                const partyName = meta?.selectedParty?.name || meta?.selectedParty?.partyName || meta?.partyName || meta?.businessName || 'Client';
-                const clean = String(partyName).replace(/\s+/g, '_');
-                const filename = `${clean}_Purchase_Return.pdf`;
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                URL.revokeObjectURL(url);
-            } catch (e) {
-                console.error(e);
-                alert('Error downloading PDF');
+            try {
+                const mod = await import('@/lib/exportPdf');
+                await mod.exportElementToPdf('.invoice-print', `invoice-${id}.pdf`);
+                return;
+            } catch (err) {
+                console.warn('DOM export failed, falling back to server download', err);
             }
+
+            // Server download removed — fall back to print
+            console.info('Server download endpoint removed; using Print');
+            try { window.print(); } catch (e) { console.error(e); alert('Unable to print'); }
         };
 
     const invoiceLabel = meta?.returnInvoiceNumber ? `#${meta.returnInvoiceNumber}` : (meta?.returnInvoiceNo || (meta?.invoiceNumber ? `#${meta.invoiceNumber}` : (meta?.invoiceNo || id || '')));
@@ -165,11 +157,22 @@ import InvoiceDownload from '../../../../../../components/InvoiceDownload';
                                     <ArrowLeft className="h-5 w-5" />
                                 </Button>
                                 <div className="flex items-center gap-3">
-                                    <h1 className="text-xl font-semibold text-gray-800">Purchase Return {invoiceLabel ? invoiceLabel : ''}</h1>
-                                    {meta && (
-                                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${statusColorClass}`}>
-                                            {statusText}
-                                        </span>
+                                    <h1 className="text-xl font-semibold text-gray-800">
+                                        Purchase Return {' '}
+                                        {isMetaLoading ? (
+                                            <Skeleton className="h-6 w-40 inline-block align-middle" />
+                                        ) : (
+                                            invoiceLabel ? invoiceLabel : ''
+                                        )}
+                                    </h1>
+                                    {isMetaLoading ? (
+                                        <Skeleton className="h-6 w-24 inline-block rounded-full" />
+                                    ) : (
+                                        meta && (
+                                            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${statusColorClass}`}>
+                                                {statusText}
+                                            </span>
+                                        )
                                     )}
                                 </div>
                             </div>

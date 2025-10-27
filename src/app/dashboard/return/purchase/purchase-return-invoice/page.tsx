@@ -13,6 +13,8 @@ import { AddItemModal, ItemData } from "../../../../../components/AddItem";
 import { AddParty, Party } from "../../../../../components/AddParty";
 import { LinkToInvoice, Invoice } from '../../../../../components/LinkToInvoice';
 import { ScanBarcodeModal } from '../../../../../components/ScanBarcode';
+import InvoiceSettingsModal from '../../../../../components/InvoiceSettingsModal';
+import FormSkeleton from '@/components/ui/FormSkeleton';
 
 const formatCurrency = (amount: number) => {
     if (isNaN(amount) || amount === null) return '0.00';
@@ -120,6 +122,14 @@ const CreatePurchaseReturnInvoicePage = () => {
     const [isScanBarcodeModalOpen, setIsScanBarcodeModalOpen] = useState(false);
     const [businessName, setBusinessName] = useState<string>('Business Name');
     const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+    const [gstNumber, setGstNumber] = useState<string | null>(null);
+
+    // Invoice settings (persisted to localStorage)
+    const [invoiceSettings, setInvoiceSettings] = useState<{ showTax: boolean; showGST: boolean }>({ showTax: true, showGST: true });
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [editId, setEditId] = useState<string | null>(null);
+    const [isFetching, setIsFetching] = useState(false);
 
     // --- Invoice Linking State ---
     const [searchInvoiceTerm, setSearchInvoiceTerm] = useState('');
@@ -179,9 +189,13 @@ const CreatePurchaseReturnInvoicePage = () => {
                 if (body?.data) {
                     if (body.data.name) setBusinessName(body.data.name);
                     if (body.data.signatureUrl) setSignatureUrl(body.data.signatureUrl);
+                    if (body.data.gstNumber) setGstNumber(body.data.gstNumber);
+                    if (body.data.gstin) setGstNumber(body.data.gstin);
                 } else {
                     if (body?.name) setBusinessName(body.name);
                     if (body?.signatureUrl) setSignatureUrl(body.signatureUrl);
+                    if (body?.gstNumber) setGstNumber(body.gstNumber);
+                    if (body?.gstin) setGstNumber(body.gstin);
                 }
             } catch (err) {
                 console.debug('Failed to fetch business settings', err);
@@ -191,12 +205,24 @@ const CreatePurchaseReturnInvoicePage = () => {
         return () => { cancelled = true; };
     }, []);
 
+    // Load invoiceSettings from localStorage on mount
+    useEffect(() => {
+        try {
+            const raw = window.localStorage.getItem('invoiceSettings');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                setInvoiceSettings(prev => ({ ...prev, ...parsed }));
+            }
+        } catch (e) {}
+    }, []);
+
     // If we have an editId in query params, fetch the existing purchase return and populate form
     useEffect(() => {
         try {
             const params = new URLSearchParams(window.location.search);
             const editId = params.get('editId');
             if (!editId) return;
+            setIsFetching(true);
             (async () => {
                 try {
                     const res = await fetch(`/api/new_purchase_return/${editId}`, { credentials: 'include' });
@@ -269,8 +295,10 @@ const CreatePurchaseReturnInvoicePage = () => {
                         setCommittedAdjustment(m);
                         setManualAdjustmentStr(m ? String(m) : '');
                     }
+                        setIsFetching(false);
                 } catch (err) {
                     console.error('Error loading purchase return for edit', err);
+                        setIsFetching(false);
                 }
             })();
         } catch (e) {}
@@ -426,7 +454,12 @@ const CreatePurchaseReturnInvoicePage = () => {
     // It starts with the value in the input field (or the base total if empty), then applies the manual adjustment and rounding.
     const totalFromInput = parseFloat(totalAmountStr) || 0;
     const adjustmentValue = adjustmentType === 'add' ? committedAdjustment : -committedAdjustment;
-    const totalBeforeRounding = totalFromInput + adjustmentValue + totalAdditionalCharges;
+    let totalBeforeRounding: number;
+    if (totalAmountManuallySet && totalFromInput > 0) {
+        totalBeforeRounding = totalFromInput;
+    } else {
+        totalBeforeRounding = baseTotal + totalAdditionalCharges + adjustmentValue;
+    }
     const finalAmountForBalance = autoRoundOff ? Math.round(totalBeforeRounding) : totalBeforeRounding;
     
     const amountReceived = parseFloat(amountReceivedStr) || 0;
@@ -576,6 +609,10 @@ const CreatePurchaseReturnInvoicePage = () => {
         setPartySearchTerm('');
     };
 
+    if (isFetching) {
+        return <div className="bg-gray-50 min-h-screen"><FormSkeleton /></div>;
+    }
+
     return (
         <div className="bg-gray-50 min-h-screen">
             <AddItemModal 
@@ -599,10 +636,22 @@ const CreatePurchaseReturnInvoicePage = () => {
                             <h1 className="text-xl font-semibold text-gray-800">Create Purchase Return</h1>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2">
+                            <Button variant="outline" onClick={() => setIsSettingsOpen(true)} className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2">
                                 <Settings className="h-4 w-4 mr-2" /> Settings
                             </Button>
+                            <InvoiceSettingsModal
+                                settings={invoiceSettings}
+                                onSave={(newSettings) => {
+                                    setInvoiceSettings(newSettings);
+                                    try { window.localStorage.setItem('invoiceSettings', JSON.stringify(newSettings)); } catch (e) {}
+                                    setIsSettingsOpen(false);
+                                }}
+                                isOpen={isSettingsOpen}
+                                onClose={() => setIsSettingsOpen(false)}
+                            />
+
                             <Button onClick={async () => {
+                                setSaving(true);
                                 try {
                                     const numericAmountReceived = parseFloat(amountReceivedStr) || 0;
                                     const payload: any = {
@@ -626,19 +675,38 @@ const CreatePurchaseReturnInvoicePage = () => {
                                         if (match) payload.originalPurchase = match.id;
                                     } catch (e) {}
 
-                                    const res = await fetch('/api/new_purchase_return', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                                    if (!res.ok) {
-                                        const err = await res.json().catch(() => ({}));
+                                    // Detect edit mode
+                                    const params = new URLSearchParams(window.location.search);
+                                    const qEditId = params.get('editId');
+                                    let res: Response | null = null;
+                                    if (qEditId) {
+                                        // Update existing
+                                        res = await fetch(`/api/new_purchase_return/${encodeURIComponent(qEditId)}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                                    } else {
+                                        res = await fetch('/api/new_purchase_return', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                                    }
+
+                                    if (!res || !res.ok) {
+                                        const err = res ? await res.json().catch(() => ({})) : {};
                                         console.error('Failed to save purchase return', err);
+                                        alert('Failed to save purchase return. See console for details.');
                                     } else {
                                         const body = await res.json().catch(() => ({}));
-                                        try { router.push('/dashboard/return/purchase/purchase-return-data'); } catch (e) {}
+                                        const returnedId = body?.data?._id || body?._id || qEditId;
+                                        if (returnedId) {
+                                            // Redirect to viewer for the saved return
+                                            try { router.push(`/dashboard/return/purchase/purchase-return-invoice/${returnedId}`); } catch (e) {}
+                                        } else {
+                                            try { router.push('/dashboard/return/purchase/purchase-return-data'); } catch (e) {}
+                                        }
                                     }
                                 } catch (e) {
                                     console.error('Save purchase return failed', e);
+                                } finally {
+                                    setSaving(false);
                                 }
                             }} className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2">
-                                Save Purchase Return
+                                {saving ? 'Saving…' : 'Save Purchase Return'}
                             </Button>
                         </div>
                     </div>
@@ -702,7 +770,7 @@ const CreatePurchaseReturnInvoicePage = () => {
                                     <th className="px-2 py-2 text-left text-xs font-medium text-black w-20">QTY</th>
                                     <th className="px-2 py-2 text-left text-xs font-medium text-black w-32">PRICE/ITEM (₹)</th>
                                     <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">DISCOUNT</th>
-                                    <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">TAX</th>
+                                    {invoiceSettings.showTax && <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">TAX</th>}
                                     <th className="px-2 py-2 text-right text-xs font-medium text-black w-32">AMOUNT (₹)</th>
                                     <th className="w-12"></th>
                                 </tr>
@@ -739,6 +807,7 @@ const CreatePurchaseReturnInvoicePage = () => {
                                                 </div>
                                             </div>
                                         </td>
+                                        {invoiceSettings.showTax && (
                                         <td className="px-2 py-2 w-32">
                                             <div className="flex flex-col gap-1">
                                                 <Select
@@ -765,6 +834,7 @@ const CreatePurchaseReturnInvoicePage = () => {
                                                 </div>
                                             </div>
                                         </td>
+                                        )}
                                         <td className="px-2 py-2 text-sm text-gray-800 text-right">{formatCurrency(calculateItemAmount(item))}</td>
                                         <td className="px-2 py-2 text-center">
                                             <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="text-gray-400 hover:text-red-500 rounded-full p-1">
@@ -774,7 +844,7 @@ const CreatePurchaseReturnInvoicePage = () => {
                                     </tr>
                                 ))}
                                 <tr>
-                                    <td colSpan={9} className="p-2">
+                                    <td colSpan={invoiceSettings.showTax ? 9 : 8} className="p-2">
                                         <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex justify-between items-center">
                                             <Button variant="outline" className="text-blue-600 border-none hover:bg-transparent" onClick={() => setIsAddItemModalOpen(true)}>
                                                 <Plus className="mr-2 h-4 w-4" /> Add Item
@@ -790,10 +860,10 @@ const CreatePurchaseReturnInvoicePage = () => {
                             </tbody>
                         </table>
                     </div>
-                    <div className="flex w-full min-w-[900px] bg-gray-100 border-b border-x">
+                        <div className="flex w-full min-w-[900px] bg-gray-100 border-b border-x">
                         <div className="flex-1 px-2 py-2 text-right text-xs font-medium text-black">SUBTOTAL</div>
                         <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalItemDiscount)}</div>
-                        <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalTax)}</div>
+                        {invoiceSettings.showTax && <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalTax)}</div>}
                         <div className="w-32 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(itemsGrandTotal)}</div>
                         <div className="w-12"></div>
                     </div>
@@ -1068,6 +1138,9 @@ const CreatePurchaseReturnInvoicePage = () => {
                             <div className="border-b border-gray-400 pb-2 mb-2">
                             </div>
                             <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">{businessName}</span></p>
+                            {invoiceSettings.showGST && gstNumber && (
+                                <p className="text-xs text-gray-600 mt-1">GSTIN: <span className="font-medium text-gray-800">{gstNumber}</span></p>
+                            )}
                             <div className="ml-auto mt-4 h-25 w-45 border bg-white flex items-center justify-center overflow-hidden">
                                 {signatureUrl ? (
                                     // eslint-disable-next-line @next/next/no-img-element
@@ -1081,7 +1154,8 @@ const CreatePurchaseReturnInvoicePage = () => {
                 </div>
             </main>
         </div>
-    );
+    )
+    ;
 };
 
 export default CreatePurchaseReturnInvoicePage;

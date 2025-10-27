@@ -12,6 +12,8 @@ import {
 import { AddItemModal, ItemData } from "../../../../components/AddItem";
 import { AddParty, Party } from "../../../../components/AddParty";
 import { ScanBarcodeModal } from "../../../../components/ScanBarcode";
+import InvoiceSettingsModal from '../../../../components/InvoiceSettingsModal';
+import FormSkeleton from '@/components/ui/FormSkeleton';
 
 const formatCurrency = (amount: number) => {
     if (isNaN(amount) || amount === null) return '0.00';
@@ -133,11 +135,23 @@ const CreatePurchaseInvoicePage = () => {
     const [isAddingParty, setIsAddingParty] = useState(false);
     const [partySearchTerm, setPartySearchTerm] = useState('');
     const [editId, setEditId] = useState<string | null>(null);
+    const [isFetching, setIsFetching] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [savedMessage, setSavedMessage] = useState('');
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [invoiceSettings, setInvoiceSettings] = useState(() => {
+        try {
+            if (typeof window === 'undefined') return { showTax: true, showGST: false };
+            const raw = window.localStorage.getItem('invoiceSettings');
+            if (!raw) return { showTax: true, showGST: false };
+            return JSON.parse(raw);
+        } catch (e) {
+            return { showTax: true, showGST: false };
+        }
+    });
     // Business settings (fetched from API)
     const [businessName, setBusinessName] = useState<string>('Business Name');
     const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+    const [gstNumber, setGstNumber] = useState<string | null>(null);
     const [productsCache, setProductsCache] = useState<any[]>([]);
 
     
@@ -270,7 +284,12 @@ const CreatePurchaseInvoicePage = () => {
     // It starts with the value in the input field (or the base total if empty), then applies the manual adjustment and rounding.
     const totalFromInput = parseFloat(totalAmountStr) || 0;
     const adjustmentValue = adjustmentType === 'add' ? committedAdjustment : -committedAdjustment;
-    const totalBeforeRounding = totalFromInput + adjustmentValue + totalAdditionalCharges;
+    let totalBeforeRounding: number;
+    if (totalAmountManuallySet && totalFromInput > 0) {
+        totalBeforeRounding = totalFromInput;
+    } else {
+        totalBeforeRounding = baseTotal + totalAdditionalCharges + adjustmentValue;
+    }
     const finalAmountForBalance = autoRoundOff ? Math.round(totalBeforeRounding) : totalBeforeRounding;
     
     const amountReceived = parseFloat(amountReceivedStr) || 0;
@@ -291,6 +310,30 @@ const CreatePurchaseInvoicePage = () => {
             setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
         }
     };
+
+    // When marking fully paid, ensure paymentMode is set to a sensible default if it's still 'unpaid'.
+    // When unchecking, restore previous amount and revert paymentMode to 'unpaid'.
+    function handleFullyPaidChangeWithMode(checked: boolean) {
+        setIsFullyPaid(checked);
+        if (checked) {
+            amountReceivedBeforePaid.current = parseFloat(amountReceivedStr) || 0;
+            if ((paymentMode as string) === 'unpaid') {
+                setPaymentMode('cash');
+            }
+        } else {
+            setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
+            setPaymentMode('unpaid');
+        }
+    }
+
+    // If user manually selects 'unpaid' while invoice is marked fully paid, treat that as intent
+    // to unmark fully-paid and restore previous amount.
+    useEffect(() => {
+        if (isFullyPaid && (paymentMode as string) === 'unpaid') {
+            setAmountReceivedStr(amountReceivedBeforePaid.current.toFixed(2));
+            setIsFullyPaid(false);
+        }
+    }, [paymentMode]);
 
     // --- HANDLERS ---
     const handleAddItemFromModal = (itemToAdd: ItemData, quantity: number) => {
@@ -428,6 +471,7 @@ const CreatePurchaseInvoicePage = () => {
             const id = params.get('editId');
             if (!id) return;
             setEditId(id);
+            setIsFetching(true);
             fetch(`/api/new_purchase/${id}`, { credentials: 'include' })
                 .then(async res => { if (!res.ok) throw new Error('Failed to fetch'); return res.json(); })
                 .then(data => {
@@ -540,8 +584,9 @@ const CreatePurchaseInvoicePage = () => {
                         setCommittedAdjustment(m);
                         setManualAdjustmentStr(m ? String(m) : '');
                     }
+                    setIsFetching(false);
                 })
-                .catch(err => console.error('Failed to load purchase for edit', err));
+                .catch(err => { console.error('Failed to load purchase for edit', err); setIsFetching(false); });
         } catch (e) { /* ignore */ }
     }, []);
 
@@ -577,9 +622,11 @@ const CreatePurchaseInvoicePage = () => {
                 if (body?.data) {
                     if (body.data.name) setBusinessName(body.data.name);
                     if (body.data.signatureUrl) setSignatureUrl(body.data.signatureUrl);
+                    if (body.data.gstNumber) setGstNumber(body.data.gstNumber);
                 } else {
                     if (body?.name) setBusinessName(body.name);
                     if (body?.signatureUrl) setSignatureUrl(body.signatureUrl);
+                    if (body?.gstNumber) setGstNumber(body.gstNumber);
                 }
             } catch (err) {
                 console.debug('Failed to fetch business settings', err);
@@ -638,23 +685,33 @@ const CreatePurchaseInvoicePage = () => {
 
             if (!res.ok) {
                 const errBody = await res.json().catch(() => ({}));
-                setSavedMessage(errBody?.error || errBody?.message || 'Failed to save');
+                console.debug('Save failed:', errBody?.error || errBody?.message || 'Failed to save');
             } else {
                 const body = await res.json().catch(() => ({}));
-                setSavedMessage(body?.message || 'Saved');
+                console.debug('Saved to server', body?.message || 'Saved');
                 // If created, set editId and invoiceNo from server response
                 if (!editId && body?.data?._id) setEditId(body.data._id);
                 if (body?.data?.invoiceNo) setInvoiceNo(body.data.invoiceNo);
-                // keep saved message visible briefly like sales page
-                setTimeout(() => setSavedMessage(''), 3000);
-                    // notify other UI that products' currentStock may have changed
-                    try { window.dispatchEvent(new Event('productsUpdated')); } catch (e) {}
+                // notify other UI that products' currentStock may have changed
+                try { window.dispatchEvent(new Event('productsUpdated')); } catch (e) {}
+                // redirect to viewer page for this purchase invoice
+                try {
+                    const returnedId = body?.data?._id || body?._id || editId;
+                    if (returnedId) {
+                        router.push(`/dashboard/purchase/purchase-invoice/${returnedId}`);
+                        return;
+                    }
+                } catch (e) {}
             }
         } catch (e) {
             console.error('Save failed', e);
-            setSavedMessage('Save failed');
-        } finally { setSaving(false); setTimeout(() => setSavedMessage(''), 3000); }
+            console.debug('Save failed', e);
+        } finally { setSaving(false); }
     };
+
+    if (isFetching) {
+        return <div className="bg-gray-50 min-h-screen"><FormSkeleton /></div>;
+    }
 
     return (
         <div className="bg-gray-50 min-h-screen">
@@ -679,9 +736,18 @@ const CreatePurchaseInvoicePage = () => {
                             <h1 className="text-xl font-semibold text-gray-800">{editId ? 'Update Purchase Invoice' : 'Create Purchase Invoice'}</h1>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2">
+                            <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2" onClick={() => setIsSettingsModalOpen(true)}>
                                 <Settings className="h-4 w-4 mr-2" /> Settings
                             </Button>
+                            <InvoiceSettingsModal
+                                isOpen={isSettingsModalOpen}
+                                onClose={() => setIsSettingsModalOpen(false)}
+                                settings={invoiceSettings}
+                                onSave={(newSettings) => {
+                                    setInvoiceSettings(newSettings);
+                                    try { window.localStorage.setItem('invoiceSettings', JSON.stringify(newSettings)); } catch (e) {}
+                                }}
+                            />
 
                             <Button
                                 className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2"
@@ -690,7 +756,7 @@ const CreatePurchaseInvoicePage = () => {
                                 {saving ? 'Saving…' : (editId ? 'Save Changes' : 'Save Purchase Invoice')}
                             </Button>
 
-                            {savedMessage && <div className="text-sm text-green-600 ml-2">{savedMessage}</div>}
+                            
                         </div>
                     </div>
                 </div>
@@ -775,7 +841,7 @@ const CreatePurchaseInvoicePage = () => {
                                     <th className="px-2 py-2 text-left text-xs font-medium text-black w-20">QTY</th>
                                     <th className="px-2 py-2 text-left text-xs font-medium text-black w-32">PRICE/ITEM (₹)</th>
                                     <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">DISCOUNT</th>
-                                    <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">TAX</th>
+                                    {invoiceSettings.showTax && <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">TAX</th>}
                                     <th className="px-2 py-2 text-right text-xs font-medium text-black w-32">AMOUNT (₹)</th>
                                     <th className="w-12"></th>
                                 </tr>
@@ -833,7 +899,8 @@ const CreatePurchaseInvoicePage = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-2 py-2 w-32">
+                                        {invoiceSettings.showTax ? (
+                                            <td className="px-2 py-2 w-32">
                                             <div className="flex flex-col gap-1">
                                                 <Select
                                                     value={item.taxPercentStr}
@@ -858,7 +925,8 @@ const CreatePurchaseInvoicePage = () => {
                                                     />
                                                 </div>
                                             </div>
-                                        </td>
+                                            </td>
+                                        ) : null}
                                         <td className="px-2 py-2 text-sm text-gray-800 text-right">{formatCurrency(calculateItemAmount(item))}</td>
                                         <td className="px-2 py-2 text-center">
                                             <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="text-gray-400 hover:text-red-500 rounded-full p-1">
@@ -887,7 +955,7 @@ const CreatePurchaseInvoicePage = () => {
                     <div className="flex w-full min-w-[900px] bg-gray-100 border-b border-x">
                         <div className="flex-1 px-2 py-2 text-right text-xs font-medium text-black">SUBTOTAL</div>
                         <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalItemDiscount)}</div>
-                        <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalTax)}</div>
+                        {invoiceSettings.showTax && <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalTax)}</div>}
                         <div className="w-32 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(itemsGrandTotal)}</div>
                         <div className="w-12"></div>
                     </div>
@@ -972,7 +1040,7 @@ const CreatePurchaseInvoicePage = () => {
                                 <span className="font-medium text-gray-800">₹ {formatCurrency(taxableAmount)}</span>
                             </div>
                             {/* GST Breakdown */}
-                            {gstBreakdown.length > 0 && (
+                            {gstBreakdown.length > 0 && invoiceSettings.showTax && (
                                 <div className="mt-2 space-y-1 text-sm">
                                     {gstBreakdown.map(g => {
                                         const halfTax = g.tax / 2;
@@ -1117,7 +1185,7 @@ const CreatePurchaseInvoicePage = () => {
                             
                             <div className="flex justify-end items-center gap-2 mt-1">
                                 <label htmlFor="fullyPaid" className="text-sm text-gray-500 cursor-pointer">Mark as fully paid</label>
-                                <Checkbox id="fullyPaid" checked={isFullyPaid} onChange={(e) => handleFullyPaidChange(e.target.checked)}/>
+                                <Checkbox id="fullyPaid" checked={isFullyPaid} onChange={(e) => handleFullyPaidChangeWithMode(e.target.checked)}/>
                             </div>
 
                             <div className="flex justify-between items-center text-sm">
@@ -1137,7 +1205,15 @@ const CreatePurchaseInvoicePage = () => {
                                         }}
                                         className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0"
                                     />
-                    <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as any)} className="h-7 rounded-md border-none bg-white px-2 text-sm text-gray-700 focus:outline-none">
+                    <select
+                        value={paymentMode}
+                        onChange={(e) => setPaymentMode(e.target.value as any)}
+                        className={`h-7 rounded-md border-none px-2 text-sm focus:outline-none ${isFullyPaid ? 'bg-white text-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                        disabled={!isFullyPaid}
+                        aria-disabled={!isFullyPaid}
+                        title={!isFullyPaid ? 'Enable "Mark as fully paid" to change payment status' : undefined}
+                    >
+                        <option value="unpaid">Unpaid</option>
                         <option value="cash">Cash</option>
                         <option value="upi">UPI</option>
                         <option value="card">Card</option>
@@ -1162,6 +1238,7 @@ const CreatePurchaseInvoicePage = () => {
                             <div className="border-b border-gray-400 pb-2 mb-2">
                             </div>
                             <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">{businessName}</span></p>
+                            {gstNumber && invoiceSettings.showGST && <p className="text-sm text-gray-500 mt-1">GST: <span className="font-medium">{gstNumber}</span></p>}
                             <div className="ml-auto mt-4 h-25 w-45 border bg-white flex items-center justify-center overflow-hidden">
                                 {signatureUrl ? (
                                     // eslint-disable-next-line @next/next/no-img-element
@@ -1175,7 +1252,8 @@ const CreatePurchaseInvoicePage = () => {
                 </div>
             </main>
         </div>
-    );
+    )
+    ;
 };
 
 export default CreatePurchaseInvoicePage;

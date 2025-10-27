@@ -27,6 +27,25 @@ export const getProductById = async (
   return product;
 };
 
+// GET products by business id (admin helper)
+export const getProductsByBusiness = async (
+  businessId: string
+): Promise<IProduct[]> => {
+  return Product.find({ business: businessId, isActive: true }).sort({
+    createdAt: -1,
+  });
+};
+
+// Get all products across businesses (paginated). Restricted to superadmin usage.
+export const getAllProducts = async (page = 1, limit = 50): Promise<{ products: IProduct[]; total: number; page: number; limit: number }> => {
+  const skip = (page - 1) * limit;
+  const [products, total] = await Promise.all([
+    Product.find({ isActive: true }).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Product.countDocuments({ isActive: true }),
+  ]);
+  return { products, total, page, limit };
+};
+
 // ✅ CREATE new product
 export const createProduct = async (
   body: Partial<IProduct>,

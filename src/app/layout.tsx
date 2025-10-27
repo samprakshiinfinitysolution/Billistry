@@ -47,7 +47,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-gray-50 antialiased">
-        <Toaster position="top-right" />
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>

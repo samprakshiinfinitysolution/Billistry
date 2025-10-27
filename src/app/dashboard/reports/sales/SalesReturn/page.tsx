@@ -20,6 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import TableSkeleton from '@/components/ui/TableSkeleton';
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   format,
   isToday,
@@ -474,7 +476,7 @@ export default function SalesSummaryPage() {
 
             {/* Sales Table */}
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-full text-sm">
                 <TableHeader className="bg-gray-100">
                   <TableRow>
                     <TableHead>S. No.</TableHead>
@@ -565,33 +567,8 @@ export default function SalesSummaryPage() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={8}
-                        className="text-center py-4 text-gray-500"
-                      >
-                        <div className="flex items-center justify-center gap-2">
-                          <svg
-                            className="animate-spin h-5 w-5 text-gray-500"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8v8H4z"
-                            ></path>
-                          </svg>
-                          Loading sales returns...
-                        </div>
+                      <TableCell colSpan={8} className="p-0">
+                        <TableSkeleton rows={6} />
                       </TableCell>
                     </TableRow>
                   ) : filteredSales.length === 0 ? (
@@ -612,11 +589,52 @@ export default function SalesSummaryPage() {
                         <TableCell>
                           {format(parseISO(sale.returnDate), "dd/MM/yyyy")}
                         </TableCell>
-                        <TableCell>
-                          {sale.items.map((i) => i.name).join(", ")}
+                        <TableCell className="align-top">
+                          {(() => {
+                            const items = sale.items || [];
+                            if (!items.length) return <span className="text-sm text-gray-600">-</span>;
+                            const first = items.slice(0, 2).map((it) => it.name || "");
+                            const remaining = items.slice(2);
+                            const fullList = items.map((it) => `${it.name || ""} (x${it.qty})`).join("\n");
+                            return (
+                              <div className="flex items-center gap-2">
+                                <div className="truncate text-sm text-gray-800">{first.join(", ")}{remaining.length ? ", ..." : ""}</div>
+                                {remaining.length > 0 && (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <button className="text-xs text-indigo-600 hover:underline">+{remaining.length} more</button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-2">
+                                      <div className="text-sm text-gray-700 whitespace-pre-line">{fullList}</div>
+                                    </PopoverContent>
+                                  </Popover>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </TableCell>
-                        <TableCell>
-                          {sale.items.map((i) => `${i.qty} pcs`).join(", ")}
+                        <TableCell className="align-top">
+                          {(() => {
+                            const items = sale.items || [];
+                            if (!items.length) return <span className="text-sm text-gray-600">0</span>;
+                            const totalQty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+                            if (items.length <= 2) return <span className="text-sm text-gray-800">{totalQty}</span>;
+                            return (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-800">{totalQty}</span>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <button className="text-xs text-gray-500">details</button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-2">
+                                    <div className="text-sm text-gray-700">{items.map((it, idx) => (
+                                      <div key={idx} className="flex justify-between gap-4"><div className="truncate">{it.name}</div><div className="ml-4 text-gray-600">{it.qty} pcs</div></div>
+                                    ))}</div>
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell>
                           ₹{sale.totalAmount.toLocaleString()}

@@ -1,51 +1,3 @@
-// import { v2 as cloudinary } from 'cloudinary';
-
-// // Configure Cloudinary with your credentials from .env.local
-// cloudinary.config({
-//   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-//   api_key: process.env.CLOUDINARY_API_KEY,
-//   api_secret: process.env.CLOUDINARY_API_SECRET,
-//   secure: true,
-// });
-
-// /**
-//  * Uploads a file from a FormData object to Cloudinary.
-//  * @param file The File object to upload.
-//  * @returns A promise that resolves with the secure URL of the uploaded file.
-//  */
-// export async function uploadFileToCloudinary(file: File): Promise<string> {
-//     // Convert the file to a buffer
-//     const bytes = await file.arrayBuffer();
-//     const buffer = Buffer.from(bytes);
-
-//     return new Promise((resolve, reject) => {
-//         // Use upload_stream to upload the buffer
-//         const stream = cloudinary.uploader.upload_stream(
-//             {
-//                 folder: 'business_assets', // Optional: organize uploads in Cloudinary
-//                 resource_type: 'auto',
-//             },
-//             (error, result) => {
-//                 if (error) {
-//                     console.error('Cloudinary upload error:', error);
-//                     return reject(new Error('Failed to upload file.'));
-//                 }
-//                 if (result) {
-//                     resolve(result.secure_url);
-//                 } else {
-//                     reject(new Error('Cloudinary upload failed without a specific error.'));
-//                 }
-//             }
-//         );
-
-//         stream.end(buffer);
-//     });
-// }
-
-
-
-
-
 
 
 
@@ -67,7 +19,7 @@ cloudinary.config({
  * @param file The File object to upload.
  * @returns A promise that resolves with the secure URL of the uploaded file.
  */
-export async function uploadFileToCloudinary(file: File): Promise<string> {
+export async function uploadFileToCloudinary(file: File, folder: string): Promise<string> {
     // Convert the file to a buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
@@ -76,7 +28,7 @@ export async function uploadFileToCloudinary(file: File): Promise<string> {
         // Use upload_stream to upload the buffer
         const stream = cloudinary.uploader.upload_stream(
             {
-                folder: 'business_assets', // Optional: organize uploads in Cloudinary
+                folder: folder, // Optional: organize uploads in Cloudinary
                 resource_type: 'auto',
             },
             (error, result) => {

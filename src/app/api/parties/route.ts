@@ -10,9 +10,18 @@ export const GET = asyncHandler(async (req: NextRequest) => {
   if (user instanceof NextResponse) return user;
 
   const url = new URL(req.url);
-  const type = url.searchParams.get("type") as "Customer" | "Supplier" | null;
+  const typeParam = url.searchParams.get("type");
 
-  const parties = await PartyController.getParties(user, type || undefined);
+  let type: "Customer" | "Supplier" | undefined = undefined;
+
+  if (typeParam) {
+    if (typeParam !== "Customer" && typeParam !== "Supplier") {
+      return NextResponse.json({ success: false, message: "Invalid party type specified. Must be 'Customer' or 'Supplier'." }, { status: 400 });
+    }
+    type = typeParam;
+  }
+
+  const parties = await PartyController.getParties(user, type);
   return NextResponse.json({ success: true, parties });
 });
 

@@ -25,15 +25,20 @@ interface NewSaleReturnInput {
   autoRoundOff?: boolean;
   adjustmentType?: 'add' | 'subtract';
   manualAdjustment?: number;
+  selectedParty?: any;
 }
 
 export const createNewSaleReturn = async (body: NewSaleReturnInput, user: UserPayload) => {
   await connectDB();
   if (!user?.userId || !user?.businessId) throw new Error('Unauthorized');
 
-  const originalSale = await NewSale.findById(body.originalSale);
-  if (!originalSale) {
-    throw new Error('Original sale not found');
+  // originalSale is optional: if provided, validate it; otherwise allow creating a return
+  let originalSale: any = null;
+  if (body.originalSale) {
+    originalSale = await NewSale.findById(body.originalSale);
+    if (!originalSale) {
+      throw new Error('Original sale not found');
+    }
   }
 
   const counter = await Counter.findOneAndUpdate(
@@ -49,7 +54,7 @@ export const createNewSaleReturn = async (body: NewSaleReturnInput, user: UserPa
     business: user.businessId,
     createdBy: user.userId,
     updatedBy: user.userId,
-    selectedParty: originalSale.selectedParty,
+    selectedParty: originalSale ? originalSale.selectedParty : (body.selectedParty || undefined),
     returnInvoiceNumber: seq,
     returnInvoiceNo: `SR-${String(seq).padStart(5, '0')}`
   };
@@ -186,28 +191,57 @@ export const getNewSaleReturnById = async (id: string, user: UserPayload) => {
 
   if (!mongoose.Types.ObjectId.isValid(id)) throw new Error('Invalid id');
 
-  const doc = await NewSaleReturn.findOne({ _id: id, business: user.businessId, isDeleted: false })
-    .populate({ path: 'selectedParty', select: 'partyName mobileNumber billingAddress shippingAddress gstin openingBalance balance' })
-    .lean();
+  // Try to populate selectedParty; if Party model isn't registered (MissingSchemaError),
+  // fall back to manual lookup from the collection to avoid 500s during hot reloads.
+  try {
+    const doc = await NewSaleReturn.findOne({ _id: id, business: user.businessId, isDeleted: false })
+      .populate({ path: 'selectedParty', select: 'partyName mobileNumber billingAddress shippingAddress gstin openingBalance balance' })
+      .lean();
 
-  if (!doc) throw new Error('Not found or unauthorized');
+    if (!doc) throw new Error('Not found or unauthorized');
 
-  // normalize selectedParty and fallback to manual lookup on populate failures
-  if (doc.selectedParty && typeof doc.selectedParty === 'object') {
-    const sp = doc.selectedParty as any;
-    doc.selectedParty = {
-      id: sp._id || sp.id,
-      name: sp.partyName || sp.name || '',
-      mobileNumber: sp.mobileNumber || sp.mobile || '',
-      billingAddress: sp.billingAddress || sp.address || sp.shippingAddress || '',
-      shippingAddress: sp.shippingAddress || '',
-      gstin: sp.gstin || '',
-      openingBalance: sp.openingBalance || 0,
-      balance: sp.balance || 0,
-    };
+    if (doc.selectedParty && typeof doc.selectedParty === 'object') {
+      const sp = doc.selectedParty as any;
+      doc.selectedParty = {
+        id: sp._id || sp.id,
+        name: sp.partyName || sp.name || '',
+        mobileNumber: sp.mobileNumber || sp.mobile || '',
+        billingAddress: sp.billingAddress || sp.address || sp.shippingAddress || '',
+        shippingAddress: sp.shippingAddress || '',
+        gstin: sp.gstin || '',
+        openingBalance: sp.openingBalance || 0,
+        balance: sp.balance || 0,
+      };
+    }
+
+    return doc;
+  } catch (err: any) {
+    // Fallback: try raw lookup and manually fetch party from the collection
+    const raw = await NewSaleReturn.findOne({ _id: id, business: user.businessId, isDeleted: false }).lean();
+    if (!raw) throw new Error('Not found or unauthorized');
+
+    if (raw.selectedParty && mongoose.connection && mongoose.connection.db) {
+      try {
+        const p = await mongoose.connection.db.collection('parties').findOne({ _id: new mongoose.Types.ObjectId(String(raw.selectedParty)) }, { projection: { partyName: 1, mobileNumber: 1, billingAddress: 1, shippingAddress: 1, gstin: 1, openingBalance: 1, balance: 1 } });
+        if (p) {
+          raw.selectedParty = {
+            id: p._id,
+            name: p.partyName || '',
+            mobileNumber: p.mobileNumber || '',
+            billingAddress: p.billingAddress || p.address || p.shippingAddress || '',
+            shippingAddress: p.shippingAddress || '',
+            gstin: p.gstin || '',
+            openingBalance: p.openingBalance || 0,
+            balance: p.balance || 0,
+          };
+        }
+      } catch (e) {
+        // ignore lookup errors
+      }
+    }
+
+    return raw;
   }
-
-  return doc;
 };
 
 export const updateNewSaleReturn = async (id: string, body: any, user: UserPayload) => {

@@ -3,7 +3,6 @@
 import { usePathname } from 'next/navigation';
 import TopHeader from '@/components/TopHeader';
 import Footer from '@/components/Footer';
-import BillistrySidebar from '@/components/BillistrySidebar';
 import { Provider } from "react-redux";
 import { Toaster } from 'react-hot-toast';
 import { store } from "@/redux/store";
@@ -13,38 +12,32 @@ interface ClientLayoutProps {
 }
 
 export default function ClientLayout({ children }: ClientLayoutProps) {
-  const pathname = usePathname();
+  // usePathname() can sometimes be empty during hydration; fall back to window.location.pathname when available
+  let pathname = usePathname();
+  if ((!pathname || pathname === '/') && typeof window !== 'undefined') {
+    pathname = window.location.pathname;
+  }
 
   const isDashboard = pathname.startsWith('/dashboard');
-  const isCompany = pathname.startsWith('/billistry-company');
+  
+  const isWpAdmin = pathname.startsWith('/wp-admin');
+  
 
   return (
     <Provider store={store}>
       <Toaster position="top-center" reverseOrder={false} />
-      {/* Dashboard layout */}
-      {isDashboard && (
+      {/* Printable pages and wp-admin: minimal wrapper without header/footer/sidebar */}
+      { isWpAdmin ? (
+        <main className="w-full">
+          {children}
+        </main>
+      ) : isDashboard  ? (
         <div className="flex w-full h-screen  overflow-hidden">
-          {/* Sidebar placeholder */}
-          {/* <Sidebar /> */}
           <main className="flex-1 h-full overflow-auto ">
             {children}
           </main>
         </div>
-      )}
-
-      {/* Company admin layout */}
-      {isCompany && (
-        <div className="flex w-full h-screen  overflow-hidden">
-          {/* Billistry company sidebar */}
-          {/* <BillistrySidebar /> */}
-          <main className="flex-1 h-full overflow-auto ">
-            {children}
-          </main>
-        </div>
-      )}
-
-      {/* Public layout */}
-      {!isDashboard && !isCompany && (
+      ) : (
         <div className="flex flex-col min-h-screen w-full ">
           <TopHeader />
           <main className="flex-1 w-full">

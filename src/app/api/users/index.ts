@@ -10,12 +10,19 @@ export async function GET(req: NextRequest) {
     await connectDB();
     const currentUser = await authMiddleware(req, ["superadmin", "shopkeeper"]);
     if (currentUser instanceof NextResponse) return currentUser;
-    
-    const users = await User.find({
-      business: currentUser.businessId,
-      isDeleted: false,
-    }).select("-passwordHash");
-    
+    // If superadmin, allow listing across all businesses. Support optional role filter.
+    const params = req.nextUrl.searchParams;
+    const roleFilter = params.get('role') || undefined;
+
+    const query: any = { isDeleted: false };
+    if (currentUser.role !== 'superadmin') {
+      // restrict to the current user's business
+      query.business = currentUser.businessId;
+    } else if (roleFilter) {
+      query.role = roleFilter;
+    }
+
+    const users = await User.find(query).select("-passwordHash");
     return NextResponse.json(users);
   } catch (error: any) {
     console.error("User API error:", error);

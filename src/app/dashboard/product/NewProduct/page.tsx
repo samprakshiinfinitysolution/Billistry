@@ -38,6 +38,8 @@ const ItemsPageUI = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [search, setSearch] = useState("");
+  // Default to latest added so users see newest products first
+  const [sortOption, setSortOption] = useState<"a_z" | "z_a" | "latest">("latest");
 
   const [open, setOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -80,6 +82,22 @@ const ItemsPageUI = () => {
       return matchesSearch && matchesCategory && matchesLowStock;
     });
   }, [products, search, selectedCategory, showLowStockOnly]);
+
+  const sortedProducts = useMemo(() => {
+    const list = [...filteredProducts];
+    if (sortOption === "a_z") {
+      return list.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    if (sortOption === "z_a") {
+      return list.sort((a, b) => b.name.localeCompare(a.name));
+    }
+    // latest: sort by createdAt descending (newest first)
+    return list.sort((a, b) => {
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tb - ta;
+    });
+  }, [filteredProducts, sortOption]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
@@ -231,6 +249,16 @@ const ItemsPageUI = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={sortOption} onValueChange={(v: any) => setSortOption(v)}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="latest">Newest First</SelectItem>
+                <SelectItem value="a_z">A to Z</SelectItem>
+                <SelectItem value="z_a">Z to A</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               variant={showLowStockOnly ? "secondary" : "outline"}
               onClick={() => setShowLowStockOnly(!showLowStockOnly)}
@@ -267,7 +295,7 @@ const ItemsPageUI = () => {
 
         {/* Product Table */}
         <ProductTable
-          allProducts={filteredProducts}
+          allProducts={sortedProducts}
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDelete}

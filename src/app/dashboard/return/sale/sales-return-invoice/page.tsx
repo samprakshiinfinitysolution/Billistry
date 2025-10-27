@@ -13,6 +13,8 @@ import { AddItemModal, ItemData } from "../../../../../components/AddItem";
 import { AddParty, Party } from "../../../../../components/AddParty";
 import { LinkToInvoice, Invoice } from '../../../../../components/LinkToInvoice';
 import { ScanBarcodeModal } from '../../../../../components/ScanBarcode';
+import InvoiceSettingsModal from '../../../../../components/InvoiceSettingsModal';
+import FormSkeleton from '@/components/ui/FormSkeleton';
 
 const formatCurrency = (amount: number) => {
     if (isNaN(amount) || amount === null) return '0.00';
@@ -122,6 +124,14 @@ const CreateSalesReturnInvoicePage = () => {
     const [isScanBarcodeModalOpen, setIsScanBarcodeModalOpen] = useState(false);
     const [businessName, setBusinessName] = useState<string>('Business Name');
     const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+    const [gstNumber, setGstNumber] = useState<string | null>(null);
+
+    // Invoice settings (persisted to localStorage)
+    const [invoiceSettings, setInvoiceSettings] = useState<{ showTax: boolean; showGST: boolean }>({ showTax: true, showGST: true });
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [editId, setEditId] = useState<string | null>(null);
+    const [isFetching, setIsFetching] = useState(false);
     
     // --- Invoice Linking State ---
     const [searchInvoiceTerm, setSearchInvoiceTerm] = useState('');
@@ -148,6 +158,8 @@ const CreateSalesReturnInvoicePage = () => {
                 console.error('Error fetching sales invoices', e);
             }
         };
+        const eid = searchParams.get('editId');
+        if (eid) setEditId(eid);
         fetchInvoices();
         // Preview next return invoice number for new returns
         try {
@@ -178,9 +190,13 @@ const CreateSalesReturnInvoicePage = () => {
                 if (body?.data) {
                     if (body.data.name) setBusinessName(body.data.name);
                     if (body.data.signatureUrl) setSignatureUrl(body.data.signatureUrl);
+                    if (body.data.gstNumber) setGstNumber(body.data.gstNumber);
+                    if (body.data.gstin) setGstNumber(body.data.gstin);
                 } else {
                     if (body?.name) setBusinessName(body.name);
                     if (body?.signatureUrl) setSignatureUrl(body.signatureUrl);
+                    if (body?.gstNumber) setGstNumber(body.gstNumber);
+                    if (body?.gstin) setGstNumber(body.gstin);
                 }
             } catch (err) {
                 console.debug('Failed to fetch business settings', err);
@@ -190,11 +206,23 @@ const CreateSalesReturnInvoicePage = () => {
         return () => { cancelled = true; };
     }, []);
 
+    // Load invoiceSettings from localStorage on mount
+    useEffect(() => {
+        try {
+            const raw = window.localStorage.getItem('invoiceSettings');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                setInvoiceSettings(prev => ({ ...prev, ...parsed }));
+            }
+        } catch (e) {}
+    }, []);
+
     // If we have an editId in query params, fetch the existing sales return and populate form
     useEffect(() => {
         try {
             const editId = searchParams.get('editId');
             if (!editId) return;
+            setIsFetching(true);
             (async () => {
                 try {
                     const res = await fetch(`/api/new_sale_return/${editId}`, { credentials: 'include' });
@@ -267,8 +295,10 @@ const CreateSalesReturnInvoicePage = () => {
                         setCommittedAdjustment(m);
                         setManualAdjustmentStr(m ? String(m) : '');
                     }
+                    setIsFetching(false);
                 } catch (err) {
                     console.error('Error loading sales return for edit', err);
+                    setIsFetching(false);
                 }
             })();
         } catch (e) {}
@@ -428,7 +458,12 @@ const CreateSalesReturnInvoicePage = () => {
     // It starts with the value in the input field (or the base total if empty), then applies the manual adjustment and rounding.
     const totalFromInput = parseFloat(totalAmountStr) || 0;
     const adjustmentValue = adjustmentType === 'add' ? committedAdjustment : -committedAdjustment;
-    const totalBeforeRounding = totalFromInput + adjustmentValue + totalAdditionalCharges;
+    let totalBeforeRounding: number;
+    if (totalAmountManuallySet && totalFromInput > 0) {
+        totalBeforeRounding = totalFromInput;
+    } else {
+        totalBeforeRounding = baseTotal + totalAdditionalCharges + adjustmentValue;
+    }
     const finalAmountForBalance = autoRoundOff ? Math.round(totalBeforeRounding) : totalBeforeRounding;
     
     const amountReceived = parseFloat(amountReceivedStr) || 0;
@@ -578,8 +613,18 @@ const CreateSalesReturnInvoicePage = () => {
         setPartySearchTerm('');
     };
 
+    if (isFetching) {
+        return <div className="bg-gray-50 min-h-screen"><FormSkeleton /></div>;
+    }
+
     return (
         <div className="bg-gray-50 min-h-screen">
+            <InvoiceSettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                settings={invoiceSettings}
+                onSave={(s) => setInvoiceSettings(s)}
+            />
             <AddItemModal 
                 isOpen={isAddItemModalOpen}
                 onClose={() => setIsAddItemModalOpen(false)}
@@ -598,15 +643,15 @@ const CreateSalesReturnInvoicePage = () => {
                             <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100 rounded-md p-2" onClick={() => router.push('/dashboard/return/sale/sales-return-data')}>
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
-                            <h1 className="text-xl font-semibold text-gray-800">Create Sales Return</h1>
+                            <h1 className="text-xl font-semibold text-gray-800">{editId ? 'Update Sales Return' : 'Create Sales Return'}</h1>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2">
+                            <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2" onClick={() => setIsSettingsOpen(true)}>
                                 <Settings className="h-4 w-4 mr-2" /> Settings
                             </Button>
                             <Button onClick={async () => {
                                 try {
-                                    const numericAmountReceived = parseFloat(amountReceivedStr) || 0;
+                                    setSaving(true); const numericAmountReceived = parseFloat(amountReceivedStr) || 0;
                                     const payload: any = {
                                         originalSale: undefined, // will be set below if linking to invoice
                                         returnDate: invoiceDate,
@@ -629,14 +674,41 @@ const CreateSalesReturnInvoicePage = () => {
                                         if (match) payload.originalSale = match.id;
                                     } catch (e) {}
 
-                                    const res = await fetch('/api/new_sale_return', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                                    // include selectedParty if chosen on the form
+                                    try {
+                                        if (selectedParty) {
+                                            payload.selectedParty = (selectedParty as any).id || (selectedParty as any)._id || selectedParty;
+                                        }
+                                    } catch (e) {}
+                                    // Detect if we're editing an existing return (editId in query params)
+                                    const editId = searchParams.get('editId');
+                                    let res: Response;
+                                    if (editId) {
+                                        // Update existing
+                                        res = await fetch(`/api/new_sale_return/${encodeURIComponent(editId)}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                                    } else {
+                                        // Create new
+                                        res = await fetch('/api/new_sale_return', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                                    }
+
                                     if (!res.ok) {
                                         const err = await res.json().catch(() => ({}));
                                         console.error('Failed to save sales return', err);
                                     } else {
                                         const body = await res.json().catch(() => ({}));
-                                        // navigate to list page on success
-                                        try { router.push('/dashboard/return/sale/sales-return-data'); } catch (e) {}
+                                        // If server returned an id for the saved return, navigate to the invoice viewer/download page
+                                        try {
+                                            const returnedId = body?.data?._id || body?.data?.id || editId;
+                                            if (returnedId) {
+                                                try { setEditId(returnedId); } catch (e) {}
+                                                try { router.push(`/dashboard/return/sale/sales-return-invoice/${encodeURIComponent(String(returnedId))}`); } catch (e) {}
+                                            } else {
+                                                try { router.push('/dashboard/return/sale/sales-return-data'); } catch (e) {}
+                                            }
+                                        } catch (e) {
+                                            // fallback to list page
+                                            try { router.push('/dashboard/return/sale/sales-return-data'); } catch (err) {}
+                                        }
                                     }
                                 } catch (e) {
                                     console.error('Save sales return failed', e);
@@ -701,17 +773,17 @@ const CreateSalesReturnInvoicePage = () => {
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[900px]">
                              <thead className="border-b bg-gray-100">
-                                <tr>
-                                    <th className="px-2 py-2 text-left text-xs font-medium text-black w-10">NO</th>
-                                    <th className="px-2 py-2 text-left text-xs font-medium text-black flex-1">ITEMS/SERVICES</th>
-                                    <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">HSN/SAC</th>
-                                    <th className="px-2 py-2 text-left text-xs font-medium text-black w-20">QTY</th>
-                                    <th className="px-2 py-2 text-left text-xs font-medium text-black w-32">PRICE/ITEM (₹)</th>
-                                    <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">DISCOUNT</th>
-                                    <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">TAX</th>
-                                    <th className="px-2 py-2 text-right text-xs font-medium text-black w-32">AMOUNT (₹)</th>
-                                    <th className="w-12"></th>
-                                </tr>
+                                        <tr>
+                                            <th className="px-2 py-2 text-left text-xs font-medium text-black w-10">NO</th>
+                                            <th className="px-2 py-2 text-left text-xs font-medium text-black flex-1">ITEMS/SERVICES</th>
+                                            <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">HSN/SAC</th>
+                                            <th className="px-2 py-2 text-left text-xs font-medium text-black w-20">QTY</th>
+                                            <th className="px-2 py-2 text-left text-xs font-medium text-black w-32">PRICE/ITEM (₹)</th>
+                                            <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">DISCOUNT</th>
+                                            {invoiceSettings.showTax && <th className="px-2 py-2 text-left text-xs font-medium text-black w-28">TAX</th>}
+                                            <th className="px-2 py-2 text-right text-xs font-medium text-black w-32">AMOUNT (₹)</th>
+                                            <th className="w-12"></th>
+                                        </tr>
                             </thead>
                             <tbody>
                                 {items.map((item, index) => (
@@ -745,6 +817,7 @@ const CreateSalesReturnInvoicePage = () => {
                                                 </div>
                                             </div>
                                         </td>
+                                        {invoiceSettings.showTax && (
                                         <td className="px-2 py-2 w-32">
                                             <div className="flex flex-col gap-1">
                                                 <Select
@@ -771,6 +844,7 @@ const CreateSalesReturnInvoicePage = () => {
                                                 </div>
                                             </div>
                                         </td>
+                                        )}
                                         <td className="px-2 py-2 text-sm text-gray-800 text-right">{formatCurrency(calculateItemAmount(item))}</td>
                                         <td className="px-2 py-2 text-center">
                                             <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="text-gray-400 hover:text-red-500 rounded-full p-1">
@@ -799,7 +873,9 @@ const CreateSalesReturnInvoicePage = () => {
                     <div className="flex w-full min-w-[900px] bg-gray-100 border-b border-x">
                         <div className="flex-1 px-2 py-2 text-right text-xs font-medium text-black">SUBTOTAL</div>
                         <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalItemDiscount)}</div>
-                        <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalTax)}</div>
+                        {invoiceSettings.showTax && (
+                            <div className="w-28 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(totalTax)}</div>
+                        )}
                         <div className="w-32 px-2 py-2 text-right text-xs font-medium text-black">₹ {formatCurrency(itemsGrandTotal)}</div>
                         <div className="w-12"></div>
                     </div>
@@ -888,17 +964,19 @@ const CreateSalesReturnInvoicePage = () => {
                                 <div className="mt-2 space-y-1 text-sm">
                                     {gstBreakdown.map(g => {
                                         const halfTax = g.tax / 2;
-                                        const sgstLabel = `SGST@${(g.percent / 2) % 1 === 0 ? String(g.percent / 2) : (g.percent / 2).toFixed(2)}`;
-                                        const cgstLabel = `CGST@${(g.percent / 2) % 1 === 0 ? String(g.percent / 2) : (g.percent / 2).toFixed(2)}`;
+                                        const halfPercent = g.percent / 2;
+                                        const formatPercent = (p: number) => (Number.isInteger(p) ? String(p) : p.toFixed(2));
+                                        const sgstLabel = `SGST @ ${formatPercent(halfPercent)}%`;
+                                        const cgstLabel = `CGST @ ${formatPercent(halfPercent)}%`;
                                         return (
                                             <React.Fragment key={g.percent}>
                                                 <div className="flex justify-between items-center text-sm">
                                                     <span className="text-gray-500">{sgstLabel}</span>
-                                                    <span className="font-medium text-gray-800">₹ {formatCurrency(halfTax)}</span>
+                                                    <span className="font-medium text-gray-800">{formatCurrency(halfTax)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-sm">
                                                     <span className="text-gray-500">{cgstLabel}</span>
-                                                    <span className="font-medium text-gray-800">₹ {formatCurrency(halfTax)}</span>
+                                                    <span className="font-medium text-gray-800">{formatCurrency(halfTax)}</span>
                                                 </div>
                                             </React.Fragment>
                                         );
@@ -1074,6 +1152,9 @@ const CreateSalesReturnInvoicePage = () => {
                                     <div className="border-b border-gray-400 pb-2 mb-2">
                                     </div>
                                     <p className="text-sm text-gray-600">Authorized signatory for <span className="font-semibold">{businessName}</span></p>
+                                    {invoiceSettings.showGST && gstNumber && (
+                                        <p className="text-xs text-gray-600 mt-1">GSTIN: <span className="font-medium text-gray-800">{gstNumber}</span></p>
+                                    )}
                                     <div className="ml-auto mt-4 h-25 w-45 border bg-white flex items-center justify-center overflow-hidden">
                                         {signatureUrl ? (
                                             // eslint-disable-next-line @next/next/no-img-element

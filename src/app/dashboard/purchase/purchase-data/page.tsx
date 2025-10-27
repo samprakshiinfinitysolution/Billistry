@@ -19,6 +19,7 @@ import {
     Trash2,
 
 } from 'lucide-react';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 
 // Mock UI components
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
@@ -453,7 +454,6 @@ const PurchaseDataPage = () => {
                             <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
                                 <FileBarChart className="h-4 w-4 mr-2" />
                                 Reports
-                                <ChevronDown className="h-4 w-4 ml-2" />
                             </Button>
                             </Link>
                         </DropdownMenuTrigger>
@@ -523,10 +523,15 @@ const PurchaseDataPage = () => {
                     <div className="flex items-center gap-2">
                             <DropdownMenu>
                                 <DropdownMenuTrigger>
-                                    <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
+                                    <div className="relative inline-block group">
+                                    <Button disabled aria-disabled="true" variant="outline" className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 opacity-80 cursor-not-allowed">
                                         Bulk Actions
                                         <ChevronDown className="h-4 w-4 ml-2" />
                                     </Button>
+                                    <div className="absolute -top-7 right-0 hidden group-hover:block z-50">
+                                        <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded shadow">Coming soon</div>
+                                    </div>
+                                </div>
                                 </DropdownMenuTrigger>
                             </DropdownMenu>
                             <Link href="/dashboard/purchase/purchase-invoice">
@@ -553,7 +558,13 @@ const PurchaseDataPage = () => {
                         <TableBody>
                             {
                                 (() => {
-                                    if (loading) return <TableRow><TableCell colSpan={7} className="text-center py-20">Loading...</TableCell></TableRow>;
+                                    if (loading) return (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="p-0">
+                                                <TableSkeleton rows={6} />
+                                            </TableCell>
+                                        </TableRow>
+                                    );
                                     if (error) return <TableRow><TableCell colSpan={7} className="text-center py-20 text-red-500">{error}</TableCell></TableRow>;
                                     if (purchases.length === 0) return (
                                         <TableRow>

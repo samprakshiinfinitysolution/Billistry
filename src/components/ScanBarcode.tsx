@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Search, X, Plus, Barcode } from 'lucide-react';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 import {
   Select,
   SelectContent,
@@ -286,7 +287,9 @@ export const ScanBarcodeModal = ({ isOpen, onClose, onAddItem }: ScanBarcodeModa
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-gray-500">Loading items...</td>
+                  <td colSpan={6} className="p-0">
+                    <TableSkeleton rows={6} />
+                  </td>
                 </tr>
               ) : error ? (
                 <tr>
