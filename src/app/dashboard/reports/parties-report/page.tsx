@@ -257,8 +257,8 @@ export default function PartiesReportPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-64"
               />
-              <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
-                <SelectTrigger className="w-40">
+              <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)} >
+                <SelectTrigger className="w-40 cursor-pointer">
                   <SelectValue placeholder="Filter" />
                 </SelectTrigger>
                 <SelectContent>
@@ -267,8 +267,8 @@ export default function PartiesReportPage() {
                   <SelectItem value="Supplier">Supplier</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={period} onValueChange={(v) => { setPeriod(v); setStartDate(''); setEndDate(''); }}>
-                <SelectTrigger className="w-40"><SelectValue placeholder="Period" /></SelectTrigger>
+              <Select value={period} onValueChange={(v) => { setPeriod(v); setStartDate(''); setEndDate(''); }} >
+                <SelectTrigger className="w-40 cursor-pointer"><SelectValue placeholder="Period" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Time</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
@@ -282,7 +282,7 @@ export default function PartiesReportPage() {
             <div className="flex items-center gap-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button variant="outline" className="flex items-center gap-2 cursor-pointer">
                     Export Options
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -313,7 +313,7 @@ export default function PartiesReportPage() {
 
               <Button
                 variant="outline"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 cursor-pointer"
                 onClick={printTable}
               >
                 Print Parties

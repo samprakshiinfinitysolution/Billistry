@@ -365,7 +365,7 @@ export default function SalesSummaryPage() {
                 value={filterType}
                 onValueChange={(v: FilterType) => setFilterType(v)}
               >
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-40 cursor-pointer">
                   <SelectValue placeholder="Filter" />
                 </SelectTrigger>
                 <SelectContent>
@@ -390,7 +390,7 @@ export default function SalesSummaryPage() {
                 </>
               )}
               <Select value={paymentFilter} onValueChange={(v: string) => setPaymentFilter(v)}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-40 cursor-pointer">
                   <SelectValue placeholder="Payment Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -624,7 +624,7 @@ export default function SalesSummaryPage() {
                                   {remaining.length > 0 && (
                                     <Popover>
                                       <PopoverTrigger asChild>
-                                        <button className="text-xs text-indigo-600 hover:underline">+{remaining.length} more</button>
+                                        <button className="text-xs text-indigo-600 hover:underline cursor-pointer">+{remaining.length} more</button>
                                       </PopoverTrigger>
                                       <PopoverContent className="w-auto p-2">
                                         <div className="text-sm text-gray-700 whitespace-pre-line">
@@ -651,7 +651,7 @@ export default function SalesSummaryPage() {
                                   <span className="text-sm text-gray-800">{totalQty}</span>
                                   <Popover>
                                     <PopoverTrigger asChild>
-                                      <button className="text-xs text-gray-500">details</button>
+                                      <button className="text-xs text-gray-500 cursor-pointer">details</button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-2">
                                       <div className="text-sm text-gray-700">

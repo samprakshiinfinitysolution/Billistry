@@ -86,9 +86,14 @@ export default function StockSummaryPage() {
   }, []);
   // All low stock products (for table and total)
   const allLowStockProducts = useMemo(() => {
-    return products.filter(
-      (p) => Number(p.openingStock ?? 0) <= Number(p.lowStockAlert ?? 0)
-    );
+    return products.filter((p) => {
+      // Only consider products where a lowStockAlert threshold is set
+      const hasAlert = p.lowStockAlert !== undefined && p.lowStockAlert !== null && p.lowStockAlert !== "";
+      if (!hasAlert) return false;
+      // Prefer currentStock when available, fallback to openingStock
+      const stock = typeof p.currentStock !== "undefined" && p.currentStock !== null ? Number(p.currentStock) : Number(p.openingStock ?? 0);
+      return stock <= Number(p.lowStockAlert);
+    });
   }, [products]);
 
   // Total Low Stock Value (dynamic, GST adjusted)
@@ -144,9 +149,12 @@ export default function StockSummaryPage() {
           if (taxFilter === "without") return !p.purchasePriceWithTax;
           return true;
         })
-        .filter(
-          (p) => Number(p.openingStock ?? 0) <= Number(p.lowStockAlert ?? 0)
-        )
+        .filter((p) => {
+          const hasAlert = p.lowStockAlert !== undefined && p.lowStockAlert !== null && p.lowStockAlert !== "";
+          if (!hasAlert) return false;
+          const stock = typeof p.currentStock !== "undefined" && p.currentStock !== null ? Number(p.currentStock) : Number(p.openingStock ?? 0);
+          return stock <= Number(p.lowStockAlert);
+        })
         .sort((a, b) => {
           if (!sortConfig?.key) return 0;
           const key = sortConfig.key;
@@ -171,9 +179,12 @@ export default function StockSummaryPage() {
   // Only categories with low stock products
   const categories = useMemo(() => {
     // Filter only low stock products
-    const lowStockProducts = products.filter(
-      (p) => Number(p.openingStock ?? 0) <= Number(p.lowStockAlert ?? 0)
-    );
+    const lowStockProducts = products.filter((p) => {
+      const hasAlert = p.lowStockAlert !== undefined && p.lowStockAlert !== null && p.lowStockAlert !== "";
+      if (!hasAlert) return false;
+      const stock = typeof p.currentStock !== "undefined" && p.currentStock !== null ? Number(p.currentStock) : Number(p.openingStock ?? 0);
+      return stock <= Number(p.lowStockAlert);
+    });
 
     // Map their categories and remove undefined/null
     const cats = lowStockProducts
@@ -214,8 +225,8 @@ export default function StockSummaryPage() {
     // Prepare table body
     const body = filteredProducts.map((p, index) => {
       const purchasePrice = Number(p.purchasePrice ?? 0);
-      const openingStock = Number(p.openingStock ?? 0);
       const gstPercent = Number(p.taxPercent ?? 0);
+      const stock = typeof p.currentStock !== "undefined" && p.currentStock !== null ? Number(p.currentStock) : Number(p.openingStock ?? 0);
 
       return [
         index + 1,
@@ -223,7 +234,8 @@ export default function StockSummaryPage() {
         gstPercent.toFixed(2),
         purchasePrice.toFixed(2),
         Number(p.sellingPrice ?? 0).toFixed(2),
-        openingStock,
+        p.lowStockAlert ?? "-",
+        stock,
         calculateSubtotal(p).toFixed(2),
       ];
     });
@@ -238,6 +250,7 @@ export default function StockSummaryPage() {
           "GST(%)",
           "Purchase Price (₹)",
           "Selling Price (₹)",
+          "Low Stock",
           "Current Stock",
           "Stock Value (₹)",
         ],
@@ -249,12 +262,12 @@ export default function StockSummaryPage() {
       columnStyles: {
         0: { halign: "center", cellWidth: 10 },
         2: { halign: "center" },
-        6: { halign: "right" },
+        7: { halign: "right" },
       },
       // Grand total in footer
       foot: [
         [
-          { content: "Grand Total", colSpan: 6, styles: { halign: "right" } },
+          { content: "Grand Total", colSpan: 8, styles: { halign: "right" } },
           {
             content: `₹${filteredProducts
               .reduce((sum, p) => {
@@ -279,6 +292,7 @@ export default function StockSummaryPage() {
       const openingStock = Number(p.openingStock ?? 0);
       const gstPercent = Number(p.taxPercent ?? 0);
 
+      const stock = typeof p.currentStock !== "undefined" && p.currentStock !== null ? Number(p.currentStock) : Number(p.openingStock ?? 0);
       return {
         "S. No.": index + 1,
         "Product Name": p.name,
@@ -286,7 +300,8 @@ export default function StockSummaryPage() {
         "GST (%)": gstPercent.toFixed(2),
         "Purchase Price (₹)": purchasePrice.toFixed(2),
         "Selling Price (₹)": Number(p.sellingPrice ?? 0).toFixed(2),
-        "Current Stock": `${openingStock} ${p.unit || ""}`,
+  "Low Stock": p.lowStockAlert ?? "-",
+        "Current Stock": `${stock} ${p.unit || ""}`,
         "Stock Value (₹)": calculateSubtotal(p).toFixed(2),
         Category: p.category || "Uncategorized",
       };
@@ -380,7 +395,7 @@ export default function StockSummaryPage() {
                 value={selectedCategory}
                 onValueChange={setSelectedCategory}
               >
-                <SelectTrigger className="w-full md:w-[180px]">
+                <SelectTrigger className="w-full md:w-[180px] cursor-pointer">
                   <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -473,7 +488,7 @@ export default function StockSummaryPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-gray-500 font-medium text-sm">
+                <span className="text-gray-500 font-medium text-sm cursor-pointer">
                   Tax Filter:
                 </span>
                 <Select
@@ -482,7 +497,7 @@ export default function StockSummaryPage() {
                     setTaxFilter(value)
                   }
                 >
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[180px] cursor-pointer">
                     <SelectValue placeholder="Select Tax Filter" />
                   </SelectTrigger>
                   <SelectContent>
@@ -593,19 +608,20 @@ export default function StockSummaryPage() {
             {/* Stock Summary Table */}
             <div className="overflow-x-auto">
               <Table className="text-sm">
-                <TableHeader className="bg-gray-100">
-                  <TableRow>
-                    <TableHead>S. No.</TableHead>
-                    <TableHead>PRODUCT NAME</TableHead>
-                    <TableHead>SKU CODE</TableHead>
-                    <TableHead>GST %</TableHead>
-                    <TableHead>PURCHASE PRICE (₹)</TableHead>
-                    <TableHead>SELLING PRICE (₹)</TableHead>
-                    <TableHead>CURRENT STOCK</TableHead>
-                    <TableHead>STOCK VALUE</TableHead>
-                    {/* <TableHead>Purchase Product</TableHead> */}
-                  </TableRow>
-                </TableHeader>
+                        <TableHeader className="bg-gray-100">
+                            <TableRow>
+                              <TableHead>S. No.</TableHead>
+                              <TableHead>PRODUCT NAME</TableHead>
+                              <TableHead>SKU CODE</TableHead>
+                              <TableHead>GST %</TableHead>
+                              <TableHead>PURCHASE PRICE (₹)</TableHead>
+                              <TableHead>SELLING PRICE (₹)</TableHead>
+                              <TableHead>LOW STOCK</TableHead>
+                              <TableHead>CURRENT STOCK</TableHead>
+                              <TableHead>STOCK VALUE</TableHead>
+                              {/* <TableHead>Purchase Product</TableHead> */}
+                            </TableRow>
+                          </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
@@ -624,6 +640,7 @@ export default function StockSummaryPage() {
                     </TableRow>
                   ) : (
                     filteredProducts.map((p, index) => {
+                      const stock = typeof p.currentStock !== "undefined" && p.currentStock !== null ? Number(p.currentStock) : Number(p.openingStock ?? 0);
                       return (
                         <TableRow key={p._id}>
                           <TableCell>{index + 1}</TableCell>
@@ -644,8 +661,9 @@ export default function StockSummaryPage() {
                             )}
                           </TableCell>
                           <TableCell>₹{p.sellingPrice || "-"}</TableCell>
+                          <TableCell>{p.lowStockAlert ?? "-"}</TableCell>
                           <TableCell>
-                            {p.openingStock || 0} {p.unit || ""}
+                            {stock} {p.unit || ""}
                           </TableCell>
                           <TableCell>
                             ₹{Math.round(calculateSubtotal(p)).toLocaleString()}

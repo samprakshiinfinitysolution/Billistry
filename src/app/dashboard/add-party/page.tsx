@@ -16,6 +16,13 @@ import {
   Edit2,
   Trash2,
 } from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from '@/components/ui/select';
 
 // --- Types ---
 interface BankDetails {
@@ -222,7 +229,7 @@ export default function AddPartyPage() {
             type="button"
             onClick={() => handleSubmit("saveNew")}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isSubmitting ? "Saving..." : "Save & New"}
           </button>
@@ -230,7 +237,7 @@ export default function AddPartyPage() {
             type="button"
             onClick={() => handleSubmit("save")}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isSubmitting ? "Saving..." : "Save"}
           </button>
@@ -293,22 +300,22 @@ export default function AddPartyPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label
-                  htmlFor="partyType"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Party Type*
+                <label htmlFor="partyType" className="block text-sm font-medium text-gray-700 mb-1">
+                  <span className="text-red-500 mr-1">*</span>
+                  Party Type
                 </label>
-                <select
-                  id="partyType"
-                  name="partyType"
+                <Select
                   value={formData.partyType}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
+                  onValueChange={(v) => setFormData((prev) => ({ ...prev, partyType: v as any }))}
                 >
-                  <option>Customer</option>
-                  <option>Supplier</option>
-                </select>
+                  <SelectTrigger id="partyType" name="partyType" className="w-full cursor-pointer px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm">
+                    <SelectValue placeholder="Select party type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Customer">Customer</SelectItem>
+                    <SelectItem value="Supplier">Supplier</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </section>
@@ -391,7 +398,7 @@ export default function AddPartyPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setIsBankModalOpen(true)}
-                      className="p-2 text-gray-500 hover:text-blue-600"
+                      className="p-2 text-gray-500 hover:text-blue-600 cursor-pointer"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
@@ -399,7 +406,7 @@ export default function AddPartyPage() {
                       onClick={() =>
                         setFormData((prev) => ({ ...prev, bankDetails: null }))
                       }
-                      className="p-2 text-gray-500 hover:text-red-600"
+                      className="p-2 text-gray-500 hover:text-red-600 cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

@@ -149,3 +149,16 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
+/* Hide native datepicker icon so our custom calendar/chevron is the visible control */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Firefox - try to hide native icon (best-effort) */
+input[type="date"]::-moz-clear {
+  display: none;
+}
+

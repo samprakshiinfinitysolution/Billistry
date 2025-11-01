@@ -281,16 +281,16 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
             />
           </div>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-auto min-w-[180px]">
-              <SelectValue placeholder="Select Category" />
-            </SelectTrigger>
+            <SelectTrigger className="w-auto min-w-[180px] cursor-pointer">
+                <SelectValue placeholder="Select Category" />
+              </SelectTrigger>
             <SelectContent>
               {allCategories.map(category => (
                 <SelectItem key={category} value={category}>{category === 'All' ? 'Select Category' : category}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 px-4 h-9 flex items-center gap-2" onClick={() => setShowAddProduct(true)}>
+          <Button variant="outline" className="border-gray-300 text-gray-700 cursor-pointer hover:bg-gray-50 px-4 h-9 flex items-center gap-2" onClick={() => setShowAddProduct(true)}>
             <Plus className="h-4 w-4" /> Create New Item
           </Button>
           {/* AddProduct dialog - opens when creating a new product from AddItem modal */}
@@ -350,12 +350,12 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
                         <div className="flex items-center justify-center gap-2">
                             {/* Stepper Input */}
                             <div className="relative flex items-center w-24">
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="absolute left-0.5 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-md"
-                                    onClick={() => handleQuantityChange(item.id, (stagedItems[item.id] || 0) - 1)}
-                                >
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute left-0.5 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-gray-500 cursor-pointer hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-md"
+                  onClick={() => handleQuantityChange(item.id, (stagedItems[item.id] || 0) - 1)}
+                >
                                     -
                                 </Button>
                 <Input
@@ -364,12 +364,12 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
                   onChange={(e) => handleQuantityChange(item.id, Math.max(0, Number(e.target.value) || 0))}
                   className="h-8 w-full text-center px-7"
                 />
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="absolute right-0.5 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-md"
-                                    onClick={() => handleQuantityChange(item.id, (stagedItems[item.id] || 0) + 1)}
-                                >
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute right-0.5 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-gray-500 cursor-pointer hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-md"
+                  onClick={() => handleQuantityChange(item.id, (stagedItems[item.id] || 0) + 1)}
+                >
                                     +
                                 </Button>
                             </div>
@@ -389,14 +389,14 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
                               )}
                             </div>
                             {/* Close Button */}
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500" onClick={() => handleQuantityChange(item.id, 0)}>
-                                <X className="h-4 w-4" />
-                            </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 cursor-pointer hover:text-red-500" onClick={() => handleQuantityChange(item.id, 0)}>
+                <X className="h-4 w-4" />
+              </Button>
                         </div>
                       ) : (
-                        <Button className="bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-semibold px-4 py-2 rounded-lg" onClick={() => handleQuantityChange(item.id, 1)}>
-                            + Add
-                        </Button>
+            <Button className="bg-blue-50 text-blue-700 cursor-pointer hover:bg-blue-100 text-xs font-semibold px-4 py-2 rounded-lg" onClick={() => handleQuantityChange(item.id, 1)}>
+              + Add
+            </Button>
                       )}
                     </td>
                   </tr>
@@ -431,11 +431,11 @@ export const AddItemModal = ({ isOpen, onClose, onAddItem }: AddItemModalProps) 
                 </div>
             )}
           </div>
-          <div className="flex gap-3 items-center">
-            <Button className="bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 font-semibold px-6 py-2 rounded-md" onClick={handleCloseAndReset}>
+            <div className="flex gap-3 items-center">
+            <Button className="bg-white border border-gray-300 text-gray-800 cursor-pointer hover:bg-gray-100 font-semibold px-6 py-2 rounded-md" onClick={handleCloseAndReset}>
               Cancel
             </Button>
-            <Button disabled={hasInsufficientStock} className={`font-semibold px-6 py-2 rounded-md ${hasInsufficientStock ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`} onClick={handleDoneClick}>
+            <Button disabled={hasInsufficientStock} className={`font-semibold px-6 py-2 rounded-md ${hasInsufficientStock ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer'}`} onClick={handleDoneClick}>
               Done
             </Button>
           </div>

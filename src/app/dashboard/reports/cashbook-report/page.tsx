@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, ChevronDown } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -234,7 +234,7 @@ export default function CashBookSummaryPage() {
             <div className="flex flex-wrap gap-2 items-center">
               <Input placeholder="Search description..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" disabled={loading} />
               <Select value={filterType} onValueChange={(v: FilterType) => setFilterType(v)}>
-                <SelectTrigger className="w-40" disabled={loading}><SelectValue placeholder="Date Range"/></SelectTrigger>
+                <SelectTrigger className="w-40 cursor-pointer" disabled={loading}><SelectValue placeholder="Date Range"/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
@@ -250,7 +250,7 @@ export default function CashBookSummaryPage() {
               )}
 
               <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
-                <SelectTrigger className="w-40" disabled={loading}><SelectValue placeholder="Type"/></SelectTrigger>
+                <SelectTrigger className="w-40 cursor-pointer" disabled={loading}><SelectValue placeholder="Type"/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">
                     <div className="flex items-center gap-2">
@@ -274,7 +274,7 @@ export default function CashBookSummaryPage() {
               </Select>
 
               <Select value={modeFilter} onValueChange={(v) => setModeFilter(v as any)}>
-                <SelectTrigger className="w-40" disabled={loading}><SelectValue placeholder="Mode"/></SelectTrigger>
+                <SelectTrigger className="w-40 cursor-pointer" disabled={loading}><SelectValue placeholder="Mode"/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">
                     <div className="flex items-center gap-2">
@@ -300,15 +300,15 @@ export default function CashBookSummaryPage() {
 
             <div className="flex items-center gap-3">
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2" disabled={loading}>Export Options</Button>
+                  <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2 cursor-pointer" disabled={loading}>Export Options <ChevronDown className="w-4 h-4 text-gray-600 ml-1" /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem onClick={exportExcel}>Download Excel</DropdownMenuItem>
                   <DropdownMenuItem onClick={exportPDF}>Print PDF</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button variant="outline" className="flex items-center gap-2" onClick={printTable} disabled={loading}>Print Cashbook</Button>
+              <Button variant="outline" className="flex items-center gap-2 cursor-pointer" onClick={printTable} disabled={loading}>Print Cashbook</Button>
             </div>
           </div>
 

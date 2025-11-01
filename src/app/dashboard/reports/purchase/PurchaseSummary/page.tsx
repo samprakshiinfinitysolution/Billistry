@@ -312,7 +312,7 @@ export default function PurchaseSummaryPage() {
                 value={filterType}
                 onValueChange={(v: FilterType) => setFilterType(v)}
               >
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-40 cursor-pointer">
                   <SelectValue placeholder="Filter" />
                 </SelectTrigger>
                 <SelectContent>
@@ -338,8 +338,8 @@ export default function PurchaseSummaryPage() {
                 </>
               )}
 
-              <Select value={paymentFilter} onValueChange={(v: string) => setPaymentFilter(v)}>
-                <SelectTrigger className="w-40">
+              <Select value={paymentFilter} onValueChange={(v: string) => setPaymentFilter(v)} >
+                <SelectTrigger className="w-40 cursor-pointer">
                   <SelectValue placeholder="Payment Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -370,7 +370,7 @@ export default function PurchaseSummaryPage() {
             <div className="flex items-center gap-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button variant="outline" className="flex items-center gap-2 cursor-pointer">
                     Export Options
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -400,7 +400,7 @@ export default function PurchaseSummaryPage() {
 
               <Button
                 variant="outline"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 cursor-pointer"
                 onClick={printTable}
               >
                 Print Summary <FileText className="w-4 h-4" />

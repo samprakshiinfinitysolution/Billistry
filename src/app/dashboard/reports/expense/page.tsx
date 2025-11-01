@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, ChevronDown } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -280,7 +280,7 @@ export default function ExpensesSummaryPage() {
               />
 
               <Select value={filterType} onValueChange={(v: FilterType) => setFilterType(v)}>
-                <SelectTrigger className="w-40" disabled={loading}>
+                <SelectTrigger className="w-40 cursor-pointer" disabled={loading}>
                   <SelectValue placeholder="Filter" />
                 </SelectTrigger>
                 <SelectContent>
@@ -302,7 +302,7 @@ export default function ExpensesSummaryPage() {
             <div className="flex items-center gap-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2" disabled={loading}>Export Options</Button>
+                  <Button variant="outline" className="flex items-center gap-2" disabled={loading}>Export Options <ChevronDown className="w-4 h-4 text-gray-600 ml-1" /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem onClick={exportExcel}>Download Excel</DropdownMenuItem>
