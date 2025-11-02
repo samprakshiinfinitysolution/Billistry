@@ -1,49 +1,59 @@
+
+
+
+// app/add-party/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { authMiddleware } from "@/lib/middleware/auth";
 import * as PartyController from "@/controllers/partyController";
 import { asyncHandler } from "@/lib/asyncHandler";
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
-const paramsSchema = z.object({
-  id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Party ID"),
-});
-
-// GET a single party
-export const GET = asyncHandler(async (req: NextRequest, { params }: RouteParams) => {
+// GET single party by ID
+export const GET = asyncHandler(async (req: NextRequest, { params }: { params: { id: string } }) => {
   const user = await authMiddleware(req);
   if (user instanceof NextResponse) return user;
 
-  const { id } = paramsSchema.parse(params);
-  const partyData = await PartyController.getPartyById(id, user);
-  if (!partyData) {
-    return NextResponse.json({ success: false, message: "Party not found" }, { status: 404 });
+  const party = await PartyController.getPartyById(params.id, user);
+  if (!party) {
+    return NextResponse.json(
+      { success: false, error: "Party not found" },
+      { status: 404 }
+    );
   }
-  return NextResponse.json({ success: true, ...partyData });
+
+  return NextResponse.json({ success: true, party });
 });
 
-// UPDATE a party
-export const PUT = asyncHandler(async (req: NextRequest, { params }: RouteParams) => {
+// UPDATE party
+export const PUT = asyncHandler(async (req: NextRequest, { params }: { params: { id: string } }) => {
   const user = await authMiddleware(req);
   if (user instanceof NextResponse) return user;
 
-  const { id } = paramsSchema.parse(params);
   const body = await req.json();
-  const updatedParty = await PartyController.updateParty(id, body, user);
+  const updatedParty = await PartyController.updateParty(params.id, body, user);
+
+  if (!updatedParty) {
+    return NextResponse.json(
+      { success: false, error: "Party not found or could not be updated" },
+      { status: 404 }
+    );
+  }
+
   return NextResponse.json({ success: true, party: updatedParty });
 });
 
-// DELETE a party
-export const DELETE = asyncHandler(async (req: NextRequest, { params }: RouteParams) => {
+// DELETE party
+export const DELETE = asyncHandler(async (req: NextRequest, { params }: { params: { id: string } }) => {
   const user = await authMiddleware(req);
   if (user instanceof NextResponse) return user;
 
-  const { id } = paramsSchema.parse(params);
-  await PartyController.deleteParty(id, user);
+  const deleted = await PartyController.deleteParty(params.id, user);
+
+  if (!deleted) {
+    return NextResponse.json(
+      { success: false, error: "Party not found or could not be deleted" },
+      { status: 404 }
+    );
+  }
+
   return NextResponse.json({ success: true, message: "Party deleted successfully" });
 });

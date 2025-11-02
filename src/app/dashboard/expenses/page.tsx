@@ -19,8 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Link from "next/link";
-import useAuthGuard from "@/hooks/useAuthGuard";
-import { toast } from "react-hot-toast";
 
 
 interface Expense {
@@ -33,7 +31,6 @@ interface Expense {
 }
 
 export default function ExpensePage() {
-  const { user } = useAuthGuard();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -390,27 +387,13 @@ export default function ExpensePage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            if (user?.permissions?.expenses?.update) {
-                              handleEdit(e);
-                            } else {
-                              toast.error("You don't have permission to edit expenses.");
-                            }
-                          }}
-                        >
+                        <DropdownMenuItem onClick={() => handleEdit(e)}>
                           <Edit2 className="mr-2 h-4 w-4" />
                           <span>Edit</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => {
-                            if (user?.permissions?.expenses?.delete) {
-                              handleDelete(e._id);
-                            } else {
-                              toast.error("You don't have permission to delete expenses.");
-                            }
-                          }}
-                          className="text-red-600 focus:text-red-600"
+                          onClick={() => handleDelete(e._id)}
+                          className="text-red-600"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           <span>Delete</span>

@@ -32,15 +32,6 @@ export const createProduct = async (
   body: Partial<IProduct>,
   user: UserPayload
 ): Promise<IProduct> => {
-  const canCreate =
-    user.role === "superadmin" ||
-    user.role === "shopkeeper" ||
-    (user.role === "staff" && user.permissions?.products?.create);
-
-  if (!canCreate) {
-    throw new Error("Forbidden: You do not have permission to create products");
-  }
-
   if (!body.name || !body.sellingPrice) {
     throw new Error("Product name and selling price are required");
   }

@@ -18,8 +18,6 @@ import {
     Edit,
     Trash2,
 } from 'lucide-react';
-import useAuthGuard from '@/hooks/useAuthGuard';
-import { toast } from 'react-hot-toast';
 
 // Mock UI components
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
@@ -162,7 +160,6 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
 
 
 const SalesReturnDataPage = () => {
-    const { user } = useAuthGuard();
     const router = useRouter();
     const [selectedCard, setSelectedCard] = useState('Total Returns');
     const [returnsList, setReturnsList] = useState<any[]>([]);
@@ -516,23 +513,8 @@ const SalesReturnDataPage = () => {
                                                 </Button>
                                                 {openDropdownId === r._id && (
                                                     <div className="absolute right-0 mt-2 w-40 bg-white border rounded-md shadow-lg z-10">
-                                                        <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center" onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (user?.permissions?.salesReturn?.update) {
-                                                                setOpenDropdownId(null);
-                                                                router.push(`/dashboard/return/sale/sales-return-invoice?editId=${r._id}`);
-                                                            } else {
-                                                                toast.error("You don't have permission to edit sales returns.");
-                                                            }
-                                                        }}><Edit className="h-4 w-4 mr-2"/> Edit</button>
-                                                        <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center" onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (user?.permissions?.salesReturn?.delete) {
-                                                                handleDeleteClick(r._id);
-                                                            } else {
-                                                                toast.error("You don't have permission to delete sales returns.");
-                                                            }
-                                                        }}><Trash2 className="h-4 w-4 mr-2"/> Delete</button>
+                                                        <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center" onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); router.push(`/dashboard/return/sale/sales-return-invoice?editId=${r._id}`); }}><Edit className="h-4 w-4 mr-2"/> Edit</button>
+                                                        <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center" onClick={(e) => { e.stopPropagation(); handleDeleteClick(r._id); }}><Trash2 className="h-4 w-4 mr-2"/> Delete</button>
                                                     </div>
                                                 )}
                                             </td>

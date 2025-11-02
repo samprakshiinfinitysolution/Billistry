@@ -31,8 +31,6 @@ const reportSections = [
       { name: "Sales Return", href: "/dashboard/reports/sales/SalesReturn" },
       { name: "Purchase Return", href: "/dashboard/reports/purchase/PurchaseReturn" },
       { name: "Expense Report", href: "/dashboard/reports/expense" },
-      { name: "Parties Report", href: "/dashboard/reports/parties-report" },
-      { name: "Cashbook Report", href: "/dashboard/reports/cashbook-report" },
 
       // { name: "Cashbook Report", href: "/dashboard/reports/bills/cashbook" },
     ],
@@ -144,3 +142,4 @@ export default function ReportsPage() {
     </div>
   );
 }
+

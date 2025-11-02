@@ -1,21 +1,38 @@
-import mongoose, { Schema, Document } from "mongoose";
+// models/Otp.ts
+import mongoose, { Schema, Document, models, model } from "mongoose";
 
-interface INotification extends Document {
-  userId: string; // shopkeeper or company user
-  title: string;
-  message: string;
-  read: boolean;
-  emailSent: boolean;
+export interface IOtp extends Document {
+  identifier: string; // phone or email
+  otp: string;
+  expiresAt: Date;
   createdAt: Date;
 }
 
-const NotificationSchema = new Schema<INotification>({
-  userId: { type: String, required: true },
-  title: { type: String, required: true },
-  message: { type: String, required: true },
-  read: { type: Boolean, default: false },
-  emailSent: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
-});
+const OtpSchema = new Schema<IOtp>(
+  {
+    identifier: {
+      type: String,
+      required: true,
+      index: true, // fast lookup for validation
+    },
+    otp: {
+      type: String,
+      required: true,
+    },
+    expiresAt: {
+      type: Date,
+      required: true,
+    },
+  },
+  {
+    timestamps: { createdAt: true, updatedAt: false }, // store only createdAt
+  }
+);
 
-export default mongoose.models.Notification || mongoose.model("Notification", NotificationSchema);
+// Auto-delete OTPs after expiry using MongoDB TTL index
+OtpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Avoid model overwrite issue in Next.js / hot-reload
+const Otp = models.Otp || model<IOtp>("Otp", OtpSchema);
+
+export default Otp;
