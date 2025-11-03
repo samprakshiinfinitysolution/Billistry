@@ -23,6 +23,8 @@ import {
   Receipt,
   TrendingUp,
   UserCog,
+  SubscriptIcon,
+  Crown,
 } from 'lucide-react';
 import clsx from 'clsx';
 import useAuthGuard from '@/hooks/useAuthGuard';
@@ -53,6 +55,7 @@ const navLinks = [
   { href: '/dashboard/expenses', label: 'Expenses', icon: Receipt, section: 'GENERAL', permission: 'expenses' },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart, section: 'GENERAL', permission: 'reports' },
   { href: '/dashboard/staff', label: 'Staff', icon: UserCog, section: 'GENERAL', permission: 'staff' },
+  { href: '/dashboard/subscription', label: 'Plans & Pricing', icon:Crown, section: 'GENERAL', permission: 'plansAndPricing' },
 ];
 
 export default function Sidebar({ businesses = [] }: SidebarProps) {
