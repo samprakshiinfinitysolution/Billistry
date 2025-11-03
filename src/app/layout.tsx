@@ -7,6 +7,7 @@ import ClientLayout from "@/components/ClientLayout";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
+
 export const metadata: Metadata = {
   title: {
     default: "Billistry",
@@ -47,6 +48,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-gray-50 antialiased">
+        
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>

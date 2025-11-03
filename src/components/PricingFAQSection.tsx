@@ -1,5 +1,7 @@
+'use client';
 import { useState } from "react";
 import { Plus, Minus, Headset, Users, Handshake } from "lucide-react";
+import RequestDemo from "./RequestDemo";
 
 const faqs = [
   {
@@ -47,7 +49,7 @@ const faqs = [
     answer: (
       <>
         Certainly! We are delighted to offer a web conference demonstration of Billistry Billing. Please fill{" "}
-        <button className="text-[#7B53A6] underline" onClick={() => console.log("Open demo form")}>
+        <button className="text-[#7B53A6] underline" data-trigger-demo>
           this form
         </button>{" "}
         to schedule your personalized 45-minute session.
@@ -93,9 +95,20 @@ const contacts = [
 
 export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [showDemo, setShowDemo] = useState(false);
 
   const toggleFAQ = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
+  };
+
+  const handleFaqClick = (e: React.MouseEvent<HTMLLIElement>) => {
+    const target = e.target as HTMLElement;
+    // Check if the clicked element or its parent has the data-trigger-demo attribute
+    if (target.closest('[data-trigger-demo]')) {
+      e.preventDefault(); // Prevent any default button/link behavior
+      e.stopPropagation(); // Stop the event from bubbling up to the accordion toggle
+      setShowDemo(true);
+    }
   };
 
   return (
@@ -112,6 +125,7 @@ export default function FAQSection() {
         {faqs.map((faq, i) => (
           <li
             key={i}
+            onClick={handleFaqClick}
             className="bg-white rounded-2xl  shadow-md border border-gray-200 overflow-hidden transition-all duration-300"
           >
             <button
@@ -178,8 +192,8 @@ export default function FAQSection() {
       ))}
     </div>
   </div>
+  {showDemo && <RequestDemo isOpen={showDemo} onClose={() => setShowDemo(false)} />}
 </section>
 
   );
 }
-

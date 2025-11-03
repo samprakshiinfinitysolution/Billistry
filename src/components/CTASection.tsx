@@ -129,78 +129,88 @@
 
 
 
-import { Sparkles, ArrowRight } from "lucide-react"
+"use client";
+
+import { useState } from 'react';
+import { Sparkles, ArrowRight } from "lucide-react";
+import LoginSlider from "./LoginSlider";
+import RequestDemo from './RequestDemo';
 
 export default function CTASection() {
+  const [showLogin, setShowLogin] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
+
   return (
-  <section
-  className="relative bg-gray-900 py-20 px-6 text-center overflow-hidden footer-animate-bg bg-fixed font-poppins"
-  style={{
-    backgroundImage: "url('/images/cta-bg.jpg')",
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-  }}
->
-  {/* Dark Overlay for readability */}
-  <div className="absolute inset-0 bg-black/70 "></div>
-
-  <div className="relative max-w-4xl mx-auto z-10 flex flex-col items-center text-white ">
-    {/* Badge */}
-    <span className="inline-flex items-center gap-2 bg-[#F7FBFB] px-4 py-2 rounded-full text-sm sm:text-base font-semibold mb-4 shadow-sm backdrop-blur-sm text-[#390F59] border border-[#744D81]">
-      <Sparkles className="w-5 h-5 text-yellow-300" />
-      Premium Inventory Experience
-    </span>
-
-    {/* Heading */}
-    <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 leading-tight font-roboto">
-      Supercharge Your Inventory <br className="hidden sm:block" />
-      with <span className="text-[#7B53A6]">Billistry Insights</span>
-    </h2>
-
-    {/* Subtext */}
-    <p className="text-lg sm:text-lg md:text-lg mb-10 font-medium text-gray-200 max-w-2xl">
-      Unlock real-time analytics, low-stock alerts, and seamless management. <br className="hidden sm:block" />
-      Start your free trial and join the next generation of inventory control.
-    </p>
-
-    {/* Buttons */}
-    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-      <button className="inline-flex items-center gap-2  bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-[#F7FBFB] px-4 sm:px-6 md:px-8 py-3 rounded-lg font-semibold text-base sm:text-lg shadow-md hover:scale-105 transition-all duration-200">
-        Start Free Trial <ArrowRight className="w-5 h-5" />
-      </button>
-      <a
-        href="/contact"
-        className="inline-flex items-center justify-center gap-2 border-2 border-[#7B53A6] text-white px-4 sm:px-6 md:px-8 py-3 rounded-lg font-semibold text-base sm:text-lg hover:bg-gradient-to-r hover:from-[#390F59] hover:via-[#460F58] hover:to-[#7B53A6] hover:text-[#F7FBFB] transition-all duration-200 shadow-sm"
+    <>
+      <section
+        className="relative bg-gray-900 py-20 px-6 text-center overflow-hidden footer-animate-bg bg-fixed font-poppins"
+        style={{
+          backgroundImage: "url('/images/cta-bg.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
       >
-        Contact Sales
-      </a>
-    </div>
+        {/* Dark Overlay for readability */}
+        <div className="absolute inset-0 bg-black/70 "></div>
 
-    {/* Features */}
-    <div className="mt-10 flex flex-wrap justify-center gap-6 text-gray-200 text-sm sm:text-base">
-      <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-green-400" />
-        99.99% Uptime
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-blue-400" />
-        24/7 Support
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-yellow-400" />
-        AI-powered Reports
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-indigo-400" />
-        Secure & Fast
-      </div>
-    </div>
-  </div>
-</section>
+        <div className="relative max-w-4xl mx-auto z-10 flex flex-col items-center text-white ">
+          {/* Badge */}
+          <span className="inline-flex items-center gap-2 bg-[#F7FBFB] px-4 py-2 rounded-full text-sm sm:text-base font-semibold mb-4 shadow-sm backdrop-blur-sm text-[#390F59] border border-[#744D81]">
+            <Sparkles className="w-5 h-5 text-yellow-300" />
+            Premium Inventory Experience
+          </span>
 
+          {/* Heading */}
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 leading-tight font-roboto">
+            Supercharge Your Inventory <br className="hidden sm:block" />
+            with <span className="text-[#7B53A6]">Billistry Insights</span>
+          </h2>
 
-  )
+          {/* Subtext */}
+          <p className="text-lg sm:text-lg md:text-lg mb-10 font-medium text-gray-200 max-w-2xl">
+            Unlock real-time analytics, low-stock alerts, and seamless management. <br className="hidden sm:block" />
+            Start your free trial and join the next generation of inventory control.
+          </p>
+
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => setShowLogin(true)}
+              className="inline-flex items-center gap-2  bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-[#F7FBFB] px-4 sm:px-6 md:px-8 py-3 rounded-lg font-semibold text-base sm:text-lg shadow-md hover:scale-105 transition-all duration-200"
+            >
+              Start Free Trial <ArrowRight className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setShowDemo(true)}
+              className="inline-flex items-center justify-center gap-2 border-2 border-[#7B53A6] text-white px-4 sm:px-6 md:px-8 py-3 rounded-lg font-semibold text-base sm:text-lg hover:bg-gradient-to-r hover:from-[#390F59] hover:via-[#460F58] hover:to-[#7B53A6] hover:text-[#F7FBFB] transition-all duration-200 shadow-sm"
+            >
+              Request Demo
+            </button>
+          </div>
+
+          {/* Features */}
+          <div className="mt-10 flex flex-wrap justify-center gap-6 text-gray-200 text-sm sm:text-base">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-400" />
+              99.99% Uptime
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-400" />
+              24/7 Support
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-yellow-400" />
+              AI-powered Reports
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-400" />
+              Secure & Fast
+            </div>
+          </div>
+        </div>
+      </section>
+      {showLogin && <LoginSlider onClose={() => setShowLogin(false)} />}
+      {showDemo && <RequestDemo isOpen={showDemo} onClose={() => setShowDemo(false)} />}
+    </>
+  );
 }
-
-
-

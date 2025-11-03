@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SignJWT } from 'jose';
-import { cookies } from 'next/headers';
+import { SignJWT } from 'jose'; // Using jose for JWT creation
 import { connectDB } from '@/lib/db';
 import User from '@/models/User';
 
@@ -38,16 +37,17 @@ export async function POST(request: Request) {
       .setExpirationTime('2h') // Token is valid for 2 hours
       .sign(key);
 
-    // 6. Set the token in a secure, httpOnly cookie
-    cookies().set('auth_token', token, {
+    // 6. Create a response and set the cookie on it
+    const response = NextResponse.json({ success: true, message: 'Login successful' });
+    response.cookies.set('admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       path: '/',
       maxAge: 2 * 60 * 60, // 2 hours in seconds
     });
-
-    return NextResponse.json({ success: true, message: 'Login successful' });
+    
+    return response;
   } catch (error) {
     console.error('Login API error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

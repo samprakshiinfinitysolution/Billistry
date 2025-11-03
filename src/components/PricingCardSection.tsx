@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import RequestDemo from "./RequestDemo";
 import { CheckCircle2 } from "lucide-react";
 
 type Plan = {
@@ -92,6 +93,7 @@ const addons = [
 export default function PricingSection() {
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
   const [currency, setCurrency] = useState("INR");
+  const [showDemo, setShowDemo] = useState(false);
 
   return (
     <section className="relative bg-[#F7FBFB] py-20 px-6 font-['Poppins'] sm:px-8 lg:px-12 ">
@@ -152,16 +154,15 @@ export default function PricingSection() {
               )}
 
               {/* CTA */}
-              <button
-                className={`w-full py-3 rounded-full cursor-pointer font-bold text-lg transition-all duration-300 shadow-md
-                ${
-                  p.highlight
-                    ? "bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-white hover:scale-105 whitespace-nowrap overflow-hidden text-ellipsis"
-                    : " border-2 border-[#7B53A6] text-[#7B53A6] px-4 sm:px-6 md:px-8 py-3 rounded-lg font-semibold text-base sm:text-lg hover:bg-gradient-to-r hover:from-[#390F59] hover:via-[#460F58] hover:to-[#7B53A6] hover:text-[#F7FBFB] transition-all duration-200 shadow-sm whitespace-nowrap overflow-hidden text-ellipsis"
-                }`}
-              >
-                {p.name === "Custom" ? "Request Demo" : "Get Started"}
-              </button>
+              {p.name === "Custom" ? (
+                <button onClick={() => setShowDemo(true)} className="w-full py-3 rounded-full cursor-pointer font-bold text-lg transition-all duration-300 shadow-md border-2 border-[#7B53A6] text-[#7B53A6] hover:bg-gradient-to-r hover:from-[#390F59] hover:via-[#460F58] hover:to-[#7B53A6] hover:text-[#F7FBFB]">
+                  Request Demo
+                </button>
+              ) : (
+                <button className={`w-full py-3 rounded-full cursor-pointer font-bold text-lg transition-all duration-300 shadow-md ${p.highlight ? "bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-white hover:scale-105" : "border-2 border-[#7B53A6] text-[#7B53A6] hover:bg-gradient-to-r hover:from-[#390F59] hover:via-[#460F58] hover:to-[#7B53A6] hover:text-[#F7FBFB]"}`}>
+                  Get Started
+                </button>
+              )}
 
               {/* Features */}
               <ul className="mt-6 space-y-2">
@@ -212,10 +213,7 @@ export default function PricingSection() {
           })}
         </div>
       </div>
+      {showDemo && <RequestDemo isOpen={showDemo} onClose={() => setShowDemo(false)} />}
     </section>
   );
 }
-
-
-
-

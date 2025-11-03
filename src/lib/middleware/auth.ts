@@ -34,7 +34,14 @@ export async function authMiddleware(
   req: NextRequest,
   allowedRoles?: Role[]
 ): Promise<UserPayload | NextResponse> {
-  const token = req.cookies.get("token")?.value;
+  // Accept token either from cookie (browser requests) or from Authorization header
+  const cookieToken = req.cookies.get("token")?.value;
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  const headerToken = authHeader?.toString().startsWith("Bearer ")
+    ? authHeader.toString().split(" ")[1]
+    : authHeader;
+
+  const token = cookieToken || headerToken;
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
