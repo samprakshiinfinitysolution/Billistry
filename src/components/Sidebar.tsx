@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import useAuthGuard from '@/hooks/useAuthGuard';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface SidebarProps {
   user?: { name: string; role: string; businessName?: string; phoneNumber?: string } | null; // Added phoneNumber
@@ -55,18 +56,25 @@ const navLinks = [
 ];
 
 export default function Sidebar({ businesses = [] }: SidebarProps) {
-  const { user } = useAuthGuard();
-  const pathname = usePathname();
+  const { user, loading } = useAuthGuard();
+  const pathname = usePathname() || '';
   const router = useRouter();
 
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    try {
+      if (typeof window === 'undefined') return false;
+      return localStorage.getItem('sidebar-collapsed') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+  const [logoutLoading, setLogoutLoading] = useState(false);
   const [dark, setDark] = useState(false); // Kept for potential future use
   const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
 
   const handleLogout = async () => {
-    if (loading) return;
-    setLoading(true);
+    if (logoutLoading) return;
+    setLogoutLoading(true);
     try {
       const res = await fetch('/api/auth/logout', { method: 'POST' });
       if (res.ok) router.push('/');
@@ -74,7 +82,7 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
     } catch {
       alert("Something went wrong");
     } finally {
-      setLoading(false);
+      setLogoutLoading(false);
     }
   };
 
@@ -83,6 +91,15 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
       prev.includes(label) ? prev.filter((d) => d !== label) : [...prev, label]
     );
   };
+
+  // persist collapse state
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') localStorage.setItem('sidebar-collapsed', String(isCollapsed));
+    } catch (e) {
+      // ignore
+    }
+  }, [isCollapsed]);
 
   // Memoize filtered and grouped nav links based on user permissions
   const sections = useMemo(() => {
@@ -111,38 +128,58 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
     <aside
       className={clsx(
         'relative h-screen bg-[#35053C] text-white flex flex-col transition-all duration-300 shadow-xl',
-        isCollapsed ? 'w-20' : 'w-56'
+        isCollapsed ? 'w-20' : 'w-64'
       )}
     >
       {/* Header (User Info & Settings) */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
+      <div className={clsx(
+        'flex items-center px-4 py-3 border-b border-gray-700/50',
+        isCollapsed ? 'justify-center' : 'justify-between'
+      )}>
         <div className="flex items-center gap-2">
-          {/* Avatar Placeholder */}
-          <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-xs font-semibold">
-            {user?.businessName ? user.businessName[0] : user?.name ? user.name[0] : 'U'}
-          </div>
-          {!isCollapsed && user && (
-            <div className="flex flex-col w-28">
-              <span className="text-sm font-semibold truncate" title={user.businessName || user.name}>
-                {user.businessName || user.name || "User"}
-              </span>
-              <span className="text-xs text-gray-400 truncate" title={user.name}>
-                {user.phone}
-              </span>
-              <span className="text-xs text-gray-400 truncate" title={user.phone}>
-                {user.name}
-              </span>
-              <span className="text-xs text-gray-400 truncate capitalize" title={user.role}>
-                {user.role}
-              </span>
+          {/* Avatar Placeholder or Skeleton */}
+          {loading ? (
+            <Skeleton className="h-10 w-10 rounded-full" />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-gray-500 flex items-center justify-center text-sm font-semibold">
+              {user?.businessName ? user.businessName[0] : user?.name ? user.name[0] : 'U'}
             </div>
           )}
+
+          {!isCollapsed && (
+            loading ? (
+              <div className="flex flex-col w-40">
+                <Skeleton className="h-4 w-32 mb-2 rounded" />
+                <Skeleton className="h-3 w-28 mb-1 rounded" />
+                <Skeleton className="h-3 w-24 mb-1 rounded" />
+                <Skeleton className="h-3 w-20 rounded" />
+              </div>
+            ) : user ? (
+              <div className="flex flex-col w-40">
+                <span className="text-sm font-semibold truncate" title={user.businessName || user.name}>
+                  {user.businessName || user.name || "User"}
+                </span>
+                <span className="text-xs text-gray-400 truncate" title={user.name}>
+                  {user.phone}
+                </span>
+                <span className="text-xs text-gray-400 truncate" title={user.phone}>
+                  {user.name}
+                </span>
+                <span className="text-xs text-gray-400 truncate capitalize" title={user.role}>
+                  {user.role}
+                </span>
+              </div>
+            ) : null
+          )}
         </div>
-        <Link href={"/dashboard/settings/company"}> 
-        <button className="text-gray-400 hover:text-white transition-colors">
-          <Settings className="w-5 h-5" />
-        </button>
-        </Link>
+        {/* Top settings: hide when sidebar is collapsed */}
+        {!isCollapsed && (
+          <Link href={"/dashboard/settings/company"}> 
+            <button className="text-gray-400 hover:text-white transition-colors">
+              <Settings className="w-5 h-5" />
+            </button>
+          </Link>
+        )}
       </div>
 
 
@@ -165,6 +202,7 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
                     <li key={link.label}>
                       <button
                         onClick={() => toggleDropdown(link.label)}
+                        title={isCollapsed ? link.label : undefined}
                         className={clsx(
                           'flex items-center justify-between w-full px-3 py-2 rounded-md',
                           'text-gray-300 hover:bg-gray-700 hover:text-white transition-colors',
@@ -208,6 +246,7 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
                   <li key={link.href}>
                     <Link
                       href={link.href}
+                      title={isCollapsed ? link.label : undefined}
                       className={clsx(
                         'flex items-center gap-3 px-3 py-2 rounded-md transition',
                         pathname.startsWith(link.href) ? 'bg-[#34495e] text-white font-medium' : 'text-gray-300 hover:bg-gray-700 hover:text-white',
@@ -226,7 +265,7 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="px-3 py-4 border-t border-gray-700/50 space-y-2">
+  <div className="px-3 py-4 border-t border-gray-700/50 space-y-2">
         {/* Collapse/Expand button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -240,7 +279,7 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
         </button>
 
          {/* Settings Link */}
-         <Link href="/dashboard/settings/company" className={clsx(
+              <Link href="/dashboard/settings/company" title={isCollapsed ? 'Settings' : undefined} className={clsx(
               'flex items-center gap-2 w-full px-3 py-2 rounded-md transition',
               pathname.startsWith('/dashboard/settings') // Active if any setting page
                 ? 'bg-[#34495e] text-white font-medium'
@@ -266,13 +305,14 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
         {/* Logout */}
         <button
           onClick={handleLogout}
-          disabled={loading}
+          disabled={logoutLoading}
           className={clsx(
             'flex items-center gap-2 w-full px-3 py-2 mt-2 rounded-md text-red-400 font-medium hover:bg-red-900/30 transition-colors disabled:opacity-50',
             isCollapsed && 'justify-center'
           )}
+          title={isCollapsed ? 'Logout' : undefined}
         >
-          <LogOut className="w-5 h-5" /> {!isCollapsed && (loading ? "Logging out..." : "Logout")}
+          <LogOut className="w-5 h-5" /> {!isCollapsed && (logoutLoading ? "Logging out..." : "Logout")}
         </button>
       </div>
       <style jsx>{`

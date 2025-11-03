@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { Product } from "@/types/product";
-import { MoreHorizontal, Edit, Trash } from "lucide-react";
+import { MoreVertical, Edit, Trash, PackageX } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -16,6 +16,7 @@ interface ProductTableProps {
   loading?: boolean;
   onEdit: (product: Product | null, open: boolean) => void; // note the null + open flag
   onDelete: (id: string) => void;
+  onAdjust?: (product: Product) => void;
   showActions?: boolean;
 }
 
@@ -25,6 +26,7 @@ export default function ProductTable({
   loading = false,
   onEdit,
   onDelete,
+  onAdjust,
   showActions = true,
 }: ProductTableProps) {
   // Use the order provided by parent (sorting is handled by caller)
@@ -94,7 +96,7 @@ export default function ProductTable({
           sortedProducts.map((p, index) => (
             <tr
               key={p._id}
-              className={`border-b dark:border-gray-700 ${
+              className={`border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${
                 Number(p.currentStock ?? 0) <= Number(p.lowStockAlert ?? 0)
                   ? "!bg-red-200"
                   : ""
@@ -116,15 +118,19 @@ export default function ProductTable({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button className="p-1 rounded hover:bg-gray-100 cursor-pointer">
-                        <MoreHorizontal className="h-4 w-4" />
+                        <MoreVertical className="h-4 w-4" />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="pointer-events-auto">
+                      {/** Adjust action: calls parent handler if provided */}
+                      <DropdownMenuItem onClick={() => onAdjust && onAdjust(p)}>
+                        <PackageX className="mr-2 h-4 w-4" /> Adjust
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEdit(p,true)}>
                         <Edit className="mr-2 h-4 w-4" /> Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDelete(p._id)}>
-                        <Trash className="mr-2 h-4 w-4 text-red-500" /> Delete
+                      <DropdownMenuItem onClick={() => onDelete(p._id)} className="text-red-600 focus:text-red-600 hover:bg-red-50 focus:bg-red-50">
+                        <Trash className="mr-2 h-4 w-4" /> Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

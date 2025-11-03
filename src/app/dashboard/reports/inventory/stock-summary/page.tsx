@@ -356,7 +356,7 @@ export default function StockSummaryPage() {
                 </PopoverContent>
               </Popover>
               <div className="flex items-center gap-2">
-                <span className="text-gray-500 font-medium text-sm">
+                <span className="text-gray-500 font-medium text-sm cursor-pointer">
                   Tax Filter:
                 </span>
                 <Select
@@ -365,7 +365,7 @@ export default function StockSummaryPage() {
                     setTaxFilter(value)
                   }
                 >
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[180px] cursor-pointer">
                     <SelectValue placeholder="Select Tax Filter" />
                   </SelectTrigger>
                   <SelectContent>

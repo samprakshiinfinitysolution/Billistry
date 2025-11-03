@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowUpDown, FileText } from "lucide-react";
+import { ArrowUpDown, FileText, ChevronDown } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -232,7 +232,7 @@ export default function PurchaseSummaryPage() {
             <div className="flex flex-wrap gap-2 items-center">
               <Input placeholder="Search supplier or invoice..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
               <Select value={filterType} onValueChange={(v: FilterType) => setFilterType(v)}>
-                <SelectTrigger className="w-40"><SelectValue placeholder="Filter" /></SelectTrigger>
+                <SelectTrigger className="w-40 cursor-pointer"><SelectValue placeholder="Filter" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="today">Today</SelectItem>
@@ -251,7 +251,7 @@ export default function PurchaseSummaryPage() {
             <div className="flex items-center gap-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">Export Options</Button>
+                  <Button variant="outline" className="flex items-center gap-2">Export Options <ChevronDown className="w-4 h-4 text-gray-600 ml-1" /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem onClick={exportExcel}>Download Excel</DropdownMenuItem>

@@ -14,6 +14,16 @@ import {
   Plus,
   Building,
 } from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import FormSkeleton from '@/components/ui/FormSkeleton';
 
 // --- Types ---
 interface BankDetails {
@@ -140,6 +150,7 @@ export default function EditPartyPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [sameAsBilling, setSameAsBilling] = useState(true);
   const [isBankModalOpen, setIsBankModalOpen] = useState(false);
+  const [showDeleteConfirmBank, setShowDeleteConfirmBank] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -207,6 +218,12 @@ export default function EditPartyPage() {
     setIsBankModalOpen(false);
   };
 
+  const confirmDeleteBank = () => {
+    setFormData((prev) => ({ ...prev, bankDetails: null }));
+    setShowDeleteConfirmBank(false);
+    toast.success("Bank details removed");
+  };
+
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     if (!formData.partyName) newErrors.partyName = "Party name is required.";
@@ -241,225 +258,242 @@ export default function EditPartyPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center bg-gray-100">
-        <p className="text-gray-600">Loading party details...</p>
-      </div>
-    );
+    // show a consistent form skeleton while party data loads
+    return <div className="bg-gray-50 min-h-screen"><FormSkeleton /></div>;
   }
 
   return (
     <div className="flex flex-col h-full bg-gray-100 font-inter">
-      {/* Header */}
-      <header className="flex items-center justify-between px-10 py-4 bg-white shadow-sm border-b border-gray-200">
-        <div className="flex items-center gap-4">
-          <ArrowLeft
-            className="w-5 h-5 text-gray-600 cursor-pointer"
-            onClick={() => router.back()}
-          />
-          <h1 className="text-xl font-semibold text-gray-800">Edit Party</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <Settings className="w-5 h-5 text-gray-600 cursor-pointer" />
-          <HelpCircle className="w-5 h-5 text-gray-600 cursor-pointer" />
-          <button
-            type="button"
-            onClick={handleUpdate}
-            disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-          >
-            {isSubmitting ? "Saving..." : "Save"}
-          </button>
+      {/* Header: match other pages (sticky white header with shadow) */}
+      <header className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                <ArrowLeft className="w-5 h-5 text-gray-600" />
+              </Button>
+              <div>
+                <h1 className="text-lg sm:text-xl font-semibold text-gray-800">Edit Party</h1>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" className="px-3 py-2" onClick={() => {/* placeholder for settings */}}>
+                <Settings className="w-5 h-5 text-gray-600" />
+              </Button> 
+              <Button variant="ghost" className="px-3 py-2" onClick={() => {/* placeholder for help */}}>
+                <HelpCircle className="w-5 h-5 text-gray-600" />
+              </Button>
+              
+              <Button variant="outline" className="px-3 py-2" onClick={() => router.push('/dashboard/parties')}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdate} disabled={isSubmitting} className="px-4 py-2">
+                {isSubmitting ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto bg-white p-8 rounded-lg shadow">
-          {/* General Details */}
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-800 mb-6 border-b pb-4">
-              General Details
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-              <InputField
-                label="Party Name"
-                name="partyName"
-                value={formData.partyName}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-                required
-                error={errors.partyName}
-              />
-              <InputField
-                label="Mobile Number"
-                name="mobileNumber"
-                value={formData.mobileNumber}
-                onChange={handleInputChange}
-                placeholder="Enter mobile number"
-                required
-                error={errors.mobileNumber}
-              />
-              <InputField
-                label="Email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="Enter email"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <InputField
-                label="GSTIN"
-                name="gstin"
-                value={formData.gstin}
-                onChange={handleInputChange}
-                placeholder="ex: 29ABCDE1234F2Z5"
-              />
-              <InputField
-                label="PAN Number"
-                name="panNumber"
-                value={formData.panNumber}
-                onChange={handleInputChange}
-                placeholder="Enter PAN number"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label
-                  htmlFor="partyType"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Party Type*
-                </label>
-                <select
-                  id="partyType"
-                  name="partyType"
-                  value={formData.partyType}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
-                >
-                  <option>Customer</option>
-                  <option>Supplier</option>
-                </select>
-              </div>
-            </div>
-          </section>
-
-          {/* Address Section */}
-          <section className="mb-8 mt-8">
-            <h2 className="text-lg font-semibold text-gray-800 mb-6 border-b pb-4">
-              Address
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TextAreaField
-                label="Billing Address"
-                name="billingAddress"
-                value={formData.billingAddress}
-                onChange={handleInputChange}
-                placeholder="Enter billing address"
-              />
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label
-                    htmlFor="shippingAddress"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Shipping Address
-                  </label>
-                  <div className="flex items-center">
-                    <input
-                      id="sameAsBilling"
-                      name="sameAsBilling"
-                      type="checkbox"
-                      checked={sameAsBilling}
-                      onChange={(e) => setSameAsBilling(e.target.checked)}
-                      className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+        <div className="p-6 max-w-7xl mx-auto">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>General Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <InputField
+                      label="Party Name"
+                      name="partyName"
+                      value={formData.partyName}
+                      onChange={handleInputChange}
+                      placeholder="Enter name"
+                      required
+                      error={errors.partyName}
                     />
-                    <label
-                      htmlFor="sameAsBilling"
-                      className="ml-2 block text-sm text-gray-700"
-                    >
-                      Same as billing
-                    </label>
+                    <InputField
+                      label="Mobile Number"
+                      name="mobileNumber"
+                      value={formData.mobileNumber}
+                      onChange={handleInputChange}
+                      placeholder="Enter mobile number"
+                      required
+                      error={errors.mobileNumber}
+                    />
+                    <InputField
+                      label="Email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Enter email"
+                    />
                   </div>
-                </div>
-                <textarea
-                  id="shippingAddress"
-                  name="shippingAddress"
-                  value={
-                    sameAsBilling
-                      ? formData.billingAddress
-                      : formData.shippingAddress
-                  }
-                  onChange={handleInputChange}
-                  placeholder="Enter shipping address"
-                  rows={3}
-                  disabled={sameAsBilling}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-            </div>
-          </section>
 
-          {/* Bank Section */}
-          <section className="pt-8">
-            <h2 className="text-lg font-semibold text-gray-800 mb-6 border-b pb-4">
-              Party Bank Account
-            </h2>
-            {formData.bankDetails ? (
-              <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold text-gray-800">
-                      {formData.bankDetails.accountHolderName}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      A/C: {formData.bankDetails.accountNumber}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      IFSC: {formData.bankDetails.ifsc}
-                    </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <InputField
+                      label="GSTIN"
+                      name="gstin"
+                      value={formData.gstin}
+                      onChange={handleInputChange}
+                      placeholder="ex: 29ABCDE1234F2Z5"
+                    />
+                    <InputField
+                      label="PAN Number"
+                      name="panNumber"
+                      value={formData.panNumber}
+                      onChange={handleInputChange}
+                      placeholder="Enter PAN number"
+                    />
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setIsBankModalOpen(true)}
-                      className="p-2 text-gray-500 hover:text-blue-600"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() =>
-                        setFormData((prev) => ({ ...prev, bankDetails: null }))
-                      }
-                      className="p-2 text-gray-500 hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label htmlFor="partyType" className="block text-sm font-medium text-gray-700 mb-1">
+                        <span className="text-red-500 mr-1">*</span>
+                        Party Type
+                      </label>
+                      <Select
+                        value={formData.partyType}
+                        onValueChange={(v) => setFormData((prev) => ({ ...prev, partyType: v as any }))}
+                      >
+                        <SelectTrigger id="partyType" name="partyType" className="w-full cursor-pointer px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm">
+                          <SelectValue placeholder="Select party type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Customer">Customer</SelectItem>
+                          <SelectItem value="Supplier">Supplier</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center p-8 border border-dashed border-gray-300 rounded-md bg-gray-50">
-                <Building className="w-12 h-12 text-gray-400 mb-4" />
-                <p className="text-gray-600 mb-4">
-                  Add party bank information to manage transactions
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsBankModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 rounded-md hover:bg-blue-50"
-                >
-                  <Plus className="w-4 h-4" /> Add Bank Account
-                </button>
-              </div>
-            )}
-          </section>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Address</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <TextAreaField
+                      label="Billing Address"
+                      name="billingAddress"
+                      value={formData.billingAddress}
+                      onChange={handleInputChange}
+                      placeholder="Enter billing address"
+                    />
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label
+                          htmlFor="shippingAddress"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          Shipping Address
+                        </label>
+                        <div className="flex items-center">
+                          <input
+                            id="sameAsBilling"
+                            name="sameAsBilling"
+                            type="checkbox"
+                            checked={sameAsBilling}
+                            onChange={(e) => setSameAsBilling(e.target.checked)}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          <label
+                            htmlFor="sameAsBilling"
+                            className="ml-2 block text-sm text-gray-700"
+                          >
+                            Same as billing
+                          </label>
+                        </div>
+                      </div>
+                      <textarea
+                        id="shippingAddress"
+                        name="shippingAddress"
+                        value={
+                          sameAsBilling
+                            ? formData.billingAddress
+                            : formData.shippingAddress
+                        }
+                        onChange={handleInputChange}
+                        placeholder="Enter shipping address"
+                        rows={3}
+                        disabled={sameAsBilling}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Party Bank Account</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {formData.bankDetails ? (
+                    <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-gray-800">
+                            {formData.bankDetails.accountHolderName}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            A/C: {formData.bankDetails.accountNumber}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            IFSC: {formData.bankDetails.ifsc}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setIsBankModalOpen(true)}
+                            className="p-2 text-gray-500 hover:text-blue-600 cursor-pointer"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteConfirmBank(true)}
+                            className="p-2 text-gray-500 hover:text-red-600 cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-8 border border-dashed border-gray-300 rounded-md bg-gray-50">
+                      <Building className="w-12 h-12 text-gray-400 mb-4" />
+                      <p className="text-gray-600 mb-4">
+                        Add party bank information to manage transactions
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setIsBankModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 rounded-md hover:bg-blue-50"
+                      >
+                        <Plus className="w-4 h-4" /> Add Bank Account
+                      </button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+          </div>
         </div>
       </main>
+
+        {/* Mobile sticky action bar */}
+        <div className="fixed bottom-4 left-0 right-0 sm:hidden px-4 z-40">
+          <div className="max-w-7xl mx-auto flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => router.push('/dashboard/parties')}>Cancel</Button>
+            <Button className="flex-1" onClick={handleUpdate} disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save'}</Button>
+          </div>
+        </div>
 
       {/* Bank Modal */}
       {isBankModalOpen && (
@@ -469,6 +503,25 @@ export default function EditPartyPage() {
           onSave={handleSaveBankDetails}
           initialData={formData.bankDetails}
         />
+      )}
+
+      {/* Delete confirmation for bank details (overlay) */}
+      {showDeleteConfirmBank && (
+        <div className={`fixed inset-0 bg-black/40 z-50 flex justify-center items-center p-4`} onClick={() => setShowDeleteConfirmBank(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-800">Confirm Deletion</h3>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowDeleteConfirmBank(false)}>✕</button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">Are you sure you want to remove the saved bank details for this party? This action can be undone by adding the bank account again.</p>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2" onClick={() => setShowDeleteConfirmBank(false)}>Cancel</Button>
+                <Button className="bg-red-600 text-white hover:bg-red-700 px-4 py-2" onClick={confirmDeleteBank}>Yes, Delete</Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

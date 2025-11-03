@@ -45,6 +45,7 @@ export const GST_OPTIONS = [
   { value: "13.8", label: "GST @ 13.8%" },
   { value: "18", label: "GST @ 18%" },
   { value: "28", label: "GST @ 28%" },
+  { value: "40", label: "GST @ 40%" },
 ];
 
 // const UNIT_OPTIONS = ["pcs", "kg", "liter", "pack", "box"];
@@ -500,7 +501,7 @@ export default function AddProduct({
                 </Button>
               </div>
                 {/* Floating dot indicator positioned next to the tab buttons (desktop) */}
-                <div className="hidden md:flex absolute right-[-12px] top-1/2 -translate-y-1/2 flex-col items-center gap-2 pointer-events-none z-20">
+                <div className="hidden md:flex absolute right-[-14px] top-1/2 -translate-y-1/2 flex-col items-center gap-2 pointer-events-none z-20">
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'basic' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'stock' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'price' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
@@ -511,7 +512,7 @@ export default function AddProduct({
             {activeForm === "basic" && (
               <div ref={attachRightPane} className="relative border border-gray-500 rounded-md grid grid-cols-1 md:grid-cols-2 gap-3 h-[55vh] min-w-[45vw] w-max overflow-y-auto">
                 {/* Right-pane dot indicator (mirrors left) */}
-                <div className="absolute left-3 top-3 flex flex-col items-center gap-2 pointer-events-none z-20 md:hidden">
+                <div className="absolute left-12 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-none z-20 md:hidden">
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'basic' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'stock' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'price' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
@@ -681,7 +682,7 @@ export default function AddProduct({
                     </label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="flex justify-between items-center w-[180px] p-1 px-2 border border-gray-300 rounded-lg shadow-sm text-gray-500 hover:border-gray-400 hover:shadow-md transition-all duration-200">
+                        <button className="flex justify-between items-center w-[180px] p-1 px-2 border border-gray-300 rounded-lg shadow-sm text-gray-500 hover:border-gray-400 hover:shadow-md transition-all duration-200 cursor-pointer">
                           {formData.taxPercent
                             ? GST_OPTIONS.find(
                                 (opt) =>
@@ -721,7 +722,7 @@ export default function AddProduct({
                         setFormData({ ...formData, unit: val })
                       }
                     >
-                      <SelectTrigger className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 text-gray-700 hover:border-gray-400 hover:shadow-md transition-all duration-200">
+                      <SelectTrigger className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 text-gray-700 hover:border-gray-400 hover:shadow-md transition-all duration-200 cursor-pointer">
                         <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
 
@@ -750,7 +751,7 @@ export default function AddProduct({
             {activeForm === "stock" && (
               <div ref={attachRightPane} className="relative border border-gray-500 rounded-md grid grid-cols-1 md:grid-cols-2 gap-3 h-[55vh] min-w-[45vw] w-max overflow-y-scroll">
                 {/* Right-pane dot indicator (mirrors left) */}
-                <div className="absolute left-3 top-3 flex flex-col items-center gap-2 pointer-events-none z-20 md:hidden">
+                <div className="absolute left-12 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-none z-20 md:hidden">
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'basic' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'stock' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'price' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
@@ -845,7 +846,7 @@ export default function AddProduct({
             {activeForm === "price" && (
               <div ref={attachRightPane} className="relative border border-gray-500 rounded-md grid grid-cols-1 md:grid-cols-2 gap-3 h-[55vh] min-w-[45vw] w-max overflow-y-scroll">
                 {/* Right-pane dot indicator (mirrors left) */}
-                <div className="absolute left-3 top-3 flex flex-col items-center gap-2 pointer-events-none z-20 md:hidden">
+                <div className="absolute left-12 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-none z-20 md:hidden">
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'basic' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'stock' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
                   <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'price' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
@@ -928,7 +929,7 @@ export default function AddProduct({
                     </label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="flex justify-between items-center w-[180px] p-1 px-2 border border-gray-300 rounded-lg shadow-sm text-gray-500 hover:border-gray-400 hover:shadow-md transition-all duration-200">
+                        <button className="flex justify-between items-center w-[180px] p-1 px-2 border border-gray-300 rounded-lg shadow-sm text-gray-500 hover:border-gray-400 hover:shadow-md transition-all duration-200 cursor-pointer">
                           {formData.taxPercent
                             ? GST_OPTIONS.find(
                                 (opt) =>

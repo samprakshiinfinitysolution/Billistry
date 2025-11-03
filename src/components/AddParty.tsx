@@ -160,7 +160,7 @@ export const AddParty = ({ selectedParty, onSelectParty, onClearParty, partyType
                             <p className="text-sm text-gray-600">
                                 Balance: <span className={selectedParty.balance < 0 ? 'text-red-500 font-semibold' : 'text-green-500 font-semibold'}>₹{formatCurrency(Math.abs(selectedParty.balance))}</span>
                             </p>
-                            <Button variant="link" className="text-blue-600 p-0 text-sm h-auto" onClick={handleChangeClick}>
+                            <Button variant="link" className="text-blue-600 p-0 text-sm h-auto cursor-pointer" onClick={handleChangeClick}>
                                 Change
                             </Button>
                         </div>
@@ -193,7 +193,7 @@ export const AddParty = ({ selectedParty, onSelectParty, onClearParty, partyType
                                 </li>
                             )) : <li className="p-2 text-center text-gray-500">No {partyType.toLowerCase()}s found.</li>}
                         </ul>
-                        <Button variant="link" className="w-full text-blue-600 mt-2" onClick={() => setCreatePartyModalOpen(true)}>
+                        <Button variant="link" className="w-full text-blue-600 mt-2 cursor-pointer" onClick={() => setCreatePartyModalOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" /> Create Party
                         </Button>
                     </div>
@@ -202,7 +202,7 @@ export const AddParty = ({ selectedParty, onSelectParty, onClearParty, partyType
                         className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex justify-center items-center w-full max-w-xs h-[150px] cursor-pointer hover:bg-gray-50 transition-colors"
                         onClick={() => setIsAddingParty(true)}
                     >
-                        <Button variant="outline" className="text-blue-600 border-none pointer-events-none">
+                        <Button variant="outline" className="text-blue-600 border-none pointer-events-none cursor-pointer">
                             <Plus className="mr-2 h-4 w-4" /> Add Party
                         </Button>
                     </div>

@@ -19,6 +19,7 @@ import {
     Trash2,
 } from 'lucide-react';
 import TableSkeleton from '@/components/ui/TableSkeleton';
+import AnimatedNumber from '@/components/AnimatedNumber';
 
 // Mock UI components (Consistent with the reference)
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
@@ -132,7 +133,7 @@ interface Sale {
 // StatCard component for displaying summary data
 interface StatCardProps {
     title: string;
-    amount: string;
+    amount: number;
     icon: React.ReactNode;
     onPress: () => void;
     isSelected?: boolean;
@@ -158,8 +159,8 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
     }
 
     return (
-        <Card className={`rounded-lg shadow-sm relative ${cardBg} group`}>
-            <button onClick={onPress} className="absolute inset-0 z-10 focus:outline-none rounded-lg" aria-label={`View ${title}`}>
+        <Card className={`rounded-lg shadow-sm relative ${cardBg} group cursor-pointer`}>
+            <button onClick={onPress} className="absolute inset-0 z-10 focus:outline-none rounded-lg cursor-pointer" aria-label={`View ${title}`}>
                 {/* This button is for accessibility and interaction, but is visually transparent */}
             </button>
             <CardHeader className="p-3">
@@ -169,7 +170,7 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-3 pt-0">
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-50">₹ {amount}</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-50">₹ <AnimatedNumber value={Math.round(amount)} /></div>
             </CardContent>
         </Card>
     );
@@ -422,10 +423,10 @@ const SalesDataPage = () => {
             <header className="flex items-center justify-between pb-4 border-b">
         <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">Sales Invoices</h1>
                 <div className="flex items-center gap-2">
-                    <DropdownMenu>
+                            <DropdownMenu>
                             <DropdownMenuTrigger>
-                                <Link href="/dashboard/reports/sales/SalesSummary">
-                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
+                                <Link href="/dashboard/reports/sales/SalesSummary" className="cursor-pointer">
+                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5 cursor-pointer">
                                 <FileBarChart className="h-4 w-4 mr-2" />
                                 Reports
                             </Button>
@@ -436,9 +437,9 @@ const SalesDataPage = () => {
             </header>
             <main className="flex-1 pt-4 space-y-4 flex flex-col overflow-hidden">
                 <div className="grid gap-6 md:grid-cols-3">
-                    <StatCard title="Total Sales" amount={formatDisplayCurrency(totalSalesAll)} icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCard('Total Sales')} isSelected={selectedCard === 'Total Sales'} />
-                    <StatCard title="Paid" amount={formatDisplayCurrency(paidAmountAll)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Paid')} isSelected={selectedCard === 'Paid'} />
-                    <StatCard title="Unpaid" amount={formatDisplayCurrency(unpaidAmountAll)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Unpaid')} isSelected={selectedCard === 'Unpaid'} />
+                    <StatCard title="Total Sales" amount={totalSalesAll} icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCard('Total Sales')} isSelected={selectedCard === 'Total Sales'} />
+                    <StatCard title="Paid" amount={paidAmountAll} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Paid')} isSelected={selectedCard === 'Paid'} />
+                    <StatCard title="Unpaid" amount={unpaidAmountAll} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCard('Unpaid')} isSelected={selectedCard === 'Unpaid'} />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -451,7 +452,7 @@ const SalesDataPage = () => {
                         <div ref={datePickerRef} className="relative">
                             <Button
                                 variant="outline"
-                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5 w-64"
+                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5 w-64 cursor-pointer"
                                 onClick={handleDateButtonClick}
                             >
                                 <div className="flex items-center justify-between w-full">
@@ -498,7 +499,7 @@ const SalesDataPage = () => {
                             <DropdownMenu>
                                 <DropdownMenuTrigger>
                                     <div className="relative inline-block group">
-                                        <Button disabled aria-disabled="true" variant="outline" className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 opacity-80 cursor-not-allowed">
+                                        <Button disabled aria-disabled="true" variant="outline" className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 opacity-80 cursor-pointer">
                                             Bulk Actions
                                             <ChevronDown className="h-4 w-4 ml-2" />
                                         </Button>
@@ -509,7 +510,7 @@ const SalesDataPage = () => {
                                 </DropdownMenuTrigger>
                             </DropdownMenu>
                             <Link href="/dashboard/sale/sales-invoice">
-                                <Button className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5">
+                                <Button className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 cursor-pointer">
                                     Create Sales Invoice
                                 </Button>
                             </Link>
@@ -569,7 +570,7 @@ const SalesDataPage = () => {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                        className="h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
                                                         onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === sale._id ? null : sale._id); }}
                                                     >
                                                         <MoreVertical className="h-4 w-4" />
@@ -577,13 +578,13 @@ const SalesDataPage = () => {
                                                     {openDropdownId === sale._id && (
                                                         <div className="absolute right-0 mt-2 w-32 bg-white border rounded-md shadow-lg z-10">
                                                             <button
-                                                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center cursor-pointer"
                                                                 onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); router.push(`/dashboard/sale/sales-invoice?editId=${sale._id}`); }}
                                                             >
                                                                 <Edit className="h-4 w-4 mr-2" /> Edit
                                                             </button>
                                                             <button
-                                                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
+                                                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center cursor-pointer"
                                                                 onClick={(e) => { e.stopPropagation(); handleDeleteClick(sale._id); }}
                                                             >
                                                                 <Trash2 className="h-4 w-4 mr-2" /> Delete

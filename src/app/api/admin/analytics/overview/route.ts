@@ -79,16 +79,7 @@ export async function GET(req: NextRequest) {
       businessIdUsed: scopeBusiness || null,
     });
   } catch (err: any) {
-    import { NextResponse } from 'next/server';
-
-    // Analytics API removed — return 404 to disable endpoint.
-    export async function GET() {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    }
-
-    export async function POST() {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    }
+    console.error("Analytics overview error:", err);
     return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
   }
 }

@@ -47,7 +47,7 @@ const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLI
     <input
         {...props}
         ref={ref}
-        className={`flex h-9 w-full rounded-md border border-gray-300 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${props.className}`}
+        className={`flex h-8 w-full rounded-md border border-gray-200 bg-transparent px-2 text-sm transition-colors placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 ${props.className}`}
     />
 ));
 Input.displayName = "Input";
@@ -67,7 +67,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HT
         type="checkbox"
         {...props}
         ref={ref}
-        className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${props.className}`}
+        className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer ${props.className}`}
     />
 ));
 Checkbox.displayName = "Checkbox";
@@ -91,12 +91,12 @@ interface InvoiceItem {
     taxAmountStr: string; // The calculated tax amount
 }
 
-const GST_OPTIONS = ['0', '0.1', '0.25', '3', '5', '6', '12', '18', '28'];
+const GST_OPTIONS = ['0', '0.1', '0.25', '3', '5', '6', '12', '18', '28', '40'];
 interface Charge {
-
     id: number;
     name: string;
     amount: string;
+    taxType?: string; // 'no-tax' | 'taxable' | 'exempt' etc.
 }
 
 const CreateSalesInvoicePage = () => {
@@ -468,13 +468,17 @@ const CreateSalesInvoicePage = () => {
     };
 
     const handleAddCharge = () => {
-        setAdditionalCharges([...additionalCharges, { id: Date.now(), name: '', amount: '' }]);
+        setAdditionalCharges([...additionalCharges, { id: Date.now(), name: '', amount: '', taxType: 'no-tax' }]);
     };
 
     const handleChargeChange = (id: number, field: 'name' | 'amount', value: string) => {
         setAdditionalCharges(additionalCharges.map(charge =>
             charge.id === id ? { ...charge, [field]: value } : charge
         ));
+    };
+
+    const handleChargeTypeChange = (id: number, value: string) => {
+        setAdditionalCharges(additionalCharges.map(charge => charge.id === id ? { ...charge, taxType: value } : charge));
     };
 
     const handleRemoveCharge = (id: number) => {
@@ -569,7 +573,10 @@ const CreateSalesInvoicePage = () => {
                             unit: it.unit || null,
                         }));
 
-                        // Fetch current products to enrich stock/unit info for loaded items
+                        // Set the mapped items immediately so the UI shows the item list while we enrich in background.
+                        try { setItems(mapped); nextItemId.current = mapped.length; } catch (e) {}
+
+                        // Fetch current products to enrich stock/unit info for loaded items and update when ready
                         (async () => {
                             try {
                                 const resP = await fetch('/api/product', { credentials: 'include' });
@@ -577,25 +584,23 @@ const CreateSalesInvoicePage = () => {
                                 const bodyP = await resP.json().catch(() => ({}));
                                 const products = Array.isArray(bodyP.products) ? bodyP.products : [];
 
-                                        const mappedAny = mapped as InvoiceItem[];
-                                        const enriched: InvoiceItem[] = mappedAny.map((mi: InvoiceItem) => {
-                                            const p = (products as any[]).find((pp: any) => (mi.productId && String(pp._id) === String(mi.productId)) || String(pp.name || '').trim() === String(mi.name || '').trim());
-                                            if (!p) return mi;
-                                            return {
-                                                ...mi,
-                                                productId: String(p._id),
-                                                numericStock: (typeof p.currentStock !== 'undefined' && p.currentStock !== null) ? Number(p.currentStock) : ((typeof p.openingStock !== 'undefined' && p.openingStock !== null) ? Number(p.openingStock) : null),
-                                                unit: p.unit || mi.unit || null,
-                                                originalQty: mi.originalQty ?? (mi.qty || 0),
-                                            };
-                                        });
+                                const mappedAny = mapped as InvoiceItem[];
+                                const enriched: InvoiceItem[] = mappedAny.map((mi: InvoiceItem) => {
+                                    const p = (products as any[]).find((pp: any) => (mi.productId && String(pp._id) === String(mi.productId)) || String(pp.name || '').trim() === String(mi.name || '').trim());
+                                    if (!p) return mi;
+                                    return {
+                                        ...mi,
+                                        productId: String(p._id),
+                                        numericStock: (typeof p.currentStock !== 'undefined' && p.currentStock !== null) ? Number(p.currentStock) : ((typeof p.openingStock !== 'undefined' && p.openingStock !== null) ? Number(p.openingStock) : null),
+                                        unit: p.unit || mi.unit || null,
+                                        originalQty: mi.originalQty ?? (mi.qty || 0),
+                                    };
+                                });
                                 setItems(enriched);
                                 try { nextItemId.current = enriched.length; } catch (e) {}
                             } catch (err) {
-                                // fallback to original mapping if product fetch fails
+                                // If enrichment fails, leave the previously-set mapped items in place
                                 console.warn('Failed to fetch products to enrich invoice items', err);
-                                setItems(mapped);
-                                try { nextItemId.current = mapped.length; } catch (e) {}
                             }
                         })();
                     }
@@ -709,21 +714,21 @@ const CreateSalesInvoicePage = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
                     <div className="flex justify-between items-center">
                         <div className="flex items-center gap-4">
-                            <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100 rounded-md p-2" onClick={() => router.push('/dashboard/sale/sales-data')}>
+                            <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100 rounded-md p-2 cursor-pointer" onClick={() => router.push('/dashboard/sale/sales-data')}>
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
                             <h1 className="text-xl font-semibold text-gray-800">{editId ? 'Update Sales Invoice' : 'Create Sales Invoice'}</h1>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" className="bg-white border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-2" onClick={() => setIsSettingsModalOpen(true)}>
+                            <div className="flex items-center gap-2">
+                            <Button variant="outline" className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-md shadow-sm cursor-pointer" onClick={() => setIsSettingsModalOpen(true)}>
                                 <Settings className="h-4 w-4 mr-2" /> Settings
                             </Button>
 
                             {/* Drafts feature removed */}
 
                             <Button
-                                className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2"
+                                className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2 rounded-md shadow-md cursor-pointer"
                                 onClick={async () => {
                                         try {
                                             setSaving(true);
@@ -851,7 +856,7 @@ const CreateSalesInvoicePage = () => {
 
             {/* Main Content */}
             {/* <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8"> */}
-            <main className="w-full max-w-full m-0 p-0">
+            <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
 
                 <div className="bg-white p-6 rounded-lg shadow-sm">
                     {/* Top Section: Billing and Invoice Details */}
@@ -879,7 +884,7 @@ const CreateSalesInvoicePage = () => {
                              <div className="w-full sm:w-[calc(32rem+1rem)]">
                                 {showDueDateForm ? (
                                     <div className="border bg-gray-50 rounded-lg p-4 relative">
-                                        <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-gray-400 hover:text-gray-600" onClick={() => setShowDueDateForm(false)}>
+                                        <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 cursor-pointer" onClick={() => setShowDueDateForm(false)}>
                                             <X className="h-4 w-4" />
                                         </Button>
                                         <div className="grid grid-cols-2 gap-4">
@@ -907,7 +912,7 @@ const CreateSalesInvoicePage = () => {
                                         className="border-2 border-dashed border-gray-300 rounded-lg flex justify-center py-3 cursor-pointer hover:bg-gray-50 transition-colors"
                                         onClick={() => setShowDueDateForm(true)}
                                     >
-                                        <Button variant="outline" className="text-blue-600 border-none pointer-events-none">
+                                        <Button variant="outline" className="text-blue-600 border-none pointer-events-none cursor-pointer">
                                             <Plus className="mr-2 h-4 w-4" /> Add Due Date
                                         </Button>
                                     </div>
@@ -918,8 +923,8 @@ const CreateSalesInvoicePage = () => {
 
                     {/* Items Table Section */}
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[900px]">
-                             <thead className="border-b bg-gray-100">
+                    <table className="w-full min-w-[900px]">
+                        <thead className="border-b bg-white sticky top-0 z-0">
                                 <tr>
                                     <th className="px-2 py-2 text-left text-xs font-medium text-black w-10">NO</th>
                                     <th className="px-2 py-2 text-left text-xs font-medium text-black flex-1">ITEMS/SERVICES</th>
@@ -936,7 +941,7 @@ const CreateSalesInvoicePage = () => {
                             </thead>
                             <tbody>
                                 {items.map((item, index) => (
-                                    <tr key={item.id} className="border-b">
+                                    <tr key={item.id} className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                                         <td className="px-2 py-2 text-sm text-gray-500">{index + 1}</td>
                                         <td className="px-2 py-2"><Input type="text" placeholder="Item Name" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} /></td>
                                         <td className="px-2 py-2"><Input type="text" placeholder="HSN" value={item.hsn} onChange={e => handleItemChange(item.id, 'hsn', e.target.value)} /></td>
@@ -992,13 +997,13 @@ const CreateSalesInvoicePage = () => {
                                             <td className="px-2 py-2 w-32">
                                                 <div className="flex flex-col gap-1">
                                                     <Select
-                                                        value={item.taxPercentStr}
-                                                        onValueChange={(value) => handleItemTaxChange(item.id, value)}
-                                                    >
-                                                        <SelectTrigger className="h-9 w-full">
-                                                            {/* This will display the short version e.g., "5%" */}
-                                                            <span>{item.taxPercentStr}%</span>
-                                                        </SelectTrigger>
+                                                                        value={item.taxPercentStr}
+                                                                        onValueChange={(value) => handleItemTaxChange(item.id, value)}
+                                                                    >
+                                                                        <SelectTrigger className="h-9 w-full cursor-pointer">
+                                                                            {/* This will display the short version e.g., "5%" */}
+                                                                            <span>{item.taxPercentStr}%</span>
+                                                                        </SelectTrigger>
                                                         <SelectContent>
                                                             {/* This will show the full text in the dropdown list */}
                                                             {GST_OPTIONS.map(rate => (<SelectItem key={rate} value={rate}>GST @ {rate}%</SelectItem>))}
@@ -1018,7 +1023,7 @@ const CreateSalesInvoicePage = () => {
                                         ) : null}
                                         <td className="px-2 py-2 text-sm text-gray-800 text-right">{formatCurrency(calculateItemAmount(item))}</td>
                                         <td className="px-2 py-2 text-center">
-                                            <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="text-gray-400 hover:text-red-500 rounded-full p-1">
+                                            <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} className="text-gray-400 hover:text-red-500 rounded-full p-1 cursor-pointer">
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </td>
@@ -1027,11 +1032,11 @@ const CreateSalesInvoicePage = () => {
                                 <tr>
                                     <td colSpan={9} className="p-2">
                                         <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex justify-between items-center">
-                                            <Button variant="outline" className="text-blue-600 border-none hover:bg-transparent" onClick={() => setIsAddItemModalOpen(true)}>
-                                                <Plus className="mr-2 h-4 w-4" /> Add Item
-                                            </Button>
+                                            <Button variant="outline" className="text-blue-600 border-none hover:bg-transparent cursor-pointer" onClick={() => setIsAddItemModalOpen(true)}>
+                                                    <Plus className="mr-2 h-4 w-4" /> Add Item
+                                                </Button>
                                             <div className="flex items-center gap-4">
-                                                <Button variant="outline" className="text-gray-700 border-none hover:bg-gray-50 px-3 py-1.5 rounded-lg" onClick={() => setIsScanBarcodeModalOpen(true)}>
+                                                <Button variant="outline" className="text-gray-700 border-none hover:bg-gray-50 px-3 py-1.5 rounded-lg cursor-pointer" onClick={() => setIsScanBarcodeModalOpen(true)}>
                                                     <QrCode className="mr-2 h-4 w-4" /> Scan Barcode
                                                 </Button>
                                                 </div>
@@ -1068,12 +1073,12 @@ const CreateSalesInvoicePage = () => {
                                         rows={3}
                                         className="bg-gray-100 p-3 rounded-md border-none focus-visible:ring-0 p-0"
                                     />
-                                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-gray-400 hover:text-gray-600" onClick={() => setShowNotesInput(false)}>
+                                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 cursor-pointer" onClick={() => setShowNotesInput(false)}>
                                         <X className="h-4 w-4" />
                                     </Button>
                                 </div>
                             ) : (
-                            <Button variant="link" className="text-blue-600 p-0 hover:underline" onClick={() => setShowNotesInput(true)}><Plus className="mr-1 h-4 w-4" /> Add Notes</Button>)}
+                            <Button variant="link" className="text-blue-600 p-0 hover:underline cursor-pointer" onClick={() => setShowNotesInput(true)}><Plus className="mr-1 h-4 w-4" /> Add Notes</Button>)}
                            {/* <Button variant="link" className="text-blue-600 p-0 hover:underline"><Plus className="mr-1 h-4 w-4" /> Add Notes</Button> */}
                            <div className="relative">
                                <label className="text-sm font-medium text-gray-500 mb-1 block">Terms and Conditions</label>
@@ -1088,7 +1093,7 @@ const CreateSalesInvoicePage = () => {
                         </div>
 
                         {/* Right side - FINAL CORRECTED LOGIC */}
-                        <div className="space-y-4 mt-6 md:mt-0">
+                        <div className="space-y-4 mt-6 md:mt-0 sticky top-24 self-start">
                             <div className="space-y-2">
                                 {additionalCharges.map((charge) => (
                                     <div key={charge.id} className="flex items-center gap-2">
@@ -1109,21 +1114,30 @@ const CreateSalesInvoicePage = () => {
                                                     className="w-full pl-6 pr-2 text-right"
                                                 />
                                             </div>
-                                            <select className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500">
-                                                <option>No Tax Applicable</option>
-                                            </select>
+                                            <div className="w-44">
+                                                <Select value={charge.taxType || 'no-tax'} onValueChange={(v) => handleChargeTypeChange(charge.id, v)}>
+                                                    <SelectTrigger className="h-9 w-full cursor-pointer">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="no-tax">No Tax Applicable</SelectItem>
+                                                        <SelectItem value="taxable">Taxable (GST)</SelectItem>
+                                                        <SelectItem value="exempt">Tax Exempt</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-9 w-9 p-1 text-gray-500 hover:text-red-500 rounded-full flex-shrink-0"
+                                                className="h-9 w-9 p-1 text-gray-500 hover:text-red-500 rounded-full flex-shrink-0 cursor-pointer"
                                                 onClick={() => handleRemoveCharge(charge.id)}
                                             >
                                                 <X className="h-4 w-4" />
                                             </Button>
                                         </div>
                                     ))}
-                                    <Button variant="link" className="text-blue-600 p-0 hover:underline" onClick={handleAddCharge}>
+                                    <Button variant="link" className="text-blue-600 p-0 hover:underline cursor-pointer" onClick={handleAddCharge}>
                                         <Plus className="mr-1 h-4 w-4" /> Add Another Charge
                                     </Button>
                                 </div>
@@ -1156,50 +1170,51 @@ const CreateSalesInvoicePage = () => {
                             <div className="flex justify-between items-center text-sm">
                                 {!showDiscountInput ? (
                                     <>
-                                        <Button variant="link" className="text-blue-600 p-0 hover:underline" onClick={() => setShowDiscountInput(true)}>
+                                        <Button variant="link" className="text-blue-600 p-0 hover:underline cursor-pointer" onClick={() => setShowDiscountInput(true)}>
                                             <Plus className="mr-1 h-4 w-4" /> Add Discount
                                         </Button>
                                         <span className="font-medium text-gray-800">- ₹ {formatCurrency(overallDiscountAmount)}</span>
                                     </>
                                 ) : (
-                                    <div className="w-full flex items-center gap-2">
-                                        <select 
-                                            id="discount-option" 
-                                            value={discountOption} 
-                                            onChange={(e) => setDiscountOption(e.target.value as 'before-tax' | 'after-tax')}
-                                            className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
-                                        >
-                                            <option value="before-tax">Discount Before Tax</option>
-                                            <option value="after-tax">Discount After Tax</option>
-                                        </select>
-                                        <div className="flex items-center border border-gray-300 rounded-md h-9 flex-grow overflow-hidden bg-white">
-                                            <div className="relative flex-1">
-                                                <Input 
-                                                    type="number" 
+                                    <div className="w-full flex items-start gap-2">
+                                        <div className="w-48">
+                                            <Select value={discountOption} onValueChange={(v) => setDiscountOption(v as 'before-tax' | 'after-tax')}>
+                                                <SelectTrigger className="h-9 w-full cursor-pointer">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="before-tax">Discount Before Tax</SelectItem>
+                                                    <SelectItem value="after-tax">Discount After Tax</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="flex-1 grid grid-cols-2 gap-2">
+                                            <div className="relative">
+                                                <Input
+                                                    type="number"
                                                     id="discount-amount-percent"
                                                     placeholder="0.00"
                                                     value={discountPercentStr}
                                                     onChange={(e) => { setDiscountPercentStr(e.target.value); setLastDiscountInput('percent'); }}
-                                                    className="pr-7 text-right border-none focus-visible:ring-0 h-full w-full"
+                                                    className="pr-7 text-right h-9 w-full"
                                                 />
-                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">%</span>
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">%</span>
                                             </div>
-                                            <span className="px-1 text-gray-300 bg-gray-50 h-full flex items-center border-x">/</span>
-                                            <div className="relative flex-1">
-                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">₹</span>
-                                                <Input 
-                                                    type="number" 
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">₹</span>
+                                                <Input
+                                                    type="number"
                                                     id="discount-amount-rupees"
                                                     placeholder="0.00"
                                                     value={discountFlatStr}
                                                     onChange={(e) => { setDiscountFlatStr(e.target.value); setLastDiscountInput('flat'); }}
-                                                    className="pl-6 text-right border-none focus-visible:ring-0 h-full w-full"
+                                                    className="pl-6 text-right h-9 w-full"
                                                 />
                                             </div>
                                         </div>
                                         <Button
                                             variant="ghost" size="icon"
-                                            className="h-9 w-9 p-1 text-gray-500 hover:text-red-500 rounded-full flex-shrink-0"
+                                            className="h-9 w-9 p-1 text-gray-500 hover:text-red-500 rounded-full flex-shrink-0 cursor-pointer"
                                             onClick={() => { setShowDiscountInput(false); setDiscountPercentStr(''); setDiscountFlatStr(''); setLastDiscountInput(null); }}
                                         >
                                             <X className="h-4 w-4" />
@@ -1222,14 +1237,15 @@ const CreateSalesInvoicePage = () => {
                                 
                                 {!autoRoundOff ? (
                                     <div className="flex items-center border rounded-md overflow-hidden bg-white">
-                                        <select 
-                                            className="h-9 border-r bg-gray-50 px-2 text-xs text-gray-700 focus:outline-none"
-                                            value={adjustmentType}
-                                            onChange={(e) => setAdjustmentType(e.target.value as 'add' | 'subtract')}
-                                        >
-                                            <option value="add">+ Add</option>
-                                            <option value="subtract">- Reduce</option>
-                                        </select>
+                                        <Select value={adjustmentType} onValueChange={(v) => setAdjustmentType(v as 'add' | 'subtract')}>
+                                            <SelectTrigger className="h-9 border-r bg-gray-50 px-2 text-xs text-gray-700 cursor-pointer w-auto">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="add">+ Add</SelectItem>
+                                                <SelectItem value="subtract">- Reduce</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                         <div className="relative">
                                             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
                                             <Input 
@@ -1278,12 +1294,12 @@ const CreateSalesInvoicePage = () => {
                             
                             <div className="flex justify-end items-center gap-2 mt-1">
                                 <label htmlFor="fullyPaid" className="text-sm text-gray-500 cursor-pointer">Mark as fully paid</label>
-                                <Checkbox id="fullyPaid" checked={isFullyPaid} onChange={(e) => handleFullyPaidChangeWithMode(e.target.checked)}/>
+                                <Checkbox id="fullyPaid" checked={isFullyPaid} onChange={(e) => handleFullyPaidChangeWithMode(e.target.checked)} className="cursor-pointer"/>
                             </div>
 
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-gray-500">Amount Received</span>
-                                <div className="flex items-center gap-1 w-56 bg-gray-100 rounded-md border border-gray-200 p-1">
+                                <div className="flex items-center gap-1 w-72 bg-gray-100 rounded-md border border-gray-200 p-1">
                                     <span className="pl-2 text-gray-500 text-sm">₹</span>
                                     <Input 
                                         id="amountReceived" 
@@ -1296,25 +1312,23 @@ const CreateSalesInvoicePage = () => {
                                                 setIsFullyPaid(false);
                                             }
                                         }}
-                                        className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0 "
+                                        className="flex-grow bg-transparent border-none text-right focus-visible:ring-0 h-7 p-0 text-sm font-medium"
                                     />
-                                        <select
-                                            value={paymentMode}
-                                            onChange={(e) => setPaymentMode(e.target.value as any)}
-                                            className={`h-7 rounded-md border-none px-2 text-sm focus:outline-none ${isFullyPaid ? 'bg-white text-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                                            disabled={!isFullyPaid}
-                                            aria-disabled={!isFullyPaid}
-                                            title={!isFullyPaid ? 'Enable "Mark as fully paid" to change payment status' : undefined}
-                                        >
-                                            <option value="unpaid">Unpaid</option>
-                                            <option value="cash">Cash</option>
-                                            <option value="upi">UPI</option>
-                                            <option value="card">Card</option>
-                                            <option value="netbanking">Netbanking</option>
-                                            <option value="bank_transfer">Bank Transfer</option>
-                                            <option value="cheque">Cheque</option>
-                                            <option value="online">Online</option>
-                                        </select>
+                                        <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as any)}>
+                                            <SelectTrigger className={`h-7 rounded-md border-none px-2 text-sm focus:outline-none ${isFullyPaid ? 'bg-white text-gray-700 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none'}`} aria-disabled={!isFullyPaid} title={!isFullyPaid ? 'Enable "Mark as fully paid" to change payment status' : undefined}>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="unpaid">Unpaid</SelectItem>
+                                                <SelectItem value="cash">Cash</SelectItem>
+                                                <SelectItem value="upi">UPI</SelectItem>
+                                                <SelectItem value="card">Card</SelectItem>
+                                                <SelectItem value="netbanking">Netbanking</SelectItem>
+                                                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                                <SelectItem value="cheque">Cheque</SelectItem>
+                                                <SelectItem value="online">Online</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                 </div>
                             </div>
 

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import FormSkeleton from '@/components/ui/FormSkeleton';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 
 type InvoiceType = 'sale' | 'purchase' | 'sale-return' | 'purchase-return' | string;
 
@@ -328,55 +329,62 @@ export default function InvoiceDownload({ invoiceType, invoiceId }: Props) {
 
               {/* Items Table */}
               <div className="mb-1 flex-1 overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-200 text-black">
-                    <tr>
-                      <th className="p-1 text-left font-bold w-12">S.NO.</th>
-                      <th className="p-1 text-left font-bold">ITEMS</th>
-                      <th className="p-1 text-center font-bold w-20">QTY.</th>
-                      <th className="p-1 text-right font-bold w-24">RATE</th>
-                      <th className="p-1 text-right font-bold w-24">DISCOUNT</th>
-                      {showTax && <th className="p-1 text-center font-bold w-20">TAX</th>}
-                      <th className="p-1 text-right font-bold w-32">AMOUNT</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pageItems.map((it, idx) => {
-                      const globalIdx = pageIndex * rowsPerPage + idx;
-                      const qty = Number(it.qty || 0);
-                      const price = Number(it.price || it.rate || 0);
-                      const amount = qty * price;
-                      return (
-                        <tr key={globalIdx} className="border-b border-gray-200">
-                          <td className="p-1 text-left">{globalIdx + 1}</td>
-                          <td className="p-1 text-left font-semibold">{it.name}</td>
-                          <td className="p-1 text-center">{qty} {it.unit || 'PCS'}</td>
-                          <td className="p-1 text-right">{price.toLocaleString('en-IN')}</td>
-                          <td className="p-1 text-right">
-                            {(() => {
-                              const percent = it.discountPercentStr ?? it.discountPercent ?? '';
-                              const amountStr = it.discountAmountStr ?? it.discountAmount ?? '';
-                              const amt = parseFloat(String(amountStr)) || 0;
-                              return (
-                                <>
-                                  <div>{percent ? String(percent) + '%' : '-'}</div>
-                                  <div className="text-[10px] text-gray-600">{formatCurrency(amt).replace('.00','')}</div>
-                                </>
-                              );
-                            })()}
-                          </td>
-                          {showTax ? (
-                            <td className="p-1 text-center">{(() => {
-                              const tp = parseRateValue(it.taxPercentStr ?? it.taxPercent ?? it.taxPercent) ?? 0;
-                              return String(tp).replace(/\.00$/,'');
-                            })()}%<div className="text-[10px] text-gray-600">{formatCurrency(parseFloat(it.taxAmountStr) || 0).replace('.00','')}</div></td>
-                          ) : null}
-                          <td className="p-1 text-right">{( (amount + (showTax ? (parseFloat(it.taxAmountStr) || 0) : 0)) ).toLocaleString('en-IN')}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                {pageItems.length === 0 ? (
+                  // Show a focused table skeleton when invoice meta is present but items are still empty/slow to load
+                  <div className="bg-white rounded-md p-2">
+                    <TableSkeleton rows={4} />
+                  </div>
+                ) : (
+                  <table className="w-full">
+                    <thead className="bg-gray-200 text-black">
+                      <tr>
+                        <th className="p-1 text-left font-bold w-12">S.NO.</th>
+                        <th className="p-1 text-left font-bold">ITEMS</th>
+                        <th className="p-1 text-center font-bold w-20">QTY.</th>
+                        <th className="p-1 text-right font-bold w-24">RATE</th>
+                        <th className="p-1 text-right font-bold w-24">DISCOUNT</th>
+                        {showTax && <th className="p-1 text-center font-bold w-20">TAX</th>}
+                        <th className="p-1 text-right font-bold w-32">AMOUNT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageItems.map((it, idx) => {
+                        const globalIdx = pageIndex * rowsPerPage + idx;
+                        const qty = Number(it.qty || 0);
+                        const price = Number(it.price || it.rate || 0);
+                        const amount = qty * price;
+                        return (
+                          <tr key={globalIdx} className="border-b border-gray-200">
+                            <td className="p-1 text-left">{globalIdx + 1}</td>
+                            <td className="p-1 text-left font-semibold">{it.name}</td>
+                            <td className="p-1 text-center">{qty} {it.unit || 'PCS'}</td>
+                            <td className="p-1 text-right">{price.toLocaleString('en-IN')}</td>
+                            <td className="p-1 text-right">
+                              {(() => {
+                                const percent = it.discountPercentStr ?? it.discountPercent ?? '';
+                                const amountStr = it.discountAmountStr ?? it.discountAmount ?? '';
+                                const amt = parseFloat(String(amountStr)) || 0;
+                                return (
+                                  <>
+                                    <div>{percent ? String(percent) + '%' : '-'}</div>
+                                    <div className="text-[10px] text-gray-600">{formatCurrency(amt).replace('.00','')}</div>
+                                  </>
+                                );
+                              })()}
+                            </td>
+                            {showTax ? (
+                              <td className="p-1 text-center">{(() => {
+                                const tp = parseRateValue(it.taxPercentStr ?? it.taxPercent ?? it.taxPercent) ?? 0;
+                                return String(tp).replace(/\.00$/,'');
+                              })()}%<div className="text-[10px] text-gray-600">{formatCurrency(parseFloat(it.taxAmountStr) || 0).replace('.00','')}</div></td>
+                            ) : null}
+                            <td className="p-1 text-right">{( (amount + (showTax ? (parseFloat(it.taxAmountStr) || 0) : 0)) ).toLocaleString('en-IN')}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
 
   {/* Separator removed: previous design had a black band here */}

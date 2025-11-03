@@ -54,6 +54,7 @@ const GST_OPTIONS = [
   { value: "13.8", label: "GST @ 13.8%" },
   { value: "18", label: "GST @ 18%" },
   { value: "28", label: "GST @ 28%" },
+  { value: "40", label: "GST @ 40%" },
 ];
 
 // const UNIT_OPTIONS = ["pcs", "kg", "liter", "pack", "box"];
