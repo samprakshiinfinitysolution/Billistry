@@ -1,10 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import StatsSection from "@/components/StatsSection";
+import LoginSlider from "@/components/LoginSlider";
+import RequestDemo from "@/components/RequestDemo";
 
 export default function AboutUs() {
+  const [showLogin, setShowLogin] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
   return (
+    <>
     <section className="bg-[#F7FBFB] text-[#390F59]  ">
       {/* Hero Section */}
       <div className="py-20 px-6 text-center">
@@ -208,20 +214,23 @@ export default function AboutUs() {
           Take the next step towards smarter operations and smoother growth.  
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <a href="/signup">
-            <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-[#F7FBFB] px-4 sm:px-6 md:px-8 py-3 rounded-lg font-semibold text-base sm:text-lg shadow-md hover:scale-105 transition-all duration-200">
+          
+            <button onClick={() => setShowLogin(true)} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-[#F7FBFB] px-4 sm:px-6 md:px-8 py-3 rounded-lg font-semibold text-base sm:text-lg shadow-md hover:scale-105 transition-all duration-200">
               Get Started <ArrowRight className="w-5 h-5" />
             </button>
-          </a>
+          
 
-          <a
-            href="/contact"
+          <button
+            onClick={() => setShowDemo(true)}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border-2 border-[#7B53A6] text-[#7B53A6] px-4 sm:px-6 md:px-8 py-3 rounded-lg font-semibold text-base sm:text-lg hover:bg-gradient-to-r hover:from-[#390F59] hover:via-[#460F58] hover:to-[#7B53A6] hover:text-[#F7FBFB] transition-all duration-200 shadow-sm"
           >
             Request Demo
-          </a>
+          </button>
         </div>
       </div>
     </section>
+    {showLogin && <LoginSlider onClose={() => setShowLogin(false)} />}
+    {showDemo && <RequestDemo isOpen={showDemo} onClose={() => setShowDemo(false)} />}
+    </>
   );
 }

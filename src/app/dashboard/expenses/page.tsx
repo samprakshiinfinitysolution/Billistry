@@ -2,16 +2,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button"; 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, FileBarChart } from "lucide-react";
+import AnimatedNumber from '@/components/AnimatedNumber';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 import {
   Dialog,
   DialogContent,
@@ -19,8 +21,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Link from "next/link";
-import useAuthGuard from "@/hooks/useAuthGuard";
-import { toast } from "react-hot-toast";
 
 
 interface Expense {
@@ -33,7 +33,6 @@ interface Expense {
 }
 
 export default function ExpensePage() {
-  const { user } = useAuthGuard();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -45,6 +44,7 @@ export default function ExpensePage() {
   });
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [filters, setFilters] = useState({
+    search: "",
     category: "",
     partyName: "",
     expenseNo: "",
@@ -62,6 +62,18 @@ export default function ExpensePage() {
       const fromDate = filters.dateFrom ? new Date(filters.dateFrom) : null;
       const toDate = filters.dateTo ? new Date(filters.dateTo) : null;
 
+      // Global search across multiple fields (expense number, category, party name, amount)
+      if (filters.search) {
+        const s = filters.search.toLowerCase();
+        const matchesSearch =
+          (expense.expenseNo || "").toLowerCase().includes(s) ||
+          (expense.category || "").toLowerCase().includes(s) ||
+          (expense.paidTo || "").toLowerCase().includes(s) ||
+          expense.amount.toString().toLowerCase().includes(s);
+        if (!matchesSearch) return false;
+      }
+
+      // legacy specific filters (if provided) still apply on top of global search
       if (
         filters.category &&
         !expense.category?.toLowerCase().includes(filters.category.toLowerCase())
@@ -90,11 +102,14 @@ export default function ExpensePage() {
 
   const loadExpenses = async () => {
     try {
+      setLoading(true);
       const res = await fetch("/api/expenses", { credentials: "include" });
       const data = await res.json();
       if (data.success) setExpenses(data.expenses);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -185,16 +200,27 @@ export default function ExpensePage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">Expenses</h1>
-        <Link href="/dashboard/reports/expense">
-      <Button variant="outline">Reports</Button>
-    </Link>
-      </div>
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      <header className="flex items-center justify-between pb-4 border-b">
+        <h1 className="text-xl font-bold text-gray-800">Expenses</h1>
+          <div className="flex items-center gap-2">
+          <Link href="/dashboard/reports/expense">
+            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
+              <FileBarChart className="h-4 w-4 mr-2" />
+              Reports
+            </Button>
+          </Link>
+          <Button
+            onClick={() => setOpen(true)}
+            className="ml-2"
+          >
+            + Create Expense
+          </Button>
+        </div>
+      </header>
 
+      {/* Page content */}
+      <main className="flex-1 pt-4 space-y-4 flex flex-col overflow-hidden">
       {/* Add/Edit Modal */}
       <Dialog
         open={open}
@@ -277,26 +303,25 @@ export default function ExpensePage() {
       </Dialog>
 
       {/* Summary Card */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <h3 className="text-sm font-medium text-gray-500">Total Expenses</h3>
-          <p className="text-2xl font-semibold text-gray-800">
-            ₹{totalExpenseAmount.toFixed(2)}
-          </p>
+          <p className="text-2xl font-semibold text-gray-800">₹ <AnimatedNumber value={Math.round(totalExpenseAmount)} duration={800} /></p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border flex flex-wrap gap-4 items-end justify-between">
+      <div className="bg-white p-4 rounded-lg shadow-sm border flex flex-wrap gap-4 items-end">
         <div className="flex flex-wrap gap-4 items-end">
-        <div className="flex-1 min-w-[150px]">
-          <Label htmlFor="filter-category" className="mb-2 ">Category</Label>
+        <div className="flex-1 min-w-[320px] md:min-w-[420px]">
+          <Label htmlFor="filter-search" className="mb-2 ">Search</Label>
           <Input
-            id="filter-category"
-            name="category"
-            value={filters.category}
+            id="filter-search"
+            name="search"
+            value={filters.search}
             onChange={handleFilterChange}
-            placeholder="Search Category..."
+            placeholder="Search expense no, category, party, amount..."
+            className="py-2 text-base w-full bg-gray-50 text-gray-800 placeholder-gray-500 dark:bg-gray-700 dark:text-gray-100"
           />
         </div>
         <div className="flex-1 min-w-[150px]">
@@ -307,6 +332,7 @@ export default function ExpensePage() {
             type="date"
             value={filters.dateFrom}
             onChange={handleFilterChange}
+            className="bg-gray-50 text-gray-800 placeholder-gray-500 dark:bg-gray-700 dark:text-gray-100"
           />
         </div>
         <div className="flex-1 min-w-[150px]">
@@ -317,102 +343,67 @@ export default function ExpensePage() {
             type="date"
             value={filters.dateTo}
             onChange={handleFilterChange}
+            className="bg-gray-50 text-gray-800 placeholder-gray-500 dark:bg-gray-700 dark:text-gray-100"
           />
         </div>
-        </div>
-        <div>
-          <Button onClick={() => setOpen(true)}>+ Create Expense</Button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div className="overflow-y-auto max-h-[calc(100vh-26rem)]">
-        {filteredExpenses.length === 0 ? (
+      <div className="border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm flex-1 overflow-y-auto">
+        <div className="overflow-y-auto max-h-[calc(100vh-20rem)]">
+        {loading ? (
+          <div className="p-0">
+            <table className="min-w-full divide-y divide-gray-200 text-sm relative">
+              <tbody>
+                <tr>
+                  <td colSpan={6} className="p-0">
+                    <TableSkeleton rows={6} />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ) : filteredExpenses.length === 0 ? (
           <p className="p-4 text-center text-gray-500">No expenses found.</p>
         ) : (
-          <table className="min-w-full divide-y divide-gray-200 text-sm relative">
-            <thead className="bg-gray-50 text-gray-500 uppercase tracking-wider sticky top-0 z-10">
-              <tr>
-                <th className="px-6 py-3 text-left font-medium">Date</th>
-                <th className="px-6 py-3 text-left font-medium">
-                  Expense Number
-                </th>
-                <th className="px-6 py-3 text-left font-medium">Category</th>
-                <th className="px-6 py-3 text-left font-medium">Party Name</th>
-                <th className="px-6 py-3 text-left font-medium">Amount</th>
-                <th className="px-6 py-3 text-right font-medium">Action</th>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b dark:border-gray-700">
+                <th className="sticky top-0 bg-white dark:bg-gray-800 z-10 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="sticky top-0 bg-white dark:bg-gray-800 z-10 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expense Number</th>
+                <th className="sticky top-0 bg-white dark:bg-gray-800 z-10 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                <th className="sticky top-0 bg-white dark:bg-gray-800 z-10 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party Name</th>
+                <th className="sticky top-0 bg-white dark:bg-gray-800 z-10 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="sticky top-0 bg-white dark:bg-gray-800 z-10 px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200 text-gray-700">
+            <tbody>
               {filteredExpenses.map((e) => (
-                <tr key={e._id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {new Date(e.date).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {e.expenseNo || "—"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {e.category || "-"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {e.paidTo || "-"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    ₹{e.amount.toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                <tr key={e._id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <td className="px-3 py-2 text-sm">{new Date(e.date).toLocaleDateString()}</td>
+                  <td className="px-3 py-2 text-sm">{e.expenseNo || "—"}</td>
+                  <td className="px-3 py-2 text-sm">{e.category || "-"}</td>
+                  <td className="px-3 py-2 text-sm">{e.paidTo || "-"}</td>
+                  <td className="px-3 py-2 text-sm">₹{e.amount.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-gray-500 hover:text-gray-900"
-                        >
-                          <span className="sr-only">Open menu</span>
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="h-4 w-4"
-                          >
+                        <button className="p-1 rounded hover:bg-gray-100 cursor-pointer">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
                             <circle cx="12" cy="12" r="1"></circle>
                             <circle cx="12" cy="5" r="1"></circle>
                             <circle cx="12" cy="19" r="1"></circle>
                           </svg>
-                        </Button>
+                        </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            if (user?.permissions?.expenses?.update) {
-                              handleEdit(e);
-                            } else {
-                              toast.error("You don't have permission to edit expenses.");
-                            }
-                          }}
-                        >
+                      <DropdownMenuContent align="end" className="pointer-events-auto">
+                        <DropdownMenuItem onClick={() => handleEdit(e)}>
                           <Edit2 className="mr-2 h-4 w-4" />
                           <span>Edit</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            if (user?.permissions?.expenses?.delete) {
-                              handleDelete(e._id);
-                            } else {
-                              toast.error("You don't have permission to delete expenses.");
-                            }
-                          }}
-                          className="text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem onClick={() => handleDelete(e._id)} className="text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-600">
+                          <Trash2 className="mr-2 h-4 w-4"/>
                           <span>Delete</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -425,7 +416,7 @@ export default function ExpensePage() {
         )}
         </div>
       </div>
-    </div>
+      </main>
     </div>
   );
 }

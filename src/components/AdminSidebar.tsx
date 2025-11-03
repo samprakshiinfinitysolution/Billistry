@@ -89,7 +89,7 @@ export default function AdminSidebar() {
           </div>
         </div>
 
-        <NavItem icon={LineChart} text="Analytics" href="/wp-admin/analytics" active={isActive('/wp-admin/analytics')} />
+        {/* <NavItem icon={LineChart} text="Analytics" href="/wp-admin/analytics" active={isActive('/wp-admin/analytics')} /> */}
         <NavItem icon={Settings} text="Settings" href="/wp-admin/settings" active={isActive('/wp-admin/settings')} />
         <NavItem icon={FileText} text="Audit Logs" href="/wp-admin/audit-logs" active={isActive('/wp-admin/audit-logs')} />
         {/* Exit: open confirmation popup, no navigation/action */}

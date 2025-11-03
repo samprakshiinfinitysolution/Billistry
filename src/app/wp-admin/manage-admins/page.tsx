@@ -5,16 +5,27 @@ import { useRouter } from 'next/navigation';
 import { Plus, Mail, Phone, MapPin, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui';
 import { Badge } from '@/components/ui/badge';
 import { getAdmins, deleteAdmin, updateAdmin } from './data';
 import { createPortal } from 'react-dom';
 import { Input } from '@/components/ui/input';
+import CardSkeleton from '@/components/ui/CardSkeleton';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 // Use the shared admins data store (getAdmins) instead of duplicating data here.
 
 function AdminCard({ admin, onEdit, onDelete, onDeactivate }: { admin: any; onEdit: (id: string) => void; onDelete: (id: string) => void; onDeactivate: (id: string) => void }) {
+  const initials = (() => {
+    try {
+      const n = (admin?.name || '').toString().trim();
+      if (!n) return (admin?.email && admin.email[0]) ? admin.email[0].toUpperCase() : '?';
+      const parts = n.split(/\s+/).filter(Boolean);
+      if (parts.length === 1) return parts[0].substring(0, 1).toUpperCase();
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    } catch (e) { return '?'; }
+  })();
+
   return (
   <Card className="bg-white shadow-md rounded-2xl hover:shadow-lg transition-shadow h-full flex flex-col py-0 border border-gray-200">
       <CardContent className="flex-1 flex flex-col justify-between px-4 pt-6 pb-4">
@@ -22,7 +33,11 @@ function AdminCard({ admin, onEdit, onDelete, onDeactivate }: { admin: any; onEd
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <Avatar>
-                <AvatarImage className="w-12 h-12" src={admin.avatar ?? `https://i.pravatar.cc/150?u=${admin.email}`} alt={admin.name} />
+                {admin?.avatar ? (
+                  <AvatarImage className="w-12 h-12" src={admin.avatar} alt={admin.name} />
+                ) : (
+                  <AvatarFallback className="w-12 h-12 text-sm font-medium">{initials}</AvatarFallback>
+                )}
               </Avatar>
               <div>
                 <div className="text-gray-900 font-semibold">{admin.name}</div>
@@ -86,6 +101,7 @@ export default function ManageAdminsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'Active' | 'Inactive'>('all');
   const [planFilter, setPlanFilter] = useState<'all' | 'Premium' | 'Standard' | 'Basic'>('all');
   const [items, setItems] = useState(() => getAdmins());
+  const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deactivateId, setDeactivateId] = useState<string | null>(null);
 
@@ -96,8 +112,10 @@ export default function ManageAdminsPage() {
     (async () => {
       try {
         const { refreshAdmins } = await import('./data');
+        setLoading(true);
         await refreshAdmins();
         setItems(getAdmins());
+        setLoading(false);
       } catch (err) {
         console.error('failed to refresh admins', err);
       }
@@ -118,9 +136,46 @@ export default function ManageAdminsPage() {
   return (
   <div className="flex flex-col min-h-0 h-full pt-0 pb-6">
       {/* Subheader: full-width filter bar aligned with main layout header */}
-     
+        <div className="md:sticky top-16 z-30 bg-white/95 backdrop-blur-sm border-b -mx-6 lg:-mx-8">
+          <div className="px-6 lg:px-8 py-2 rounded-b-lg shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div className="flex items-center gap-3 w-full lg:flex-1">
+              <Input className="w-full" value={query} onChange={(e: any) => setQuery(e.target.value)} placeholder="Search admins by name, email or store" />
+            </div>
+
+            <div className="flex items-center gap-4 justify-between w-full lg:w-auto">
+              <div className="hidden md:flex items-center gap-3">
+                <div className="text-sm text-gray-600">{filtered.length} admins</div>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">Filters</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={() => setStatusFilter(statusFilter === 'all' ? 'Active' : 'all')} className={`px-2.5 py-1 rounded-full text-sm border ${statusFilter === 'Active' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-white border-gray-200 text-gray-700'}`}>
+                  Active
+                </button>
+                <button onClick={() => setStatusFilter(statusFilter === 'Inactive' ? 'all' : 'Inactive')} className={`px-2.5 py-1 rounded-full text-sm border ${statusFilter === 'Inactive' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-white border-gray-200 text-gray-700'}`}>
+                  Inactive
+                </button>
+                <button onClick={() => setPlanFilter(planFilter === 'all' ? 'Premium' : 'all')} className={`px-2.5 py-1 rounded-full text-sm border ${planFilter === 'Premium' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-white border-gray-200 text-gray-700'}`}>
+                  Premium
+                </button>
+                <button onClick={() => setPlanFilter(planFilter === 'Standard' ? 'all' : 'Standard')} className={`px-2.5 py-1 rounded-full text-sm border ${planFilter === 'Standard' ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 'bg-white border-gray-200 text-gray-700'}`}>
+                  Standard
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
       {/* Cards area: constrained height and scrollable so only cards scroll */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="flex-1 overflow-auto pb-6 pt-4 md:pt-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 auto-rows-fr items-stretch h-full">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <CardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="py-6 text-center text-gray-500">No admins found. Try different search or filters.</div>
       ) : (
   <div className="flex-1 overflow-auto pb-6 pt-4 md:pt-8">

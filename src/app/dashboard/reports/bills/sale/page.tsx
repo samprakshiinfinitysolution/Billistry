@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 
 import autoTable from 'jspdf-autotable';
+import TableSkeleton from '@/components/ui/TableSkeleton';
 import useAuthGuard from '@/hooks/useAuthGuard';
 
 interface SaleItem {
@@ -229,12 +230,20 @@ const downloadSalePDF = () => {
 
       {/* Sale Table */}
       {loading ? (
-        <div className="text-center py-10">Loading...</div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-200 text-sm">
+            <tbody>
+              <tr>
+                <td colSpan={5} className="p-0"><TableSkeleton rows={4} /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       ) : (
         
         <div className="overflow-x-auto">
           
-          <table className="min-w-full border border-gray-200">
+          <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-100">
               <tr>
                 <th className="border px-4 py-2">Invoice No</th>

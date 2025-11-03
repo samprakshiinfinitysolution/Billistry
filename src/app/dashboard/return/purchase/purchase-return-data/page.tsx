@@ -18,8 +18,9 @@ import {
     Edit,
     Trash2,
 } from 'lucide-react';
-import useAuthGuard from '@/hooks/useAuthGuard';
-import { toast } from 'react-hot-toast';
+
+import TableSkeleton from '@/components/ui/TableSkeleton';
+import AnimatedNumber from '@/components/AnimatedNumber';
 
 // Mock UI components
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
@@ -47,34 +48,33 @@ const DropdownMenuTrigger = ({ children }: { children: React.ReactNode }) => <di
 const DropdownMenuContent = ({ children }: { children: React.ReactNode }) => <div className="origin-top-left absolute left-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20 max-h-80 overflow-y-auto">{children}</div>;
 const DropdownMenuItem = ({ children, className = '', ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a href="#" className={`block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 ${className}`} {...props}>{children}</a>;
 
-// NEW: Advanced, Self-contained Calendar Component
-const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
-    const [currentDate, setCurrentDate] = useState(new Date());
-
-    const changeMonth = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setCurrentDate(new Date(currentDate.getFullYear(), parseInt(e.target.value), 1));
-    };
+const Calendar = ({ onSelectDate }: { onSelectDate: (d: Date) => void }) => {
+    const [calDate, setCalDate] = useState(new Date());
 
     const changeYear = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setCurrentDate(new Date(parseInt(e.target.value), currentDate.getMonth(), 1));
+        setCalDate(new Date(parseInt(e.target.value), calDate.getMonth(), 1));
+    };
+
+    const changeMonth = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setCalDate(new Date(calDate.getFullYear(), parseInt(e.target.value), 1));
     };
 
     const prevMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+        setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() - 1, 1));
     };
 
     const nextMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+        setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() + 1, 1));
     };
 
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const startOfMonth = new Date(calDate.getFullYear(), calDate.getMonth(), 1);
+    const endOfMonth = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0);
     const startDay = startOfMonth.getDay();
     const daysInMonth = endOfMonth.getDate();
 
     const days = Array.from({ length: startDay }, (_, i) => <div key={`empty-${i}`}></div>);
     for (let day = 1; day <= daysInMonth; day++) {
-        const fullDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+        const fullDate = new Date(calDate.getFullYear(), calDate.getMonth(), day);
         days.push(
             <div key={day} className="flex items-center justify-center">
                 <button
@@ -87,7 +87,7 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
         );
     }
 
-    const years = Array.from({ length: 21 }, (_, i) => currentDate.getFullYear() - 10 + i);
+    const years = Array.from({ length: 21 }, (_, i) => calDate.getFullYear() - 10 + i);
     const months = Array.from({ length: 12 }, (_, i) => new Date(0, i).toLocaleString('default', { month: 'long' }));
 
     return (
@@ -95,10 +95,10 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
             <div className="flex justify-between items-center mb-3">
                 <button onClick={prevMonth} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><ChevronLeft className="w-5 h-5" /></button>
                 <div className="flex gap-2">
-                    <select value={currentDate.getMonth()} onChange={changeMonth} className="p-1 border rounded-md text-sm bg-white dark:bg-gray-700 dark:border-gray-600">
+                    <select value={calDate.getMonth()} onChange={changeMonth} className="p-1 border rounded-md text-sm bg-white dark:bg-gray-700 dark:border-gray-600">
                         {months.map((month, index) => <option key={month} value={index}>{month}</option>)}
                     </select>
-                    <select value={currentDate.getFullYear()} onChange={changeYear} className="p-1 border rounded-md text-sm bg-white dark:bg-gray-700 dark:border-gray-600">
+                    <select value={calDate.getFullYear()} onChange={changeYear} className="p-1 border rounded-md text-sm bg-white dark:bg-gray-700 dark:border-gray-600">
                         {years.map(year => <option key={year} value={year}>{year}</option>)}
                     </select>
                 </div>
@@ -117,7 +117,7 @@ const Calendar = ({ onSelectDate }: { onSelectDate: (date: Date) => void }) => {
 
 interface StatCardProps {
     title: string;
-    amount: string;
+    amount: number;
     icon: React.ReactNode;
     onPress: () => void;
     isSelected?: boolean;
@@ -144,7 +144,7 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
 
     return (
         <Card className={`rounded-lg shadow-sm relative ${cardBg} group`}>
-            <button onClick={onPress} className="absolute inset-0 z-10 focus:outline-none rounded-lg" aria-label={`View ${title}`}>
+            <button onClick={onPress} className="absolute inset-0 z-10 focus:outline-none rounded-lg cursor-pointer" aria-label={`View ${title}`}>
                 {/* This button is for accessibility and interaction, but is visually transparent */}
             </button>
             <CardHeader className="p-3">
@@ -154,7 +154,7 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-3 pt-0">
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-50">₹ {amount}</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-50">₹ <AnimatedNumber value={Math.round(amount)} /></div>
             </CardContent>
         </Card>
     );
@@ -162,7 +162,6 @@ const StatCard = ({ title, amount, icon, onPress, isSelected }: StatCardProps) =
 
 
 const PurchaseReturnDataPage = () => {
-    const { user } = useAuthGuard();
     const router = useRouter();
     const [selectedCard, setSelectedCard] = useState('Total Returns');
     const [returnsList, setReturnsList] = useState<any[]>([]);
@@ -364,12 +363,11 @@ const PurchaseReturnDataPage = () => {
                 <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">Purchase Returns</h1>
                 <div className="flex items-center gap-2">
                     <DropdownMenu>
-                        <DropdownMenuTrigger>
+                            <DropdownMenuTrigger>
                             <Link href="/dashboard/reports/purchase/PurchaseReturn">
-                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
+                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5 cursor-pointer">
                                 <FileBarChart className="h-4 w-4 mr-2" />
                                 Reports
-                                <ChevronDown className="h-4 w-4 ml-2" />
                             </Button>
                             </Link>
                         </DropdownMenuTrigger>
@@ -378,9 +376,9 @@ const PurchaseReturnDataPage = () => {
             </header>
             <main className="flex-1 pt-4 space-y-4 flex flex-col overflow-hidden">
                 <div className="grid gap-6 md:grid-cols-3">
-                    <StatCard title="Total Returns" amount={formatCurrency(totals.totalReturns)} icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCardLocal('Total Returns')} isSelected={selectedCardLocal === 'Total Returns'} />
-                    <StatCard title="Refunded" amount={formatCurrency(totals.refunded)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCardLocal('Paid')} isSelected={selectedCardLocal === 'Paid'} />
-                    <StatCard title="Unpaid" amount={formatCurrency(totals.unpaid)} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCardLocal('Unpaid')} isSelected={selectedCardLocal === 'Unpaid'} />
+                    <StatCard title="Total Returns" amount={totals.totalReturns} icon={<ClipboardList className="h-5 w-5" />} onPress={() => setSelectedCardLocal('Total Returns')} isSelected={selectedCardLocal === 'Total Returns'} />
+                    <StatCard title="Refunded" amount={totals.refunded} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCardLocal('Paid')} isSelected={selectedCardLocal === 'Paid'} />
+                    <StatCard title="Unpaid" amount={totals.unpaid} icon={<BadgeIndianRupee className="h-5 w-5" />} onPress={() => setSelectedCardLocal('Unpaid')} isSelected={selectedCardLocal === 'Unpaid'} />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -393,7 +391,7 @@ const PurchaseReturnDataPage = () => {
                         <div ref={datePickerRef} className="relative">
                             <Button
                                 variant="outline"
-                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5 w-64"
+                                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5 w-64 cursor-pointer"
                                 onClick={handleDateButtonClick}
                             >
                                 <div className="flex items-center justify-between w-full">
@@ -439,14 +437,19 @@ const PurchaseReturnDataPage = () => {
                     <div className="flex items-center gap-2">
                             <DropdownMenu>
                                 <DropdownMenuTrigger>
-                                    <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-3 py-1.5">
+                                    <div className="relative inline-block group">
+                                    <Button disabled aria-disabled="true" variant="outline" className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 opacity-80 cursor-not-allowed">
                                         Bulk Actions
                                         <ChevronDown className="h-4 w-4 ml-2" />
                                     </Button>
+                                    <div className="absolute -top-7 right-0 hidden group-hover:block z-50">
+                                        <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded shadow">Coming soon</div>
+                                    </div>
+                                </div>
                                 </DropdownMenuTrigger>
                             </DropdownMenu>
                         <Link href="/dashboard/return/purchase/purchase-return-invoice">
-                            <Button className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5">
+                            <Button className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 cursor-pointer">
                                 Create Purchase Return
                             </Button>
                         </Link>
@@ -469,7 +472,9 @@ const PurchaseReturnDataPage = () => {
                         <TableBody>
                             {isLoadingReturns ? (
                                 <TableRow>
-                                    <td colSpan={7} className="text-center py-20">Loading...</td>
+                                    <td colSpan={7} className="p-0">
+                                        <TableSkeleton rows={6} />
+                                    </td>
                                 </TableRow>
                             ) : returnsList.length === 0 ? (
                                 <TableRow>
@@ -506,28 +511,13 @@ const PurchaseReturnDataPage = () => {
                                             <td className="px-3 py-2">₹ {total.toFixed(2)}</td>
                                             <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs font-medium ${statusColor}`}>{status}</span></td>
                                             <td ref={el => { dropdownRefs.current[r._id] = el as any; }} className="px-3 py-2 text-right relative">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === r._id ? null : r._id); }}>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer" onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === r._id ? null : r._id); }}>
                                                     <MoreVertical className="h-4 w-4" />
                                                 </Button>
                                                 {openDropdownId === r._id && (
                                                     <div className="absolute right-0 mt-2 w-40 bg-white border rounded-md shadow-lg z-10">
-                                                        <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center" onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (user?.permissions?.purchasesReturn?.update) {
-                                                                setOpenDropdownId(null);
-                                                                router.push(`/dashboard/return/purchase/purchase-return-invoice?editId=${r._id}`);
-                                                            } else {
-                                                                toast.error("You don't have permission to edit purchase returns.");
-                                                            }
-                                                        }}><Edit className="h-4 w-4 mr-2"/> Edit</button>
-                                                        <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center" onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (user?.permissions?.purchasesReturn?.delete) {
-                                                                handleDeleteClick(r._id);
-                                                            } else {
-                                                                toast.error("You don't have permission to delete purchase returns.");
-                                                            }
-                                                        }}><Trash2 className="h-4 w-4 mr-2"/> Delete</button>
+                                                        <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center cursor-pointer" onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); router.push(`/dashboard/return/purchase/purchase-return-invoice?editId=${r._id}`); }}><Edit className="h-4 w-4 mr-2"/> Edit</button>
+                                                        <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center cursor-pointer" onClick={(e) => { e.stopPropagation(); handleDeleteClick(r._id); }}><Trash2 className="h-4 w-4 mr-2"/> Delete</button>
                                                     </div>
                                                 )}
                                             </td>

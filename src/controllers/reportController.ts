@@ -4,7 +4,6 @@
 
 // src/controllers/reportController.ts
 import { connectDB } from "@/lib/db";
-
 import mongoose from "mongoose";
 
 type PartyType = "Customer" | "Supplier";

@@ -29,7 +29,7 @@ export interface INewSaleReturn extends Document {
 const newSaleReturnSchema = new Schema<INewSaleReturn>(
   {
     business: { type: Schema.Types.ObjectId, ref: 'Business', required: true },
-    originalSale: { type: Schema.Types.ObjectId, ref: 'NewSale', required: true },
+  originalSale: { type: Schema.Types.ObjectId, ref: 'NewSale', required: false },
     returnInvoiceNumber: { type: Number, required: true },
     returnInvoiceNo: { type: String },
     returnDate: { type: Schema.Types.Mixed },

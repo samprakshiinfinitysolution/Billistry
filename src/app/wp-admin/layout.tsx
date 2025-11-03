@@ -258,7 +258,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     className="inline-flex items-center gap-3 cursor-pointer select-none rounded-md px-2 py-1 hover:bg-gray-50"
                   >
                     <Avatar>
-                      <AvatarImage src="https://i.pravatar.cc/150?u=admin" alt="Admin" />
+                      {/* removed external default image; show fallback initial */}
+                      <AvatarFallback>A</AvatarFallback>
                     </Avatar>
                     <div className="flex items-center gap-1">
                       <span className="text-sm text-gray-700">Admin</span>
@@ -350,7 +351,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                 <div className="p-6 flex flex-col items-center text-center">
                   <Avatar>
-                    <AvatarImage src="https://i.pravatar.cc/150?u=admin" alt="Admin" />
+                    {/* removed external default image in exit modal; show fallback initial */}
+                    <AvatarFallback>A</AvatarFallback>
                   </Avatar>
                   <div className="mt-3 text-lg font-semibold">Admin</div>
                   <p className="mt-4 text-sm text-gray-600">Are you sure you want to exit?</p>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Star, TrendingUp, CheckCircle2, XCircle, MoreVertical } from 'lucide-react';
 import {
@@ -19,8 +19,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { getAdmins, updateAdmin, Admin } from "../manage-admins/data";
+} from '@/components/ui/table';
+import TableSkeleton from '@/components/ui/TableSkeleton';
+import { getAdmins, refreshAdmins, updateAdmin, Admin } from '../manage-admins/data';
 import { createPortal } from 'react-dom';
 
 type SubUser = {
@@ -35,63 +36,7 @@ type SubUser = {
   createdAt: string;
 };
 
-const kpis = [
-  { title: 'Total Subscribers', value: '12,430', change: '+4.2%', positive: true },
-  { title: 'Monthly Revenue', value: '₹1,24,300', change: '+2.1%', positive: true },
-  { title: 'Renewal Rate', value: '81%', change: '+1.3%', positive: true },
-  { title: 'Churn Rate', value: '3.2%', change: '-0.4%', positive: false },
-];
-
-const plans = [
-  {
-    id: 'basic',
-    name: 'Basic',
-    price: '₹0',
-    subs: 512,
-    popular: false,
-    features: [
-      { name: 'Up to 100 invoices', included: true },
-      { name: 'Email support', included: true },
-      { name: 'Multi-store', included: false },
-      { name: 'Advanced reports', included: false },
-      { name: 'Mobile app access', included: true },
-      { name: 'Single user account', included: true },
-      { name: 'Basic analytics', included: false },
-    ],
-  },
-  {
-    id: 'standard',
-    name: 'Standard',
-    price: '₹499',
-    subs: 4230,
-    popular: true,
-    features: [
-      { name: 'Up to 2000 invoices', included: true },
-      { name: 'Priority email support', included: true },
-      { name: 'Multi-store', included: true },
-      { name: 'Advanced reports', included: false },
-      { name: 'Custom invoice templates', included: true },
-      { name: 'CSV export', included: true },
-      { name: 'API access (limited)', included: false },
-    ],
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    price: '₹999',
-    subs: 5788,
-    popular: false,
-    features: [
-      { name: 'Unlimited invoices', included: true },
-      { name: 'Phone & priority support', included: true },
-      { name: 'Multi-store', included: true },
-      { name: 'Advanced reports', included: true },
-      { name: 'API access', included: true },
-      { name: 'Dedicated account manager', included: true },
-      { name: 'Custom branding', included: true },
-    ],
-  },
-];
+// Plans and KPIs are loaded from server at runtime
 
 function KPI({ kpi }: { kpi: any }) {
   return (
@@ -152,46 +97,29 @@ function PricingCard({ plan }: { plan: any }) {
 }
 
 export default function SubscriptionsPage() {
-
-  // use shared admins store (live)
-  const [users, setUsers] = useState<SubUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-
-  React.useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoadingUsers(true);
-        const admins = getAdmins();
-        if (!mounted) return;
-        setUsers(admins.map(a => ({
-          id: a.id,
-          businessName: a.store || a.name,
-          place: a.location || '',
-          status: a.status.toLowerCase(),
-          planId: a.plan.toLowerCase(),
-          contact: a.phone || '',
-          email: a.email || '',
-          businessType: Array.isArray((a as any).businessTypes) ? (a as any).businessTypes.join(', ') : ((a as any).businessType || ''),
-          createdAt: a.joined || ''
-        })));
-      } catch (err) {
-        console.error('failed to load admins', err);
-      } finally {
-        setLoadingUsers(false);
-      }
-    })();
-    return () => { mounted = false };
-  }, []);
+  // use shared admins store and load live data
+  const [users, setUsers] = useState(() => getAdmins().map(a => ({
+  id: a.id,
+  businessName: a.store || a.name,
+  place: a.location || '',
+  status: (a.status || '').toLowerCase(),
+  planId: ((a.plan || 'basic') + '').toLowerCase(),
+    contact: a.phone || '',
+    email: a.email || '',
+    businessType: Array.isArray((a as any).businessTypes) ? (a as any).businessTypes.join(', ') : ((a as any).businessType || ''),
+    createdAt: a.joined || ''
+  })));
+  const [plansList, setPlansList] = useState<any[]>([]);
+  const [kpisState, setKpisState] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [planFilter, setPlanFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState<string>('');
 
   // derive plans with status (active)
   const plansWithStatus = useMemo(() => {
-    // attach a status field if missing
-    return plans.map((p) => ({ ...p, status: (p as any).status || 'active' }));
-  }, []);
+    return plansList.map((p: any) => ({ ...p, status: p.status || 'active' }));
+  }, [plansList]);
 
   // helper to compute human-friendly age
   function formatAge(dateStr: string) {
@@ -219,12 +147,63 @@ export default function SubscriptionsPage() {
   const [confirmUser, setConfirmUser] = useState<SubUser | null>(null);
   const [confirmAction, setConfirmAction] = useState<'activate' | 'deactivate' | null>(null);
 
+  // load live subscription data (plans, stats, users)
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        setLoading(true);
+        // fetch available plans
+        const pRes = await fetch('/api/subscriptions?plans=1');
+        if (pRes.ok) {
+          const pj = await pRes.json();
+          if (mounted) setPlansList(pj.plans || []);
+        }
+
+        // fetch admin subscription stats
+        const statsRes = await fetch('/api/admin/subscriptions/stats');
+        if (statsRes.ok) {
+          const sj = await statsRes.json();
+          if (mounted) {
+            const totals = sj?.totals || {};
+            setKpisState([
+              { title: 'Active Subscriptions', value: String(totals.active || 0), change: '', positive: true },
+              { title: 'Expired', value: String(totals.expired || 0), change: '', positive: false },
+              { title: 'No Plan', value: String(totals.none || 0), change: '', positive: false },
+              { title: 'Recent Changes', value: (sj?.recent || []).length.toString(), change: '', positive: true },
+            ]);
+          }
+        }
+
+        // refresh admins list from server
+        await refreshAdmins();
+        if (mounted) setUsers(getAdmins().map(a => ({
+          id: a.id,
+          businessName: a.store || a.name,
+          place: a.location || '',
+          status: a.status.toLowerCase(),
+          planId: (a.plan || 'basic').toLowerCase(),
+          contact: a.phone || '',
+          email: a.email || '',
+          businessType: Array.isArray((a as any).businessTypes) ? (a as any).businessTypes.join(', ') : ((a as any).businessType || ''),
+          createdAt: a.joined || ''
+        })));
+      } catch (e) {
+        console.warn('failed to load subscription data', e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, []);
+
   const planCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    plans.forEach((p) => (counts[p.id] = 0));
+    plansWithStatus.forEach((p: any) => (counts[p.id] = 0));
     users.forEach((u) => { counts[u.planId] = (counts[u.planId] || 0) + 1; });
     return counts;
-  }, [users]);
+  }, [users, plansWithStatus]);
 
   function toggleUserStatus(id: string) {
     // update shared store
@@ -235,25 +214,34 @@ export default function SubscriptionsPage() {
     // local update will be refreshed by adminsUpdated event
   }
 
-  function changeUserPlan(userId: string, newPlanId: string) {
+  async function changeUserPlan(userId: string, newPlanId: string) {
     // change plan in shared admin store
     const admin = getAdmins().find(a => a.id === userId);
     if (!admin) return;
     // map plan id to plan name casing used in admin store
-  const planName = plans.find(p => p.id === newPlanId)?.name || newPlanId;
-  updateAdmin(userId, { plan: planName as Admin['plan'] });
+  const planName = plansWithStatus.find((p: any) => p.id === newPlanId)?.name || newPlanId;
+  // call API to update business subscription if possible
+  try {
+    const res = await fetch(`/api/subscriptions?action=changePlan`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ businessId: userId, planId: planName }) });
+    if (res.ok) {
+      updateAdmin(userId, { plan: planName as Admin['plan'] });
+      await refreshAdmins();
+      setUsers(getAdmins().map(a => ({ id: a.id, businessName: a.store || a.name, place: a.location || '', status: a.status.toLowerCase(), planId: (a.plan||'basic').toLowerCase(), contact: a.phone||'', email: a.email||'', businessType: Array.isArray((a as any).businessTypes)?(a as any).businessTypes.join(', '):((a as any).businessType||''), createdAt: a.joined||'' })));
+    } else {
+      console.warn('change plan failed', await res.text());
+    }
+  } catch (e) { console.warn('change plan error', e); }
   }
 
   // subscribe to shared admin updates
   React.useEffect(() => {
-    async function onUpdate() {
-      const admins = getAdmins();
-      setUsers(admins.map(a => ({
-        id: a.id,
-        businessName: a.store || a.name,
-        place: a.location || '',
-        status: a.status.toLowerCase(),
-        planId: a.plan.toLowerCase(),
+    function onUpdate() {
+      setUsers(getAdmins().map(a => ({
+  id: a.id,
+  businessName: a.store || a.name,
+  place: a.location || '',
+  status: (a.status || '').toLowerCase(),
+  planId: ((a.plan || 'basic') + '').toLowerCase(),
         contact: a.phone || '',
         email: a.email || '',
         businessType: Array.isArray((a as any).businessTypes) ? (a as any).businessTypes.join(', ') : ((a as any).businessType || ''),
@@ -269,9 +257,22 @@ export default function SubscriptionsPage() {
 
       <div className="space-y-6 pt-6 px-0">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {kpis.map((k) => (
-            <KPI key={k.title} kpi={k} />
-          ))}
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="border border-gray-200">
+                <CardContent>
+                  <div className="h-4 w-28 bg-gray-200 rounded animate-pulse" />
+                  <div className="mt-3 h-6 w-20 bg-gray-200 rounded animate-pulse" />
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            kpisState.length ? kpisState.map((k) => (
+              <KPI key={k.title} kpi={k} />
+            )) : (
+              <KPI kpi={{ title: 'No data', value: '-', change: '', positive: true }} />
+            )
+          )}
         </div>
 
         {/* Subscriptions overview: Plans and Users list */}
@@ -293,7 +294,7 @@ export default function SubscriptionsPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All plans</SelectItem>
-                        {plans.map((p) => (
+                        {plansWithStatus.map((p: any) => (
                           <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -328,40 +329,50 @@ export default function SubscriptionsPage() {
                     <TableHead className="text-gray-500">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell>{u.businessName}</TableCell>
-                      <TableCell>{u.contact}</TableCell>
-                      <TableCell>{u.email}</TableCell>
-                      <TableCell>{u.place}</TableCell>
-                      <TableCell>{u.businessType}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-0.5 rounded text-sm ${u.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {u.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>{formatAge(u.createdAt)}</TableCell>
-                      <TableCell>
-                        <div className="text-sm px-2 py-1 rounded bg-gray-50">{plans.find(p => p.id === u.planId)?.name || u.planId}</div>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="p-1">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            <DropdownMenuItem onSelect={() => router.push(`/wp-admin/manage-admins/${u.id}/edit`)}>Edit</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setPlanModalUser(u)}>Change plan</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => { setConfirmUser(u); setConfirmAction(u.status === 'active' ? 'deactivate' : 'activate'); }}>{u.status === 'active' ? 'Deactivate' : 'Activate'}</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+                {loading ? (
+                  <tbody>
+                    <tr>
+                      <td colSpan={9}>
+                        <div className="p-2"><TableSkeleton rows={4} /></div>
+                      </td>
+                    </tr>
+                  </tbody>
+                ) : (
+                  <TableBody>
+                    {filteredUsers.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell>{u.businessName}</TableCell>
+                        <TableCell>{u.contact}</TableCell>
+                        <TableCell>{u.email}</TableCell>
+                        <TableCell>{u.place}</TableCell>
+                        <TableCell>{u.businessType}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-0.5 rounded text-sm ${u.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            {u.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>{formatAge(u.createdAt)}</TableCell>
+                          <TableCell>
+                            <div className="text-sm px-2 py-1 rounded bg-gray-50">{plansWithStatus.find((p: any) => p.id === u.planId)?.name || u.planId}</div>
+                          </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="p-1">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem onSelect={() => router.push(`/wp-admin/manage-admins/${u.id}/edit`)}>Edit</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => setPlanModalUser(u)}>Change plan</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => { setConfirmUser(u); setConfirmAction(u.status === 'active' ? 'deactivate' : 'activate'); }}>{u.status === 'active' ? 'Deactivate' : 'Activate'}</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                )}
               </Table>
             </CardContent>
           </Card>
@@ -377,7 +388,7 @@ export default function SubscriptionsPage() {
                 <button className="text-gray-500 hover:text-gray-700" onClick={() => setPlanModalUser(null)}>✕</button>
               </div>
               <div className="p-6">
-                <div className="space-y-6">
+                    <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">Select Plan</label>
                     <Select defaultValue={planModalUser.planId} onValueChange={(val) => setPlanModalUser(u => u ? ({ ...u, planId: val }) : u)}>
@@ -385,7 +396,7 @@ export default function SubscriptionsPage() {
                         <SelectValue placeholder="Select plan" />
                       </SelectTrigger>
                       <SelectContent className="z-[10001]">
-                        {plans.map(p => (
+                        {plansWithStatus.map((p: any) => (
                           <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                         ))}
                       </SelectContent>

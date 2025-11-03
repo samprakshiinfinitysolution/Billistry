@@ -26,6 +26,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import TableSkeleton from '@/components/ui/TableSkeleton';
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   format,
   isToday,
@@ -86,9 +88,13 @@ export default function SalesSummaryPage() {
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [paymentFilter, setPaymentFilter] = useState<
-    "all" | "unpaid" | "cash" | "online"
-  >("all");
+  // make paymentFilter a string so we can support dynamic/unknown payment types (e.g. NETBANKING)
+  const [paymentFilter, setPaymentFilter] = useState<string>("all");
+
+  function capitalize(s: string) {
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  }
 
   useEffect(() => {
     fetchSales();
@@ -234,15 +240,15 @@ export default function SalesSummaryPage() {
           "Payment Status",
         ],
       ],
-      body: filteredSales.map((s, idx) => [
+  body: filteredSales.map((s, idx) => [
         idx + 1,
         s.invoiceNo,
         s.selectedParty?.name || "",
         format(parseISO(s.invoiceDate), "dd/MM/yyyy"),
-        s.items.map((it) => `${it.name || ""} (x${it.qty})`).join(", "),
+  s.items.map((it) => `${it.name || ""} (x${it.qty})`).join(", "),
         s.items.map((it) => `${it.qty} pcs`).join(", "),
         `₹${(s.totalAmount || 0).toFixed(2)}`,
-        (s.paymentStatus || "N/A").toUpperCase(),
+        capitalize(s.paymentStatus || "N/A"),
       ]),
       styles: { fontSize: 9 },
       headStyles: { halign: "left" },
@@ -276,7 +282,7 @@ export default function SalesSummaryPage() {
       Items: s.items.map((it) => `${it.name || ""} (x${it.qty})`).join(", "),
       Quantity: s.items.map((it) => `${it.qty} pcs`).join(", "),
       "Amount (₹)": Number(s.totalAmount || 0),
-      "Payment Status": (s.paymentStatus || "N/A").toUpperCase(),
+      "Payment Status": capitalize(s.paymentStatus || "N/A"),
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -359,7 +365,7 @@ export default function SalesSummaryPage() {
                 value={filterType}
                 onValueChange={(v: FilterType) => setFilterType(v)}
               >
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-40 cursor-pointer">
                   <SelectValue placeholder="Filter" />
                 </SelectTrigger>
                 <SelectContent>
@@ -383,40 +389,40 @@ export default function SalesSummaryPage() {
                   />
                 </>
               )}
-              <Select
-                value={paymentFilter}
-                onValueChange={(v: "all" | "unpaid" | "cash" | "online") =>
-                  setPaymentFilter(v)
-                }
-              >
-                <SelectTrigger className="w-40">
+              <Select value={paymentFilter} onValueChange={(v: string) => setPaymentFilter(v)}>
+                <SelectTrigger className="w-40 cursor-pointer">
                   <SelectValue placeholder="Payment Status" />
                 </SelectTrigger>
                 <SelectContent>
+                  {/**
+                   * Build a list of payment options dynamically from `sales` so
+                   * unknown types such as "NETBANKING" will appear.
+                   */}
+                  {
+                    /* 'all' option first */
+                  }
                   <SelectItem value="all">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
                       All Payments
                     </div>
                   </SelectItem>
-                  <SelectItem value="unpaid">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                      Unpaid
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="cash">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                      Cash
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="online">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                      Online
-                    </div>
-                  </SelectItem>
+
+                  {/** dynamic options derived from data */}
+                  {Array.from(new Set(sales.map((s) => (s.paymentStatus || "").toString().trim()).filter(Boolean))).map((opt) => {
+                    const key = opt;
+                    const lower = opt.toLowerCase();
+                    // color mapping for known types, fallback to gray
+                    const colorClass = lower === "unpaid" ? "bg-red-500" : lower === "cash" ? "bg-green-500" : lower === "online" ? "bg-blue-500" : "bg-gray-400";
+                    return (
+                      <SelectItem key={key} value={key}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`}></span>
+                          {capitalize(opt)}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -492,7 +498,7 @@ export default function SalesSummaryPage() {
             {/* Sales Table */}
             <div className="relative flex-1 overflow-auto">
               <div className="w-full">
-                <table className="min-w-full w-full">
+                <table className="min-w-full w-full table-fixed text-sm">
                   <TableHeader className="bg-gray-100 sticky top-0 z-20">
                     <TableRow>
                       <TableHead className="sticky top-0 bg-gray-100 z-20">S. No.</TableHead>
@@ -550,11 +556,11 @@ export default function SalesSummaryPage() {
                         </div>
                       </TableHead>
 
-                      <TableHead className="sticky top-0 bg-gray-100 z-20">
+                      <TableHead className="sticky top-0 bg-gray-100 z-20" style={{ width: '35%' }}>
                         <div className="flex items-center gap-1">Items</div>
                       </TableHead>
 
-                      <TableHead className="sticky top-0 bg-gray-100 z-20">
+                      <TableHead className="sticky top-0 bg-gray-100 z-20" style={{ width: '10%' }}>
                         <div className="flex items-center gap-1">Quantity</div>
                       </TableHead>
 
@@ -581,38 +587,13 @@ export default function SalesSummaryPage() {
                   </TableHeader>
 
                   <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={8}
-                          className="text-center py-4 text-gray-500"
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <svg
-                              className="animate-spin h-5 w-5 text-gray-500"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v8H4z"
-                              ></path>
-                            </svg>
-                            Loading sales data...
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : filteredSales.length === 0 ? (
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="p-0">
+                            <TableSkeleton rows={6} />
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredSales.length === 0 ? (
                       <TableRow>
                         <TableCell
                           colSpan={8}
@@ -630,11 +611,62 @@ export default function SalesSummaryPage() {
                           <TableCell>
                             {format(parseISO(sale.invoiceDate), "dd/MM/yyyy")}
                           </TableCell>
-                          <TableCell>
-                            {sale.items.map((i) => i.name).join(", ")}
+                          <TableCell className="align-top">
+                            {(() => {
+                              const items = sale.items || [];
+                              if (!items.length) return <span className="text-sm text-gray-600">-</span>;
+                              const first = items.slice(0, 2).map((it) => it.name || "");
+                              const remaining = items.slice(2);
+                              const fullList = items.map((it) => `${it.name || ""} (x${it.qty})`).join("\n");
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <div className="truncate text-sm text-gray-800">{first.join(", ")}{remaining.length ? ", ..." : ""}</div>
+                                  {remaining.length > 0 && (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button className="text-xs text-indigo-600 hover:underline cursor-pointer">+{remaining.length} more</button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-2">
+                                        <div className="text-sm text-gray-700 whitespace-pre-line">
+                                          {fullList}
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </TableCell>
-                          <TableCell>
-                            {sale.items.map((i) => `${i.qty} pcs`).join(", ")}
+                          <TableCell className="align-top">
+                            {(() => {
+                              const items = sale.items || [];
+                              if (!items.length) return <span className="text-sm text-gray-600">0</span>;
+                              const totalQty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+                              if (items.length <= 2) {
+                                return <span className="text-sm text-gray-800">{totalQty}</span>;
+                              }
+                              // when many items, show total and disclosure for per-item qty
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-gray-800">{totalQty}</span>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <button className="text-xs text-gray-500 cursor-pointer">details</button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-2">
+                                      <div className="text-sm text-gray-700">
+                                        {items.map((it, idx) => (
+                                          <div key={idx} className="flex justify-between gap-4">
+                                            <div className="truncate">{it.name}</div>
+                                            <div className="ml-4 text-gray-600">{it.qty} pcs</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell>
                             ₹{sale.totalAmount.toLocaleString()}
@@ -649,7 +681,7 @@ export default function SalesSummaryPage() {
                                   : "bg-blue-100 text-blue-700"
                               }`}
                             >
-                              {(sale.paymentStatus || "N/A").toUpperCase()}
+                              {capitalize(sale.paymentStatus || "N/A")}
                             </span>
                           </TableCell>
                         </TableRow>

@@ -4,6 +4,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import FormSkeleton from '@/components/ui/FormSkeleton';
 import Image from 'next/image';
 import { UploadCloud, ChevronDown, Plus, X, MessageSquare, CalendarX, Tally3, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -30,18 +31,18 @@ const ImageUpload = ({ label, previewUrl, onFileSelect, onClear, error }: ImageU
       <label className="block text-sm font-medium text-gray-600 mb-1">{label}</label>
       <div className="w-full h-32 flex flex-col justify-center items-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg text-center p-2 relative">
         <input type="file" ref={fileInputRef} onChange={handleFileChange} accept={ACCEPTED_IMAGE_TYPES.join(',')} className="hidden" />
-        {previewUrl ? (
-          <>
-            <Image src={previewUrl} alt="Preview" fill className="object-contain rounded" />
-            <button type="button" onClick={onClear} className="absolute top-1 right-1 bg-white rounded-full p-1 shadow-md text-gray-600 hover:text-red-500"><X size={16} /></button>
-          </>
-        ) : (
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full h-full">
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-              <UploadCloud className="text-gray-400" size={32} /><p className="text-sm font-semibold text-blue-600 mt-2">{label === 'Signature' ? 'Add Signature' : 'Upload Logo'}</p><p className="text-xs text-gray-400">PNG/JPG, max 5MB.</p>
-            </div>
-          </button>
-        )}
+                {previewUrl ? (
+                    <>
+                        <Image src={previewUrl} alt="Preview" fill className="object-contain rounded" />
+                        <button type="button" onClick={onClear} className="absolute top-1 right-1 bg-white rounded-full p-1 shadow-md text-gray-600 hover:text-red-500 cursor-pointer"><X size={16} /></button>
+                    </>
+                ) : (
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full h-full cursor-pointer">
+                        <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                            <UploadCloud className="text-gray-400" size={32} /><p className="text-sm font-semibold text-blue-600 mt-2">{label === 'Signature' ? 'Add Signature' : 'Upload Logo'}</p><p className="text-xs text-gray-400">PNG/JPG, max 5MB.</p>
+                        </div>
+                    </button>
+                )}
       </div>
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
@@ -49,7 +50,7 @@ const ImageUpload = ({ label, previewUrl, onFileSelect, onClear, error }: ImageU
 };
 
 // --- MultiSelectDropdown Component ---
-const Pill = ({ text, onRemove }: { text: string; onRemove: () => void }) => ( <div className="bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-md flex items-center gap-2"><span>{text}</span><button type="button" onClick={onRemove} className="text-gray-500 hover:text-gray-800 focus:outline-none"><X size={14} /></button></div> );
+const Pill = ({ text, onRemove }: { text: string; onRemove: () => void }) => ( <div className="bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1 rounded-md flex items-center gap-2"><span>{text}</span><button type="button" onClick={onRemove} className="text-gray-500 hover:text-gray-800 focus:outline-none cursor-pointer"><X size={14} /></button></div> );
 interface MultiSelectDropdownProps { label: string; options: string[]; selectedItems: string[]; onChange: (selected: string[]) => void; placeholder?: string; }
 const MultiSelectDropdown = ({ label, options, selectedItems, onChange, placeholder = 'Select...' }: MultiSelectDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false); const dropdownRef = useRef<HTMLDivElement>(null);
@@ -57,7 +58,7 @@ const MultiSelectDropdown = ({ label, options, selectedItems, onChange, placehol
   const availableOptions = options.filter(opt => !selectedItems.includes(opt));
   const handleSelect = (option: string) => { onChange([...selectedItems, option]); setIsOpen(false); };
   const handleRemove = (itemToRemove: string) => { onChange(selectedItems.filter(item => item !== itemToRemove)); };
-  return ( <div className="relative" ref={dropdownRef}><label className="block text-sm font-medium text-gray-600 mb-1">{label}</label><div className="block w-full p-2 bg-white border border-gray-300 rounded-md shadow-sm min-h-[42px] cursor-pointer" onClick={() => setIsOpen(!isOpen)}><div className="flex flex-wrap gap-2 items-center">{selectedItems.map(item => <Pill key={item} text={item} onRemove={() => handleRemove(item)} />)}{selectedItems.length === 0 && <span className="text-gray-400 px-1">{placeholder}</span>}<ChevronDown className="absolute right-3 top-1/2 -translate-y-[-5px] h-5 w-5 text-gray-400" /></div></div>{isOpen && availableOptions.length > 0 && ( <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">{availableOptions.map(option => (<li key={option} onClick={() => handleSelect(option)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">{option}</li>))}</ul>)}</div>);
+    return ( <div className="relative" ref={dropdownRef}><label className="block text-sm font-medium text-gray-600 mb-1">{label}</label><div className="block w-full p-2 bg-white border border-gray-300 rounded-md shadow-sm min-h-[42px] cursor-pointer" onClick={() => setIsOpen(!isOpen)}><div className="flex flex-wrap gap-2 items-center">{selectedItems.map(item => <Pill key={item} text={item} onRemove={() => handleRemove(item)} />)}{selectedItems.length === 0 && <span className="text-gray-400 px-1">{placeholder}</span>}<ChevronDown className="absolute right-3 top-1/2 -translate-y-[-5px] h-5 w-5 text-gray-400" /></div></div>{isOpen && availableOptions.length > 0 && ( <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">{availableOptions.map(option => (<li key={option} onClick={() => handleSelect(option)} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">{option}</li>))}</ul>)}</div>);
 };
 
 // --- SearchableDropdown (Combobox) Component ---
@@ -72,7 +73,7 @@ const SearchableDropdown = ({ label, options, selected, onSelect, placeholder = 
 };
 
 // --- Other General UI Components ---
-const ToggleSwitch = ({ enabled, onChange }: { enabled: boolean; onChange: (enabled: boolean) => void }) => ( <button type="button" onClick={() => onChange(!enabled)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none ${enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${enabled ? 'translate-x-6' : 'translate-x-1'}`} /></button>);
+const ToggleSwitch = ({ enabled, onChange }: { enabled: boolean; onChange: (enabled: boolean) => void }) => ( <button type="button" onClick={() => onChange(!enabled)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none cursor-pointer ${enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${enabled ? 'translate-x-6' : 'translate-x-1'}`} /></button>);
 const FormField = ({ label, required, className, children, error }: { label: string; required?: boolean; className?: string; error?: string; children: React.ReactNode; }) => ( <div className={className}><label htmlFor={label} className="block text-sm font-medium text-gray-600 mb-1">{label} {required && <span className="text-red-500">*</span>}</label>{children}{error && <p className="mt-1 text-xs text-red-500">{error}</p>}</div>);const Input = ({
   hasError,
   ...props
@@ -84,7 +85,7 @@ const FormField = ({ label, required, className, children, error }: { label: str
     } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
   />
 );
-const Select = ({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => ( <div className="relative"><select {...props} className="appearance-none block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{children}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" /></div>);
+const Select = ({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => ( <div className="relative"><select {...props} className="appearance-none block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm cursor-pointer">{children}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" /></div>);
 
 
 // --- 2. CREATE BUSINESS MODAL COMPONENT ---
@@ -105,8 +106,8 @@ const CreateBusinessModal = ({ isOpen, onClose, onSubmit }: CreateBusinessModalP
   }, [isOpen, onClose]);
   const validate = () => { const newErrors: { name?: string; incorporationType?: string } = {}; if (!formData.name || formData.name.length < 3 || formData.name.length > 60) { newErrors.name = "Business name must be 3-60 characters."; } if (!formData.incorporationType) { newErrors.incorporationType = "Incorporation type is required."; } setErrors(newErrors); return Object.keys(newErrors).length === 0; };
   const handleSubmit = async (e: React.FormEvent) => { e.preventDefault(); if (!validate()) return; setIsSaving(true); try { await onSubmit(formData); onClose(); } catch (error) { console.error("Failed to create business:", error); alert("Failed to create business. Please try again."); } finally { setIsSaving(false); } };
-  if (!isOpen) return null;
-  return ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity"><div ref={modalRef} className="bg-white rounded-lg shadow-xl w-full max-w-lg animate-fade-in-up" onClick={(e) => e.stopPropagation()}><div className="flex justify-between items-center p-4 border-b"><h2 className="text-xl font-semibold text-gray-800">Create Business</h2><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={24} /></button></div><div className="p-6 space-y-6"><div className="text-center"><Image src="https://i.imgur.com/3xR2u9p.png" alt="Manage multiple businesses" className="mx-auto mb-3" style={{ maxWidth: '300px' }}/><p className="text-sm text-gray-600">Have more than 1 business?</p><p className="text-sm text-blue-600">Easily manage all your businesses on myBillBook</p></div><form id="create-business-form" onSubmit={handleSubmit} className="space-y-4"><div><label htmlFor="businessName" className="block text-sm font-medium text-gray-700 mb-1">Business Name <span className="text-red-500">*</span></label><input id="businessName" type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enter business name" className={`w-full px-3 py-2 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500`} />{errors.name && <p className="text-sm text-red-500 mt-1">{errors.name}</p>}</div><div><label className="block text-sm font-medium text-gray-700 mb-1">Business Type</label><div className="relative"><select value={formData.businessType} onChange={(e) => setFormData({ ...formData, businessType: e.target.value })} className="w-full appearance-none px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"><option value="" disabled>Select</option>{MODAL_BUSINESS_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" /></div></div><SearchableDropdown label="Industry Type" options={MODAL_INDUSTRY_OPTIONS} selected={formData.industryType} onSelect={(value) => setFormData({ ...formData, industryType: value })} /><SearchableDropdown label="Incorporation Type" options={MODAL_INCORPORATION_OPTIONS} selected={formData.incorporationType} onSelect={(value) => setFormData({ ...formData, incorporationType: value })} required />{errors.incorporationType && <p className="text-sm text-red-500 -mt-2">{errors.incorporationType}</p>}</form></div><div className="flex justify-end items-center p-4 border-t bg-gray-50 rounded-b-lg"><button type="button" onClick={onClose} className="px-6 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 mr-3">Cancel</button><button form="create-business-form" type="submit" disabled={isSaving} className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed">{isSaving ? 'Saving...' : 'Save'}</button></div></div></div>);
+    if (!isOpen) return null;
+    return ( <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity"><div ref={modalRef} className="bg-white rounded-lg shadow-xl w-full max-w-lg animate-fade-in-up" onClick={(e) => e.stopPropagation()}><div className="flex justify-between items-center p-4 border-b"><h2 className="text-xl font-semibold text-gray-800">Create Business</h2><button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer"><X size={24} /></button></div><div className="p-6 space-y-6"><div className="text-center"><Image src="https://i.imgur.com/3xR2u9p.png" alt="Manage multiple businesses" className="mx-auto mb-3" style={{ maxWidth: '300px' }}/><p className="text-sm text-gray-600">Have more than 1 business?</p><p className="text-sm text-blue-600">Easily manage all your businesses on myBillBook</p></div><form id="create-business-form" onSubmit={handleSubmit} className="space-y-4"><div><label htmlFor="businessName" className="block text-sm font-medium text-gray-700 mb-1">Business Name <span className="text-red-500">*</span></label><input id="businessName" type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enter business name" className={`w-full px-3 py-2 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500`} />{errors.name && <p className="text-sm text-red-500 mt-1">{errors.name}</p>}</div><div><label className="block text-sm font-medium text-gray-700 mb-1">Business Type</label><div className="relative"><select value={formData.businessType} onChange={(e) => setFormData({ ...formData, businessType: e.target.value })} className="w-full appearance-none px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"><option value="" disabled>Select</option>{MODAL_BUSINESS_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" /></div></div><SearchableDropdown label="Industry Type" options={MODAL_INDUSTRY_OPTIONS} selected={formData.industryType} onSelect={(value) => setFormData({ ...formData, industryType: value })} /><SearchableDropdown label="Incorporation Type" options={MODAL_INCORPORATION_OPTIONS} selected={formData.incorporationType} onSelect={(value) => setFormData({ ...formData, incorporationType: value })} required />{errors.incorporationType && <p className="text-sm text-red-500 -mt-2">{errors.incorporationType}</p>}</form></div><div className="flex justify-end items-center p-4 border-t bg-gray-50 rounded-b-lg"><button type="button" onClick={onClose} className="px-6 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 mr-3 cursor-pointer">Cancel</button><button form="create-business-form" type="submit" disabled={isSaving} className="px-6 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 cursor-pointer disabled:bg-indigo-400 disabled:cursor-not-allowed">{isSaving ? 'Saving...' : 'Save'}</button></div></div></div>);
 };
 
 
@@ -303,7 +304,7 @@ const BusinessSettingsPage = () => {
     };
 
     if (isLoading) {
-        return <div className="flex justify-center items-center h-screen font-semibold text-gray-600">Loading Business Settings...</div>;
+        return <FormSkeleton />;
     }
 
     return (
@@ -316,10 +317,10 @@ const BusinessSettingsPage = () => {
                              <div><h1 className="text-2xl font-bold text-gray-900">Business Settings</h1><p className="text-sm text-gray-500">Edit Your Company Settings And Information</p></div>
                             <div className="flex items-center gap-3">
                                 {/* <button  onClick={() => setIsModalOpen(true)} type="button" className="px-4 py-2 text-sm font-semibold text-white bg-orange-500 rounded-md hover:bg-orange-600">Create new business</button> */}
-                                <button type="button" className="hidden lg:flex items-center gap-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-100 rounded-md hover:bg-blue-200"><MessageSquare size={16} /> Chat Support</button>
-                                <button type="button" className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"><CalendarX size={16} /> Close Financial Year</button>
-                                <button type="button" onClick={handleCancel} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100">Cancel</button>
-                                <button type="submit" disabled={!isDirty || isSaving} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed">{isSaving ? 'Saving...' : 'Save Changes'}</button>
+                                <button type="button" className="hidden lg:flex items-center gap-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-100 rounded-md hover:bg-blue-200 cursor-pointer"><MessageSquare size={16} /> Chat Support</button>
+                                {/* <button type="button" className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 cursor-pointer"><CalendarX size={16} /> Close Financial Year</button> */}
+                                <button type="button" onClick={handleCancel} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 cursor-pointer">Cancel</button>
+                                <button type="submit" disabled={!isDirty || isSaving} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 cursor-pointer disabled:bg-indigo-400 disabled:cursor-not-allowed">{isSaving ? 'Saving...' : 'Save Changes'}</button>
                             </div>
                         </div>
                     </header>

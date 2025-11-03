@@ -1,7 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import TableSkeleton from '@/components/ui/TableSkeleton';
 import { Button } from '@/components/ui/button';
 import { Trash2, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -32,22 +33,22 @@ export default function AdminContactPage() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchContacts = async () => {
-      try {
-        const res = await fetch('/api/contact', { cache: 'no-store' });
-        if (!res.ok) throw new Error('Failed to fetch contacts');
-        const data = await res.json();
-        // Assuming the API returns an array of contacts directly
-        setContacts(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchContacts();
+  const fetchContacts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/contact', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch contacts');
+      const data = await res.json();
+      // Assuming the API returns an array of contacts directly
+      setContacts(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -87,14 +88,32 @@ export default function AdminContactPage() {
     <div className="pt-6 pb-6">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>📬 Contact Submissions</CardTitle>
-            <Input
-              placeholder="Search submissions..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="flex justify-between items-center gap-3">
+            <div className="flex items-center gap-3">
+              <CardTitle>📬 Contact Submissions</CardTitle>
+              <Button variant="outline" size="sm" onClick={() => fetchContacts()} className="ml-2">Refresh</Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Input
+                  placeholder="Search submissions..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm pr-8"
+                />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2"
+                    onClick={() => setSearchTerm('')}
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -110,12 +129,23 @@ export default function AdminContactPage() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={4} className="text-center">Loading contacts...</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={4} className="p-0">
+                      <TableSkeleton rows={6} />
+                    </TableCell>
+                  </TableRow>
                 ) : filteredContacts.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center">No submissions found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-sm text-gray-500">No submissions found.</TableCell></TableRow>
                 ) : (
                   filteredContacts.map((contact) => (
-                  <tr key={contact._id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedContact(contact)}>
+                  <tr
+                    key={contact._id}
+                    className="hover:bg-gray-50" 
+                    onClick={() => setSelectedContact(contact)}
+                    tabIndex={0}
+                    role="button"
+                    onKeyDown={(e) => { if (e.key === 'Enter') setSelectedContact(contact); }}
+                  >
                       <TableCell>
                         <div className="font-medium">{contact.name}</div>
                         <div className="text-xs text-muted-foreground">{contact.email}</div>
@@ -123,11 +153,11 @@ export default function AdminContactPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Badge variant={getBadgeVariant(contact.subject)}>{contact.subject || 'No Subject'}</Badge>
-                          <span className="text-muted-foreground truncate">- {contact.message}</span>
+                          <span className="text-muted-foreground truncate" title={contact.message}>- {contact.message}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right text-xs text-muted-foreground">
-                      {new Date(contact.createdAt).toLocaleString()}
+                        {new Date(contact.createdAt).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteId(contact._id); }}>
@@ -145,8 +175,8 @@ export default function AdminContactPage() {
 
       {/* Detail Modal */}
       {selectedContact && createPortal(
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50" onClick={() => setSelectedContact(null)}>
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[999] flex items-start sm:items-center justify-center py-8 bg-black/50" onClick={() => setSelectedContact(null)}>
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 my-6 sm:my-0 p-4 sm:p-6 max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
@@ -171,9 +201,9 @@ export default function AdminContactPage() {
 
       {/* Delete Confirmation Modal */}
       {deleteId && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4 bg-black/50" onClick={() => setDeleteId(null)}>
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b">
+        <div className="fixed inset-0 z-[9999] flex items-start sm:items-center justify-center px-4 py-8 bg-black/50" onClick={() => setDeleteId(null)}>
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-4 sm:p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-0 py-0 border-b">
               <h3 className="text-lg font-semibold text-gray-800">Confirm Deletion</h3>
               <Button variant="ghost" size="icon" onClick={() => setDeleteId(null)}>
                 <X className="h-5 w-5" />

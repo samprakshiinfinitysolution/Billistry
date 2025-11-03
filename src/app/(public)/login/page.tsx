@@ -1,68 +1,245 @@
-"use client";
-import { useState } from "react";
+
+
+
+
+'use client';
+
+import toast from 'react-hot-toast';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import useGuestGuard from '@/hooks/useGuestGuard';
 
 export default function LoginPage() {
-  const [input, setInput] = useState("");
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState(1);
+  const loadingGuard = useGuestGuard();
+  const router = useRouter();
+  const pathname = usePathname();
+  const otpInputRef = useRef<HTMLInputElement>(null);
 
-  const requestOtp = async () => {
-    const res = await fetch("/api/request-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input }),
-    });
-    const data = await res.json();
-    if (res.ok) setStep(2);
-    alert(data.msg);
+  const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
+  const [identifier, setIdentifier] = useState(''); // Will hold phone number or email
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [resendTimer, setResendTimer] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  // countdown for resend
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const interval = setInterval(
+      () => setResendTimer(prev => Math.max(prev - 1, 0)),
+      1000
+    );
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  // auto focus OTP field
+  useEffect(() => {
+    if (otpSent && otpInputRef.current) otpInputRef.current.focus();
+  }, [otpSent]);
+
+  // detect email vs phone
+  const parseIdentifier = () => {
+    if (loginMethod === 'email') {
+      const trimmed = identifier.trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (emailRegex.test(trimmed)) return { email: trimmed.toLowerCase() };
+    }
+    if (loginMethod === 'phone') {
+      const trimmed = identifier.trim().replace(/\s/g, '');
+      const phoneRegex = /^[6-9]\d{9}$/; // Indian mobile number regex (10 digits, starts with 6-9)
+      if (phoneRegex.test(trimmed)) {
+        return { phone: `+91${trimmed}` };
+      }
+    }
+    return {};
   };
 
-  const verifyOtp = async () => {
-    const res = await fetch("/api/verify-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input, otp }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      alert(data.msg);
-      // redirect to dashboard
-      window.location.href = "/dashboard";
-    } else alert(data.msg);
+  const sendOTP = async () => {
+    if (loading || resendTimer > 0) return;
+
+    const payload = parseIdentifier();
+    if (!payload.email && !payload.phone) {
+      if (loginMethod === 'phone') {
+        toast.error('Please enter a valid 10-digit mobile number.');
+      } else {
+        toast.error('Please enter a valid email address.');
+      }
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, name: identifier }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to send OTP');
+
+      setOtpSent(true);
+      setOtp('');
+      setResendTimer(30);
+    } catch (err: any) {
+      toast.error(err.message || 'Error sending OTP');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const verifyOTP = async () => {
+    if (loading) return;
+
+    if (!otp.trim() || otp.length !== 6) {
+      toast.error('Enter a valid 6-digit OTP');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const payload = { ...parseIdentifier(), otp };
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to verify OTP');
+
+      // Role-based redirect
+      let redirectPath = '/dashboard';
+      if (data.role === 'superadmin' || data.role === 'admin') {
+        redirectPath = '/wp-admin/dashboard';
+      } else if (pathname.startsWith('/wp-admin')) {
+        // If a non-admin tries to log in from an admin page, send them to the user dashboard.
+        redirectPath = '/dashboard';
+      }
+
+      router.push(redirectPath);
+    } catch (err: any) {
+      toast.error(err.message || 'Error verifying OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // auto-submit OTP when 6 digits entered
+  useEffect(() => {
+    if (otp.length === 6 && !loading) verifyOTP();
+  
+  }, [otp]);
+
+  if (loadingGuard) return null;
 
   return (
-    <div style={{ maxWidth: 400, margin: "auto", padding: 20 }}>
-      {step === 1 && (
-        <><input
-            type="text"
-            placeholder="Email or Phone"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            style={{ width: "100%", padding: 8, marginBottom: 10 }}
-          />
-          <input
-            type="text"
-            placeholder="Email or Phone"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            style={{ width: "100%", padding: 8, marginBottom: 10 }}
-          />
-          <button onClick={requestOtp} style={{ width: "100%", padding: 10 }}>Send OTP</button>
-        </>
-      )}
-      {step === 2 && (
-        <>
-          <input
-            type="text"
-            placeholder="Enter OTP"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
-            style={{ width: "100%", padding: 8, marginBottom: 10 }}
-          />
-          <button onClick={verifyOtp} style={{ width: "100%", padding: 10 }}>Verify OTP</button>
-        </>
-      )}
-    </div>
+    <main className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="relative w-full max-w-sm bg-white p-8 rounded-2xl shadow-2xl flex flex-col">
+        {/* header */}
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
+          <p className="text-gray-500 mt-2 text-sm">Enter your details to access your account.</p>
+        </div>
+
+        {/* Tabs for Phone/Email */}
+        <div className="flex border-b mb-6">
+          <button
+            onClick={() => { setLoginMethod('phone'); setIdentifier(''); }}
+            className={`flex-1 py-3 font-semibold text-center transition-colors ${
+              loginMethod === 'phone'
+                ? 'text-[#460F58] border-b-2 border-[#460F58]'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Phone
+          </button>
+          <button
+            onClick={() => { setLoginMethod('email'); setIdentifier(''); }}
+            className={`flex-1 py-3 font-semibold text-center transition-colors ${
+              loginMethod === 'email'
+                ? 'text-[#460F58] border-b-2 border-[#460F58]'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Email
+          </button>
+        </div>
+
+        {!otpSent ? (
+          <>
+            {loginMethod === 'phone' ? (
+              <div className="relative mb-4">
+                <label className="block mb-2 text-sm font-medium text-gray-700">Phone Number</label>
+                <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-[#460F58] focus-within:border-transparent">
+                  <span className="px-3 text-gray-500 bg-gray-50 rounded-l-lg h-full flex items-center border-r">+91</span>
+                  <input
+                    type="tel"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter 10-digit mobile number"
+                    className="w-full px-4 py-3 border-none rounded-r-lg focus:outline-none focus:ring-0"
+                    maxLength={10}
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="relative mb-4">
+                <label className="block mb-2 text-sm font-medium text-gray-700">Email Address</label>
+                <input
+                  type="email"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Enter your email address"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#460F58] focus:border-transparent"
+                  disabled={loading}
+                />
+              </div>
+            )}
+            <button
+              onClick={sendOTP}
+              disabled={loading || !identifier.trim()}
+              className={`w-full font-semibold py-3 rounded-lg transition-all ${loading || !identifier.trim() ? 'bg-[#460F58]/50 cursor-not-allowed' : 'bg-[#460F58] hover:bg-[#370a46]'} text-white`}
+            >
+              {loading ? 'Sending...' : 'Send OTP'}
+            </button>
+          </>
+        ) : (
+          <>
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              Enter 6-digit OTP
+            </label>
+            <input
+              ref={otpInputRef}
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+              placeholder="123456"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-[#460F58] focus:border-transparent"
+              inputMode="numeric"
+              maxLength={6}
+              disabled={loading}
+            />
+            <button
+              onClick={verifyOTP}
+              disabled={loading || otp.length !== 6}
+              className={`w-full font-semibold mb-3 py-3 rounded-lg transition-all ${loading || otp.length !== 6 ? 'bg-[#460F58]/50 cursor-not-allowed' : 'bg-[#460F58] hover:bg-[#370a46]'} text-white`}
+            >
+              {loading ? 'Verifying...' : 'Verify OTP'}
+            </button>
+            <button
+              onClick={resendTimer > 0 ? undefined : sendOTP}
+              disabled={resendTimer > 0 || loading}
+              className={`w-full py-2 rounded-lg transition-colors text-sm font-medium ${resendTimer > 0 || loading ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-yellow-500 text-white hover:bg-yellow-600'}`}
+            >
+              {resendTimer > 0
+                ? `Resend OTP in ${resendTimer}s`
+                : 'Resend OTP'}
+            </button>
+          </>
+        )}
+      </div>
+    </main>
   );
 }

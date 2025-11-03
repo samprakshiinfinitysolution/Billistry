@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, ChevronDown } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import TableSkeleton from '@/components/ui/TableSkeleton';
 import {
   format,
   isToday,
@@ -279,7 +280,7 @@ export default function ExpensesSummaryPage() {
               />
 
               <Select value={filterType} onValueChange={(v: FilterType) => setFilterType(v)}>
-                <SelectTrigger className="w-40" disabled={loading}>
+                <SelectTrigger className="w-40 cursor-pointer" disabled={loading}>
                   <SelectValue placeholder="Filter" />
                 </SelectTrigger>
                 <SelectContent>
@@ -301,7 +302,7 @@ export default function ExpensesSummaryPage() {
             <div className="flex items-center gap-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2" disabled={loading}>Export Options</Button>
+                  <Button variant="outline" className="flex items-center gap-2" disabled={loading}>Export Options <ChevronDown className="w-4 h-4 text-gray-600 ml-1" /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem onClick={exportExcel}>Download Excel</DropdownMenuItem>
@@ -320,7 +321,7 @@ export default function ExpensesSummaryPage() {
 
             <div className="relative flex-1 overflow-auto">
               <div className="w-full">
-                <table className="min-w-full w-full">
+                <table className="min-w-full w-full text-sm">
                   <TableHeader className="bg-gray-100 sticky top-0 z-20">
                     <TableRow>
                       <TableHead className="sticky top-0 bg-gray-100 z-20">S. No.</TableHead>
@@ -345,33 +346,8 @@ export default function ExpensesSummaryPage() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell
-                          colSpan={6}
-                          className="text-center py-4 text-gray-500"
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <svg
-                              className="animate-spin h-5 w-5 text-gray-500"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v8H4z"
-                              ></path>
-                            </svg>
-                            Loading expenses data...
-                          </div>
+                        <TableCell colSpan={6} className="p-0">
+                          <TableSkeleton rows={6} />
                         </TableCell>
                       </TableRow>
                     ) : filteredExpenses.length === 0 ? (

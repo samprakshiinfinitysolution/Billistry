@@ -14,7 +14,7 @@ const key = new TextEncoder().encode(JWT_SECRET);
 export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token');
+    const token = cookieStore.get('admin_token');
 
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });

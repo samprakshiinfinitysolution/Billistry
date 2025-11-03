@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import HsnInput from "@/components/HsnInput";
@@ -45,6 +45,7 @@ export const GST_OPTIONS = [
   { value: "13.8", label: "GST @ 13.8%" },
   { value: "18", label: "GST @ 18%" },
   { value: "28", label: "GST @ 28%" },
+  { value: "40", label: "GST @ 40%" },
 ];
 
 // const UNIT_OPTIONS = ["pcs", "kg", "liter", "pack", "box"];
@@ -307,6 +308,76 @@ export default function AddProduct({
   };
 
   const [activeForm, setActiveForm] = useState("basic"); // default form
+  // ref to the scrollable right pane so we can detect wheel scrolls and switch tabs
+  const rightPaneRef = useRef<HTMLDivElement | null>(null);
+  // listener ref so we can remove the exact handler when ref changes
+  const listenerRef = useRef<((e: WheelEvent) => void) | null>(null);
+  // cooldown to prevent rapid tab switching
+  const lastSwitchRef = useRef<number>(0);
+  // show a small hint indicator so users discover the scroll-to-switch feature
+  const [showScrollHint, setShowScrollHint] = useState(false);
+
+  // Use a callback ref so we reliably attach/detach the wheel handler when the element mounts/unmounts.
+  const attachRightPane = useCallback((el: HTMLDivElement | null) => {
+    // detach previous
+    if (rightPaneRef.current && listenerRef.current) {
+      try {
+        rightPaneRef.current.removeEventListener("wheel", listenerRef.current as any);
+      } catch (err) {
+        // ignore
+      }
+      listenerRef.current = null;
+    }
+
+    rightPaneRef.current = el;
+
+    if (!el) return;
+
+    // show hint only when content overflows
+    try {
+      const isOverflow = el.scrollHeight > el.clientHeight;
+      setShowScrollHint(isOverflow);
+    } catch (err) {
+      setShowScrollHint(false);
+    }
+
+    const handler = (e: WheelEvent) => {
+      const now = Date.now();
+      // 600ms cooldown between switches
+      if (now - lastSwitchRef.current < 600) return;
+      const delta = e.deltaY;
+      // require a minimum wheel delta to avoid accidental switches
+      if (Math.abs(delta) < 40) return;
+
+      if (delta > 0) {
+        // scroll down -> next tab
+        setActiveForm((prev) => (prev === "basic" ? "stock" : prev === "stock" ? "price" : prev));
+        // hide hint once user has actively used scroll
+        setShowScrollHint(false);
+        lastSwitchRef.current = now;
+        e.preventDefault();
+        e.stopPropagation();
+      } else if (delta < 0) {
+        // scroll up -> previous tab
+        setActiveForm((prev) => (prev === "price" ? "stock" : prev === "stock" ? "basic" : prev));
+        // hide hint once user has actively used scroll
+        setShowScrollHint(false);
+        lastSwitchRef.current = now;
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    listenerRef.current = handler;
+    el.addEventListener("wheel", handler as any, { passive: false });
+  }, []);
+
+  // auto-hide the hint after 5s if the user didn't interact
+  useEffect(() => {
+    if (!showScrollHint) return;
+    const t = setTimeout(() => setShowScrollHint(false), 5000);
+    return () => clearTimeout(t);
+  }, [showScrollHint]);
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
@@ -315,22 +386,22 @@ export default function AddProduct({
         aria-describedby="dialog-description"
       >
         <DialogHeader className="w-full text-center">
-          <DialogTitle>
+          <DialogTitle className="text-lg font-semibold">
             {editingProduct ? "Edit Product" : "New Product"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSaveProduct} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-[25%_75%] gap-3 w-full overflow-x-hidden h-max">
-            {/* Parent Left Column */}
-            <div className="w-max h-max border border-gray-500 rounded-md p-4 flex flex-col gap-2">
+            {/* Parent Left Column (styled like sales-data cards) */}
+            <div className="relative w-max h-max bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-4 flex flex-col gap-2">
               <Button
                 type="button"
                 disabled={loading}
                 onClick={() => setActiveForm("basic")}
                 className={`w-48 cursor-pointer transition-colors duration-200 ${
                   activeForm === "basic"
-                    ? "bg-blue-600 text-white" // active state
-                    : "bg-black text-white" // inactive state
+                    ? "bg-blue-600 text-white hover:bg-blue-700" // active state (sales-data primary)
+                    : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100" // inactive state (sales-data outline)
                 }`}
               >
                 <svg
@@ -364,8 +435,8 @@ export default function AddProduct({
                   onClick={() => setActiveForm("stock")}
                   className={`w-48 cursor-pointer transition-colors duration-200 ${
                     activeForm === "stock"
-                      ? "bg-blue-600 text-white" // active state
-                      : "bg-black text-white" // inactive state
+                      ? "bg-blue-600 text-white hover:bg-blue-700" // active state (sales-data primary)
+                      : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100" // inactive state (sales-data outline)
                   }`}
                 >
                   <svg
@@ -402,8 +473,8 @@ export default function AddProduct({
                   onClick={() => setActiveForm("price")}
                   className={`w-48 cursor-pointer transition-colors duration-200 ${
                     activeForm === "price"
-                      ? "bg-blue-600 text-white" // active state
-                      : "bg-black text-white" // inactive state
+                      ? "bg-blue-600 text-white hover:bg-blue-700" // active state (sales-data primary)
+                      : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-100" // inactive state (sales-data outline)
                   }`}
                 >
                   <svg
@@ -429,11 +500,23 @@ export default function AddProduct({
                   Price Details
                 </Button>
               </div>
+                {/* Floating dot indicator positioned next to the tab buttons (desktop) */}
+                <div className="hidden md:flex absolute right-[-14px] top-1/2 -translate-y-1/2 flex-col items-center gap-2 pointer-events-none z-20">
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'basic' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'stock' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'price' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                </div>
             </div>
 
             {/*  Parent Right Column */}
             {activeForm === "basic" && (
-              <div className="border border-gray-500 rounded-md grid grid-cols-1 md:grid-cols-2 gap-3 h-[55vh] min-w-[45vw] w-max overflow-y-auto">
+              <div ref={attachRightPane} className="relative border border-gray-500 rounded-md grid grid-cols-1 md:grid-cols-2 gap-3 h-[55vh] min-w-[45vw] w-max overflow-y-auto">
+                {/* Right-pane dot indicator (mirrors left) */}
+                <div className="absolute left-12 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-none z-20 md:hidden">
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'basic' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'stock' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'price' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                </div>
                 <div className="space-y-4 ">
                   {/* Name */}
                   <div className="flex flex-col space-y-1 p-2">
@@ -449,7 +532,7 @@ export default function AddProduct({
                           setErrors((prev) => ({ ...prev, name: "" }));
                         }
                       }}
-                      className={errors.name ? "border-red-500" : ""}
+                      className={`bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50 rounded-md px-3 py-2 ${errors.name ? 'border-red-500 ring-1 ring-red-500' : 'border border-gray-300 dark:border-gray-600'}`}
                       required
                     />
                     {errors.name && (
@@ -466,6 +549,7 @@ export default function AddProduct({
                         value={formData.sku}
                         readOnly
                         required
+                        className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
                       />
                       {!formData._id && ( // only show button for new products
                         <Button
@@ -501,7 +585,7 @@ export default function AddProduct({
                               sellingPrice: e.target.value,
                             })
                           }
-                          className="pl-8 pr-2 w-full border-none rounded-none"
+                          className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50 pl-8 pr-2 w-full border-none rounded-none"
                           required
                         />
                       </div>
@@ -570,6 +654,7 @@ export default function AddProduct({
                         })
                       }
                       required
+                      className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
                     />
                     {errors.openingStock && (
                       <p className="text-red-500 text-sm">
@@ -597,7 +682,7 @@ export default function AddProduct({
                     </label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="flex justify-between items-center w-[180px] p-1 px-2 border border-gray-300 rounded-lg shadow-sm text-gray-500 hover:border-gray-400 hover:shadow-md transition-all duration-200">
+                        <button className="flex justify-between items-center w-[180px] p-1 px-2 border border-gray-300 rounded-lg shadow-sm text-gray-500 hover:border-gray-400 hover:shadow-md transition-all duration-200 cursor-pointer">
                           {formData.taxPercent
                             ? GST_OPTIONS.find(
                                 (opt) =>
@@ -637,7 +722,7 @@ export default function AddProduct({
                         setFormData({ ...formData, unit: val })
                       }
                     >
-                      <SelectTrigger className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 text-gray-700 hover:border-gray-400 hover:shadow-md transition-all duration-200">
+                      <SelectTrigger className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 text-gray-700 hover:border-gray-400 hover:shadow-md transition-all duration-200 cursor-pointer">
                         <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
 
@@ -646,7 +731,7 @@ export default function AddProduct({
                           <SelectItem
                             key={unit}
                             value={unit}
-                            className="cursor-pointer p-2 hover:bg-indigo-100 transition-colors rounded-md"
+                            className="cursor-pointer p-2 hover:bg-gray-100 transition-colors rounded-md"
                           >
                             {unit}
                           </SelectItem>
@@ -655,11 +740,22 @@ export default function AddProduct({
                     </Select>
                   </div>
                 </div>
+                {showScrollHint && (
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-600 dark:text-gray-300 bg-white/80 dark:bg-gray-800/70 backdrop-blur px-3 py-1 rounded-full shadow-md pointer-events-none">
+                    <ChevronDown className="w-4 h-4 animate-bounce" aria-hidden />
+                    <span className="mt-0.5">Scroll to switch tabs</span>
+                  </div>
+                )}
               </div>
             )}
             {activeForm === "stock" && (
-              <div className="border border-gray-500 rounded-md grid grid-cols-1 md:grid-cols-2 gap-3 h-[55vh] min-w-[45vw] w-max overflow-y-scroll">
-                {}
+              <div ref={attachRightPane} className="relative border border-gray-500 rounded-md grid grid-cols-1 md:grid-cols-2 gap-3 h-[55vh] min-w-[45vw] w-max overflow-y-scroll">
+                {/* Right-pane dot indicator (mirrors left) */}
+                <div className="absolute left-12 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-none z-20 md:hidden">
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'basic' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'stock' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'price' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                </div>
                 {/* Left Column */}
                 <div className="space-y-4 ">
                   {/* Barcode */}
@@ -672,6 +768,7 @@ export default function AddProduct({
                         placeholder="Barcode"
                         value={formData.sku || ""}
                         readOnly
+                        className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
                       />
                       {!formData._id && ( // only show button for new products
                         <Button
@@ -703,6 +800,7 @@ export default function AddProduct({
                         })
                       }
                       required
+                      className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
                     />
                     {errors.openingStock && (
                       <p className="text-red-500 text-sm">
@@ -733,13 +831,26 @@ export default function AddProduct({
                       onChange={(e) =>
                         handleNumberChange("lowStockAlert", e.target.value)
                       }
+                      className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
                     />
                   </div>
                 </div>
+                {showScrollHint && (
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-600 dark:text-gray-300 bg-white/80 dark:bg-gray-800/70 backdrop-blur px-3 py-1 rounded-full shadow-md pointer-events-none">
+                    <ChevronDown className="w-4 h-4 animate-bounce" aria-hidden />
+                    <span className="mt-0.5">Scroll to switch tabs</span>
+                  </div>
+                )}
               </div>
             )}
             {activeForm === "price" && (
-              <div className="border border-gray-500 rounded-md grid grid-cols-1 md:grid-cols-2 gap-3 h-[55vh] min-w-[45vw] w-max overflow-y-scroll">
+              <div ref={attachRightPane} className="relative border border-gray-500 rounded-md grid grid-cols-1 md:grid-cols-2 gap-3 h-[55vh] min-w-[45vw] w-max overflow-y-scroll">
+                {/* Right-pane dot indicator (mirrors left) */}
+                <div className="absolute left-12 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-none z-20 md:hidden">
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'basic' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'stock' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                  <span className={`w-2 h-2 rounded-full transition-colors ${(activeForm as string) === 'price' ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                </div>
                 <div className="space-y-4 ">
                   {/* Selling Price  */}
                   <div className="flex flex-col space-y-1 p-2 w-80">
@@ -762,7 +873,7 @@ export default function AddProduct({
                               sellingPrice: e.target.value,
                             })
                           }
-                          className="pl-8 pr-2 w-full border-none rounded-none"
+                          className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50 pl-8 pr-2 w-full border-none rounded-none"
                           required
                         />
                       </div>
@@ -818,7 +929,7 @@ export default function AddProduct({
                     </label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="flex justify-between items-center w-[180px] p-1 px-2 border border-gray-300 rounded-lg shadow-sm text-gray-500 hover:border-gray-400 hover:shadow-md transition-all duration-200">
+                        <button className="flex justify-between items-center w-[180px] p-1 px-2 border border-gray-300 rounded-lg shadow-sm text-gray-500 hover:border-gray-400 hover:shadow-md transition-all duration-200 cursor-pointer">
                           {formData.taxPercent
                             ? GST_OPTIONS.find(
                                 (opt) =>
@@ -922,6 +1033,12 @@ export default function AddProduct({
                     </div>
                   </div>
                 </div>
+                {showScrollHint && (
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-600 dark:text-gray-300 bg-white/80 dark:bg-gray-800/70 backdrop-blur px-3 py-1 rounded-full shadow-md pointer-events-none">
+                    <ChevronDown className="w-4 h-4 animate-bounce" aria-hidden />
+                    <span className="mt-0.5">Scroll to switch tabs</span>
+                  </div>
+                )}
               </div>
             )}
           </div>

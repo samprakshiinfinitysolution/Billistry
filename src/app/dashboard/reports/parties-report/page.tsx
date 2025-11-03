@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowUpDown, Users, UserPlus, FileDown, Printer } from "lucide-react";
+import { ArrowUpDown, Users, UserPlus, Download, Printer } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import TableSkeleton from '@/components/ui/TableSkeleton';
 import {
   format,
   startOfDay,
@@ -57,7 +58,7 @@ export default function PartiesReportPage() {
   const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const tableRef = useRef<HTMLDivElement | null>(null);
+    const [pdfRef, setPdfRef] = useState<HTMLDivElement | null>(null);
 
   const [search, setSearch] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: keyof Party; direction: "asc" | "desc" } | null>(null);
@@ -152,6 +153,10 @@ export default function PartiesReportPage() {
     );
   }, [parties]);
 
+  const totalIn = useMemo(() => summary.totalReceivable, [summary]);
+  const totalOut = useMemo(() => summary.totalPayable, [summary]);
+  const net = useMemo(() => totalIn - totalOut, [totalIn, totalOut]);
+
   const handleSort = (key: keyof Party) => {
     setSortConfig((prev) =>
       prev?.key === key && prev.direction === "asc"
@@ -193,10 +198,26 @@ export default function PartiesReportPage() {
   };
 
   const printTable = () => {
-    if (!tableRef.current) return;
+    if (!pdfRef) return;
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
-    printWindow.document.write(`<html><head><title>Parties Report</title><style>body{font-family:sans-serif} table{width:100%;border-collapse:collapse} th,td{border:1px solid #ddd;padding:8px} th{background-color:#f2f2f2}</style></head><body>${tableRef.current.innerHTML}</body></html>`);
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Parties Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            table { border-collapse: collapse; width: 100%; }
+            table, th, td { border: 1px solid #000; }
+            th, td { padding: 8px; text-align: left; }
+            th { background-color: #f0f0f0; }
+          </style>
+        </head>
+        <body>
+          ${pdfRef.innerHTML}
+        </body>
+      </html>
+    `);
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
@@ -204,100 +225,227 @@ export default function PartiesReportPage() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Parties Report</h1>
-        <p className="text-gray-500">View, filter, and export your party data.</p>
+    <div className="flex flex-col h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 p-4 flex items-center">
+        <div className="flex items-center text-lg font-semibold text-gray-800">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            onClick={() => router.back()}
+            className="h-5 w-5 mr-2 cursor-pointer"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Parties Report
+        </div>
       </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500"><h3 className="text-gray-500">Total Customers</h3><p className="text-2xl font-semibold"><AnimatedNumber value={summary.totalCustomers} /></p></div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-purple-500"><h3 className="text-gray-500">Total Suppliers</h3><p className="text-2xl font-semibold"><AnimatedNumber value={summary.totalSuppliers} /></p></div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500"><h3 className="text-gray-500">Total Receivable</h3><p className="text-2xl font-semibold">₹<AnimatedNumber value={summary.totalReceivable} /></p></div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-red-500"><h3 className="text-gray-500">Total Payable</h3><p className="text-2xl font-semibold">₹<AnimatedNumber value={summary.totalPayable} /></p></div>
-      </div>
+      <main className="container mx-auto p-6 flex-1 flex flex-col overflow-hidden">
+        <div className="bg-white p-6 rounded-lg shadow-md flex-1 flex flex-col overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div className="flex flex-wrap gap-2 items-center">
+              <Input
+                placeholder="Search by name or phone..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-64"
+              />
+              <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)} >
+                <SelectTrigger className="w-40 cursor-pointer">
+                  <SelectValue placeholder="Filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Customer">Customer</SelectItem>
+                  <SelectItem value="Supplier">Supplier</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={period} onValueChange={(v) => { setPeriod(v); setStartDate(''); setEndDate(''); }} >
+                <SelectTrigger className="w-40 cursor-pointer"><SelectValue placeholder="Period" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="this_week">This Week</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                  <SelectItem value="this_year">This Year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-      <div className="bg-white p-4 rounded-lg shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <div className="flex gap-2">
-            <Input placeholder="Search by name or phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
-            <Select value={typeFilter} onValueChange={(v: any) => setTypeFilter(v)}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="Filter by Type" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Customer">Customer</SelectItem>
-                <SelectItem value="Supplier">Supplier</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={period} onValueChange={(v) => { setPeriod(v); setStartDate(''); setEndDate(''); }}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="Filter by Period" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="this_week">This Week</SelectItem>
-                <SelectItem value="this_month">This Month</SelectItem>
-                <SelectItem value="this_year">This Year</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline"><FileDown className="mr-2 h-4 w-4" /> Export</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={exportPDF}>Export as PDF</DropdownMenuItem>
-                <DropdownMenuItem onClick={exportExcel}>Export as Excel</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button variant="outline" onClick={printTable}><Printer className="mr-2 h-4 w-4" /> Print</Button>
-          </div>
-        </div>
-        <div className="flex items-center gap-4 mb-4">
-          <Input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPeriod('all'); }} className="w-40" />
-          <span className="text-gray-500">to</span>
-          <Input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPeriod('all'); }} className="w-40" />
-        </div>
+            <div className="flex items-center gap-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2 cursor-pointer">
+                    Export Options
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </Button>
+                </DropdownMenuTrigger>
 
-        <div ref={tableRef} className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead onClick={() => handleSort("partyName")} className="cursor-pointer">Name <ArrowUpDown className="inline h-4 w-4" /></TableHead>
-                <TableHead>Mobile</TableHead>
-                <TableHead onClick={() => handleSort("partyType")} className="cursor-pointer">Type <ArrowUpDown className="inline h-4 w-4" /></TableHead>
-                <TableHead onClick={() => handleSort("balance")} className="cursor-pointer text-right">Balance (₹) <ArrowUpDown className="inline h-4 w-4" /></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={4} className="text-center">Loading...</TableCell></TableRow>
-              ) : filteredAndSortedParties.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="text-center">No parties found.</TableCell></TableRow>
-              ) : (
-                filteredAndSortedParties.map((party) => (
-                  <TableRow key={party._id}>
-                    <TableCell className="font-medium">{party.partyName}</TableCell>
-                    <TableCell>{party.mobileNumber}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        party.partyType === 'Customer' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {party.partyType}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className={party.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {party.balance.toFixed(2)}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={exportExcel}>
+                    Download Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportPDF}>
+                    Print PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 cursor-pointer"
+                onClick={printTable}
+              >
+                Print Parties
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                  />
+                </svg>
+              </Button>
+            </div>
+          </div>
+
+          <div ref={setPdfRef} className="flex-1 flex flex-col overflow-hidden" id="report-content">
+            <div className="mb-6 pb-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-700">
+                Parties Summary
+              </h2>
+            </div>
+
+            
+
+            <div className="mb-6 pb-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-700">
+                Totals:
+                <span className="ml-3 text-sm text-gray-600">IN:</span>
+                <span className="ml-1 text-xl font-bold text-gray-900">₹ <AnimatedNumber value={totalIn} duration={800} /></span>
+                <span className="ml-4 text-sm text-gray-600">OUT:</span>
+                <span className="ml-1 text-xl font-bold text-gray-900">₹ <AnimatedNumber value={totalOut} duration={800} /></span>
+                <span className="ml-4 text-sm text-gray-600">Net:</span>
+                <span className="ml-1 text-xl font-bold text-gray-900">₹ <AnimatedNumber value={net} duration={800} /></span>
+              </h2>
+            </div>
+
+            <div className="relative flex-1 overflow-auto">
+              <div className="w-full">
+                <table className="min-w-full w-full table-fixed text-sm">
+                  <TableHeader className="bg-gray-100 sticky top-0 z-20">
+                    <TableRow>
+                      <TableHead className="sticky top-0 bg-gray-100 z-20">S. No.</TableHead>
+                      <TableHead onClick={() => handleSort("partyName")} className="cursor-pointer select-none sticky top-0 bg-gray-100 z-20">
+                        <div className="flex items-center gap-1">
+                          Name
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortConfig?.key === "partyName"
+                                ? sortConfig.direction === "asc"
+                                  ? "rotate-180 text-blue-600"
+                                  : "text-blue-600"
+                                : "opacity-70"
+                            }`}
+                          />
+                        </div>
+                      </TableHead>
+
+                      <TableHead className="sticky top-0 bg-gray-100 z-20">Mobile</TableHead>
+
+                      <TableHead onClick={() => handleSort("partyType")} className="cursor-pointer select-none sticky top-0 bg-gray-100 z-20">
+                        <div className="flex items-center gap-1">
+                          Type
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortConfig?.key === "partyType"
+                                ? sortConfig.direction === "asc"
+                                  ? "rotate-180 text-blue-600"
+                                  : "text-blue-600"
+                                : "opacity-70"
+                            }`}
+                          />
+                        </div>
+                      </TableHead>
+
+                      <TableHead onClick={() => handleSort("balance")} className="cursor-pointer select-none sticky top-0 bg-gray-100 z-20 text-right">
+                        <div className="flex items-center gap-1 justify-end">
+                          Balance (₹)
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortConfig?.key === "balance"
+                                ? sortConfig.direction === "asc"
+                                  ? "rotate-180 text-blue-600"
+                                  : "text-blue-600"
+                                : "opacity-70"
+                            }`}
+                          />
+                        </div>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="p-0">
+                          <TableSkeleton rows={6} />
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredAndSortedParties.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-4 text-gray-500">
+                          No parties found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredAndSortedParties.map((party, index) => (
+                        <TableRow key={party._id}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell className="font-medium">{party.partyName}</TableCell>
+                          <TableCell>{party.mobileNumber}</TableCell>
+                          <TableCell>{party.partyType}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={party.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
+                              {party.balance.toFixed(2)}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

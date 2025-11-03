@@ -18,7 +18,11 @@ const navItems = [
   { href: '/contact', label: 'Contact' },
 ];
 
-export default function TopHeader() {
+interface TopHeaderProps {
+  announcementHeight: number;
+}
+
+export default function TopHeader({ announcementHeight }: TopHeaderProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -29,7 +33,10 @@ export default function TopHeader() {
 
   return (
     <>
-      <header className="bg-[#F7FBFB] sticky top-0 z-50 border-b border-gray-200 shadow-sm">
+      <header 
+        className="bg-[#F7FBFB] sticky z-40  border-gray-200 transition-all duration-300"
+        style={{ top: announcementHeight }}
+      > 
         <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-10 py-3 flex justify-between items-center">
           {/* ✅ Logo */}
           <Link href="/" className="flex items-center gap-2" onClick={handleNavClick}>
@@ -104,7 +111,7 @@ export default function TopHeader() {
                 setShowLogin(true);
                 setMenuOpen(false);
               }}
-              className="block w-full py-3 text-[#F7FBFB] text-center bg-[#7B53A6] rounded-lg shadow hover:bg-[#460F58] font-semibold transition"
+              className="block w-full py-3 text-center bg-gradient-to-r from-[#390F59] via-[#460F58] to-[#7B53A6] text-[#F7FBFB] rounded-lg shadow font-semibold transition"
             >
               Login
             </button>

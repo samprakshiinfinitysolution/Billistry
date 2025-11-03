@@ -20,6 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import TableSkeleton from '@/components/ui/TableSkeleton';
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   format,
   isToday,
@@ -71,9 +73,13 @@ export default function PurchaseSummaryPage() {
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [paymentFilter, setPaymentFilter] = useState<
-    "all" | "unpaid" | "cash" | "online"
-  >("all");
+  // allow dynamic/unknown payment types (e.g. NETBANKING)
+  const [paymentFilter, setPaymentFilter] = useState<string>("all");
+
+  function capitalize(s: string) {
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  }
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
@@ -209,7 +215,7 @@ export default function PurchaseSummaryPage() {
         p.items.map((i) => i.name).join(", "),
         p.items.map((i) => `${i.qty} pcs`).join(", "),
         `₹${p.totalAmount.toFixed(2)}`,
-        p.paymentStatus.toUpperCase(),
+        capitalize(p.paymentStatus || "N/A"),
       ]),
     });
 
@@ -225,7 +231,7 @@ export default function PurchaseSummaryPage() {
       Items: p.items.map((i) => i.name).join(", "),
       Quantity: p.items.map((i) => `${i.qty} pcs`).join(", "),
       Amount: p.totalAmount,
-      Payment: p.paymentStatus.toUpperCase(),
+      Payment: capitalize(p.paymentStatus || "N/A"),
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -306,7 +312,7 @@ export default function PurchaseSummaryPage() {
                 value={filterType}
                 onValueChange={(v: FilterType) => setFilterType(v)}
               >
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-40 cursor-pointer">
                   <SelectValue placeholder="Filter" />
                 </SelectTrigger>
                 <SelectContent>
@@ -332,13 +338,8 @@ export default function PurchaseSummaryPage() {
                 </>
               )}
 
-              <Select
-                value={paymentFilter}
-                onValueChange={(v: "all" | "unpaid" | "cash" | "online") =>
-                  setPaymentFilter(v)
-                }
-              >
-                <SelectTrigger className="w-40">
+              <Select value={paymentFilter} onValueChange={(v: string) => setPaymentFilter(v)} >
+                <SelectTrigger className="w-40 cursor-pointer">
                   <SelectValue placeholder="Payment Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -348,24 +349,20 @@ export default function PurchaseSummaryPage() {
                       All Payments
                     </div>
                   </SelectItem>
-                  <SelectItem value="unpaid">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                      Unpaid
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="cash">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                      Cash
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="online">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                      Online
-                    </div>
-                  </SelectItem>
+
+                  {Array.from(new Set(purchases.map((p) => (p.paymentStatus || "").toString().trim()).filter(Boolean))).map((opt) => {
+                    const key = opt;
+                    const lower = opt.toLowerCase();
+                    const colorClass = lower === "unpaid" ? "bg-red-500" : lower === "cash" ? "bg-green-500" : lower === "online" ? "bg-blue-500" : "bg-gray-400";
+                    return (
+                      <SelectItem key={key} value={key}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`}></span>
+                          {capitalize(opt)}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -373,7 +370,7 @@ export default function PurchaseSummaryPage() {
             <div className="flex items-center gap-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button variant="outline" className="flex items-center gap-2 cursor-pointer">
                     Export Options
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -403,7 +400,7 @@ export default function PurchaseSummaryPage() {
 
               <Button
                 variant="outline"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 cursor-pointer"
                 onClick={printTable}
               >
                 Print Summary <FileText className="w-4 h-4" />
@@ -426,7 +423,7 @@ export default function PurchaseSummaryPage() {
             {/* Table */}
             <div className="relative flex-1 overflow-auto">
               <div className="w-full">
-                <table className="min-w-full w-full">
+                <table className="min-w-full w-full text-sm">
                   <TableHeader className="bg-gray-100 sticky top-0 z-20">
                     <TableRow>
                       <TableHead className="sticky top-0 bg-gray-100 z-20">S. No.</TableHead>
@@ -512,14 +509,8 @@ export default function PurchaseSummaryPage() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-4 text-gray-500">
-                          <div className="flex items-center justify-center gap-2">
-                            <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                            </svg>
-                            Loading purchases...
-                          </div>
+                        <TableCell colSpan={8} className="p-0">
+                          <TableSkeleton rows={6} />
                         </TableCell>
                       </TableRow>
                     ) : filteredPurchases.length === 0 ? (
@@ -533,8 +524,53 @@ export default function PurchaseSummaryPage() {
                           <TableCell>{p.invoiceNo}</TableCell>
                           <TableCell>{p.selectedParty?.name ?? "N/A"}</TableCell>
                           <TableCell>{format(parseISO(p.invoiceDate), "dd/MM/yyyy")}</TableCell>
-                          <TableCell>{p.items.map((it) => it.name).join(", ")}</TableCell>
-                          <TableCell>{p.items.map((it) => `${it.qty} pcs`).join(", ")}</TableCell>
+                          <TableCell className="align-top">
+                            {(() => {
+                              const items = p.items || [];
+                              if (!items.length) return <span className="text-sm text-gray-600">-</span>;
+                              const first = items.slice(0, 2).map((it) => it.name || "");
+                              const remaining = items.slice(2);
+                              const fullList = items.map((it) => `${it.name || ""} (x${it.qty})`).join("\n");
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <div className="truncate text-sm text-gray-800">{first.join(", ")}{remaining.length ? ", ..." : ""}</div>
+                                  {remaining.length > 0 && (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button className="text-xs text-indigo-600 hover:underline">+{remaining.length} more</button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-2">
+                                        <div className="text-sm text-gray-700 whitespace-pre-line">{fullList}</div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </TableCell>
+                          <TableCell className="align-top">
+                            {(() => {
+                              const items = p.items || [];
+                              if (!items.length) return <span className="text-sm text-gray-600">0</span>;
+                              const totalQty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+                              if (items.length <= 2) return <span className="text-sm text-gray-800">{totalQty}</span>;
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-gray-800">{totalQty}</span>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <button className="text-xs text-gray-500">details</button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-2">
+                                      <div className="text-sm text-gray-700">{items.map((it, idx) => (
+                                        <div key={idx} className="flex justify-between gap-4"><div className="truncate">{it.name}</div><div className="ml-4 text-gray-600">{it.qty} pcs</div></div>
+                                      ))}</div>
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
+                              );
+                            })()}
+                          </TableCell>
                           <TableCell>₹{p.totalAmount.toFixed(2)}</TableCell>
                           <TableCell>
                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
@@ -544,7 +580,7 @@ export default function PurchaseSummaryPage() {
                                 ? "bg-green-100 text-green-700"
                                 : "bg-blue-100 text-blue-700"
                             }`}>
-                              {p.paymentStatus.toUpperCase()}
+                              {capitalize(p.paymentStatus || "N/A")}
                             </span>
                           </TableCell>
                         </TableRow>

@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import CardSkeleton from '@/components/ui/CardSkeleton';
 
 // Indian currency formatting helper
 const currencyFmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
@@ -27,10 +29,10 @@ export default function StatsCards({ data, loading }: StatsCardsProps) {
   const salesMomChange = data?.salesMomChange;
   const purchasesMomChange = data?.purchasesMomChange;
 
-  const salesDisplay = useMemo(() => loading ? 'Loading...' : fmt(salesMTD ?? 0), [loading, salesMTD]);
-  const purchasesDisplay = useMemo(() => loading ? 'Loading...' : fmt(purchasesMTD ?? 0), [loading, purchasesMTD]);
-  const stockValueDisplay = useMemo(() => loading ? 'Loading...' : fmt(stockValue ?? 0), [loading, stockValue]);
-  const lowStockDisplay = useMemo(() => loading ? 'Loading...' : `${lowStockCount ?? 0} Items`, [loading, lowStockCount]);
+  const salesDisplay = useMemo(() => fmt(salesMTD ?? 0), [salesMTD]);
+  const purchasesDisplay = useMemo(() => fmt(purchasesMTD ?? 0), [purchasesMTD]);
+  const stockValueDisplay = useMemo(() => fmt(stockValue ?? 0), [stockValue]);
+  const lowStockDisplay = useMemo(() => `${lowStockCount ?? 0} Items`, [lowStockCount]);
 
   const formatChange = (change: number | null | undefined) => {
     if (change === null || change === undefined || isNaN(change)) {
@@ -54,48 +56,63 @@ export default function StatsCards({ data, loading }: StatsCardsProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">
-        <h3 className="text-sm text-gray-400 mb-2">Total Sales (MTD)</h3>
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-3xl font-bold text-green-400">{salesDisplay}</p>
-            {!loading && salesChangeDisplay}
+      {loading ? (
+        <CardSkeleton title subtitle />
+      ) : (
+        <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">
+          <h3 className="text-sm text-gray-400 mb-2">Total Sales (MTD)</h3>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-3xl font-bold text-green-400">{salesDisplay}</p>
+              {salesChangeDisplay}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">
-        <h3 className="text-sm text-gray-400 mb-2">Total Purchases (MTD)</h3>
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-3xl font-bold text-orange-400">{purchasesDisplay}</p>
-            {!loading && purchasesChangeDisplay}
+      {loading ? (
+        <CardSkeleton title subtitle />
+      ) : (
+        <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">
+          <h3 className="text-sm text-gray-400 mb-2">Total Purchases (MTD)</h3>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-3xl font-bold text-orange-400">{purchasesDisplay}</p>
+              {purchasesChangeDisplay}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">
-        <h3 className="text-sm text-gray-400 mb-2">Current Stock Value</h3>
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-3xl font-bold text-blue-400">{stockValueDisplay}</p>
-            <p className="text-xs text-blue-400 mt-1 flex items-center">
-              Live Value
-              {/* +5% this month <TrendingUp className="w-3 h-3 ml-1" /> */}
-            </p>
+      {loading ? (
+        <CardSkeleton title subtitle />
+      ) : (
+        <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">
+          <h3 className="text-sm text-gray-400 mb-2">Current Stock Value</h3>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-3xl font-bold text-blue-400">{stockValueDisplay}</p>
+              <p className="text-xs text-blue-400 mt-1 flex items-center">
+                Live Value
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">
-        <h3 className="text-sm text-gray-400 mb-2">Low Stock Items</h3>
-        <div className="flex items-end justify-between">
-          <div>
-            <p className={`text-3xl font-bold ${lowStockCount && lowStockCount > 0 ? 'text-red-400' : 'text-green-400'}`}>{lowStockDisplay}</p>
+      {loading ? (
+        <CardSkeleton title subtitle />
+      ) : (
+        <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">
+          <h3 className="text-sm text-gray-400 mb-2">Low Stock Items</h3>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className={`text-3xl font-bold ${lowStockCount && lowStockCount > 0 ? 'text-red-400' : 'text-green-400'}`}>{lowStockDisplay}</p>
+            </div>
             <AlertTriangle className="w-5 h-5 text-red-400 mt-2" />
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

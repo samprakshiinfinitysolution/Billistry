@@ -114,7 +114,7 @@ export const CategoryCombobox: React.FC<CategoryComboboxProps> = ({
         }}
       >
         <div className="relative mt-1">
-          <div className="relative w-full cursor-default overflow-hidden rounded-lg border bg-white text-left shadow-md focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm flex items-center">
+          <div className="relative w-full cursor-pointer overflow-hidden rounded-lg border bg-white text-left shadow-md focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm flex items-center">
             <Combobox.Input
               className="w-full border-none py-1.5 pl-3 pr-10 text-sm leading-5 focus:ring-0"
               displayValue={(cat: Category) => cat?.category_name || ""}

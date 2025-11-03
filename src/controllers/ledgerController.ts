@@ -1,7 +1,7 @@
 import Party from "@/models/Party";
 import {Transaction} from "@/models/transactionModel";
 import { UserPayload } from "@/lib/middleware/auth";
-import { ApiError } from "@/lib/utils/apiError";
+import { ApiError } from "./apiError";
 
 /**
  * Get ledger details for a specific party
