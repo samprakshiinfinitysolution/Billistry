@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import React, { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { Plus, Settings, CalendarIcon, Trash2, QrCode, X, ArrowLeft, Search, ArrowUp } from 'lucide-react';
 import {
   Select,
@@ -427,18 +428,50 @@ const CreateSalesInvoicePage = () => {
     const handleItemDiscountChange = (id: number, inputType: 'percent' | 'flat', value: string) => {
         setItems(prevItems => prevItems.map(item => {
             if (item.id !== id) return item;
-
             const updatedItem = { ...item, lastDiscountInput: inputType };
             const itemTotal = (item.qty || 0) * (item.price || 0);
 
             if (inputType === 'percent') {
-                updatedItem.discountPercentStr = value;
-                const percent = parseFloat(value) || 0;
-                updatedItem.discountAmountStr = itemTotal > 0 ? ((itemTotal * percent) / 100).toFixed(2) : '';
+                // sanitize percent input and DO NOT allow values > 100
+                if (value === '' || value === '-' ) {
+                    updatedItem.discountPercentStr = '';
+                    updatedItem.discountAmountStr = '';
+                } else {
+                    let percent = parseFloat(value) || 0;
+                    if (percent < 0) percent = 0;
+                    // If user attempts to enter >100%, ignore the update (prevent switching to 100)
+                    if (percent > 100) {
+                        return item; // keep previous item values unchanged
+                    }
+                    // keep up to 2 decimals
+                    const percentStr = Number.isFinite(percent) ? percent.toFixed(2).replace(/\.00$/, '') : String(percent);
+                    updatedItem.discountPercentStr = percentStr;
+                    updatedItem.discountAmountStr = itemTotal > 0 ? ((itemTotal * percent) / 100).toFixed(2) : '';
+                }
             } else { // flat
-                updatedItem.discountAmountStr = value;
-                const amount = parseFloat(value) || 0;
-                updatedItem.discountPercentStr = itemTotal > 0 ? ((amount / itemTotal) * 100).toFixed(2) : '';
+                // sanitize flat amount and clamp to item total (100% max)
+                if (value === '' || value === '-') {
+                    updatedItem.discountAmountStr = '';
+                    updatedItem.discountPercentStr = '';
+                } else {
+                    // During typing, disallow values that exceed item total (100%). If user types a number > itemTotal,
+                    // ignore the update so input cannot represent >100%.
+                    if (value === '' || value === '-') {
+                        updatedItem.discountAmountStr = '';
+                        updatedItem.discountPercentStr = '';
+                    } else {
+                        let amount = parseFloat(value) || 0;
+                        if (amount < 0) amount = 0;
+                        if (amount > itemTotal) {
+                            // ignore this update and keep previous values
+                            return item;
+                        }
+                        // keep the user's raw input for display (so typing '45' doesn't become '4.00')
+                        updatedItem.discountAmountStr = String(value);
+                        // compute percent based on entered amount
+                        updatedItem.discountPercentStr = itemTotal > 0 ? (Math.min((amount / itemTotal) * 100, 100)).toFixed(2).replace(/\.00$/, '') : '';
+                    }
+                }
             }
 
             // Recalculate tax based on new discount
@@ -688,6 +721,156 @@ const CreateSalesInvoicePage = () => {
         return <div className="bg-gray-50 min-h-screen"><FormSkeleton /></div>;
     }
 
+    // Centralized save handler reused by both "Save" and "Save & New"
+    const handleSave = async (shouldRedirect: boolean) => {
+        try {
+            // Validation: party and items required
+            if (!selectedParty) {
+                toast.error('Please select a party before saving the invoice');
+                return;
+            }
+            if (!items || items.length === 0) {
+                toast.error('Please add at least one item before saving the invoice');
+                return;
+            }
+            setSaving(true);
+            let numericAmountReceived = parseFloat(amountReceivedStr) || 0;
+            if (isFullyPaid && numericAmountReceived < finalAmountForBalance) {
+                numericAmountReceived = finalAmountForBalance;
+            }
+            const isPaid = isFullyPaid || numericAmountReceived >= finalAmountForBalance;
+            const paymentStatusToSend = isPaid ? paymentMode : 'unpaid';
+
+            let selectedPartyToSend: any = undefined;
+            if (selectedParty) {
+                if ((selectedParty as any).id) selectedPartyToSend = (selectedParty as any).id;
+                else if ((selectedParty as any)._id) selectedPartyToSend = (selectedParty as any)._id;
+                else selectedPartyToSend = selectedParty as any;
+            }
+
+            const invoiceData: any = {
+                invoiceNumber,
+                invoiceDate,
+                dueDate,
+                paymentTerms,
+                selectedParty: selectedPartyToSend,
+                items,
+                additionalCharges,
+                discountOption,
+                discountPercentStr,
+                discountFlatStr,
+                terms,
+                notes,
+                autoRoundOff,
+                adjustmentType,
+                manualAdjustment: autoRoundOff ? 0 : committedAdjustment,
+                totalAmount: finalAmountForBalance,
+                amountReceived: amountReceived,
+                balanceAmount,
+                paymentStatus: paymentStatusToSend,
+                savedAt: new Date().toISOString(),
+            };
+
+            if (!editId) {
+                try { delete invoiceData.invoiceNumber; } catch (e) {}
+            }
+
+            let res;
+            if (editId) {
+                res = await fetch(`/api/new_sale/${editId}`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(invoiceData),
+                });
+            } else {
+                const hadInvoiceNo = Boolean(invoiceNo);
+                if (!hadInvoiceNo) setInvoiceNo('Assigning…');
+                res = await fetch('/api/new_sale', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(invoiceData),
+                });
+            }
+
+            if (!res.ok) {
+                const hadInvoiceNo = invoiceNo === 'Assigning…';
+                if (hadInvoiceNo) setInvoiceNo('');
+                const errBody = await res.json().catch(() => ({}));
+                console.error('Server responded with error', errBody);
+                toast.error('Failed to save invoice.');
+            } else {
+                const data = await res.json().catch(() => ({}));
+                if (!editId && data?.data?._id) setEditId(data.data._id);
+                const returnedInvoiceNo = data?.data?.invoiceNo || data?.invoiceNo || '';
+                if (returnedInvoiceNo) setInvoiceNo(returnedInvoiceNo);
+                try { window.dispatchEvent(new Event('productsUpdated')); } catch (e) {}
+
+                // If caller wants to redirect to the saved invoice, do so
+                const returnedId = data?.data?._id || data?._id || editId;
+                if (shouldRedirect && returnedId) {
+                    router.push(`/dashboard/sale/sales-invoice/${returnedId}`);
+                    return;
+                }
+
+                // Save & New flow: clear form but show updated (local) invoice number for next invoice
+                if (!shouldRedirect) {
+                    // If server returned a nextInvoiceNumber, use it; otherwise increment local counter
+                    const nextNum = data?.nextInvoiceNumber || (invoiceNumber ? invoiceNumber + 1 : (typeof invoiceNumber === 'number' ? invoiceNumber + 1 : 1));
+                    // Prefer server-supplied formatted next invoice if available
+                    if (data?.nextInvoiceFormatted) {
+                        setInvoiceNo(data.nextInvoiceFormatted);
+                    } else {
+                        // Try to preserve prefix + zero-padded numeric width from returnedInvoiceNo or current invoiceNo
+                        const source = returnedInvoiceNo || String(invoiceNo || '');
+                        const numericMatch = source.match(/(\d+)$/);
+                        if (numericMatch) {
+                            const numericPart = numericMatch[1];
+                            const prefix = source.slice(0, numericMatch.index || 0);
+                            const width = numericPart.length;
+                            const padded = String(nextNum).padStart(width, '0');
+                            setInvoiceNo(prefix + padded);
+                        } else {
+                            // Fallback: simple prefix extraction (non-digit prefix) or just the number
+                            const prefixFromReturned = (returnedInvoiceNo && returnedInvoiceNo.match(/^[^0-9]*/)?.[0]) || '';
+                            const prefixFromCurrent = (invoiceNo && String(invoiceNo).match(/^[^0-9]*/)?.[0]) || '';
+                            const prefix = prefixFromReturned || prefixFromCurrent || '';
+                            setInvoiceNo(prefix + String(nextNum));
+                        }
+                    }
+
+                    setEditId(null);
+                    setItems([]);
+                    setSelectedParty(null);
+                    setTerms('1. Goods once sold will not be taken back or exchanged\n2. All disputes are subject to [ENTER_YOUR_CITY_NAME] jurisdiction only');
+                    setNotes('');
+                    setAdditionalCharges([]);
+                    setDiscountFlatStr('');
+                    setDiscountPercentStr('');
+                    setLastDiscountInput(null);
+                    setManualAdjustmentStr('');
+                    setCommittedAdjustment(0);
+                    setTotalAmountManuallySet(false);
+                    setAmountReceivedStr('');
+                    setIsFullyPaid(false);
+                    setPaymentMode('unpaid');
+                    setPaymentTerms('30');
+                    setDueDate('');
+                    setInvoiceDate(new Date().toISOString().split('T')[0]);
+                    setInvoiceNumber(nextNum);
+                    toast.success('Invoice saved. Ready for new invoice.');
+                }
+            }
+        } catch (err) {
+            console.error('Failed to save to server', err);
+            try { if (!editId) setInvoiceNo(''); } catch (e) {}
+            toast.error('Failed to save invoice.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
         <div className="bg-gray-50 min-h-screen">
             <AddItemModal 
@@ -721,130 +904,26 @@ const CreateSalesInvoicePage = () => {
                         </div>
 
                             <div className="flex items-center gap-2">
-                            <Button variant="outline" className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-md shadow-sm cursor-pointer" onClick={() => setIsSettingsModalOpen(true)}>
-                                <Settings className="h-4 w-4 mr-2" /> Settings
+                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-md cursor-pointer" onClick={() => setIsSettingsModalOpen(true)}>
+                                <Settings className="h-4 w-4 mr-2 text-gray-600" /> Settings
                             </Button>
 
                             {/* Drafts feature removed */}
 
-                            <Button
-                                className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2 rounded-md shadow-md cursor-pointer"
-                                onClick={async () => {
-                                        try {
-                                            setSaving(true);
-                                            // Consider invoice paid if user checked fully-paid OR the entered amountReceived covers the final amount.
-                                            let numericAmountReceived = parseFloat(amountReceivedStr) || 0;
-                                            // If user marked fully paid but amountReceivedStr hasn't updated yet (state is async),
-                                            // ensure we treat it as fully-paid for the save operation by using finalAmountForBalance.
-                                            if (isFullyPaid && numericAmountReceived < finalAmountForBalance) {
-                                                numericAmountReceived = finalAmountForBalance;
-                                            }
-                                            const isPaid = isFullyPaid || numericAmountReceived >= finalAmountForBalance;
-                                            const paymentStatusToSend = isPaid ? paymentMode : 'unpaid';
-
-                                            // Normalize selectedParty to id string for API
-                                            let selectedPartyToSend: any = undefined;
-                                            if (selectedParty) {
-                                                if ((selectedParty as any).id) selectedPartyToSend = (selectedParty as any).id;
-                                                else if ((selectedParty as any)._id) selectedPartyToSend = (selectedParty as any)._id;
-                                                else selectedPartyToSend = selectedParty as any;
-                                            }
-
-                                                                    const invoiceData: any = {
-                                                                        // For new invoices, invoiceNumber is assigned by server and will be removed before POST
-                                                                        invoiceNumber,
-                                                invoiceDate,
-                                                dueDate,
-                                                paymentTerms,
-                                                selectedParty: selectedPartyToSend,
-                                                items,
-                                                additionalCharges,
-                                                // persist overall discount UI state
-                                                discountOption,
-                                                discountPercentStr,
-                                                discountFlatStr,
-                                                terms,
-                                                notes,
-                                                autoRoundOff,
-                                                adjustmentType,
-                                                manualAdjustment: autoRoundOff ? 0 : committedAdjustment,
-                                                totalAmount: finalAmountForBalance,
-                                                amountReceived: amountReceived,
-                                                balanceAmount,
-                                                paymentStatus: paymentStatusToSend,
-                                                savedAt: new Date().toISOString(),
-                                            };
-
-                                            // If creating a new invoice, don't send client-side invoiceNumber — server will assign invoiceNo
-                                            if (!editId) {
-                                                try { delete invoiceData.invoiceNumber; } catch (e) {}
-                                            }
-
-                                            // If editId is set, call PUT to update existing NewSale
-                                            let res;
-                                            if (editId) {
-                                                console.debug('Updating invoice', editId, invoiceData);
-                                                res = await fetch(`/api/new_sale/${editId}`, {
-                                                    method: 'PUT',
-                                                    credentials: 'include',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify(invoiceData),
-                                                });
-                                            } else {
-                                                // mark that assignment is in progress (placeholder)
-                                                const hadInvoiceNo = Boolean(invoiceNo);
-                                                if (!hadInvoiceNo) setInvoiceNo('Assigning…');
-                                                console.debug('Posting new invoice to /api/new_sale:', invoiceData);
-                                                res = await fetch('/api/new_sale', {
-                                                    method: 'POST',
-                                                    credentials: 'include',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify(invoiceData),
-                                                });
-                                            }
-
-                                                if (!res.ok) {
-                                                // If the POST failed, clear temporary placeholder if we set it
-                                                const hadInvoiceNo = invoiceNo === 'Assigning…';
-                                                if (hadInvoiceNo) setInvoiceNo('');
-                                                const errBody = await res.json().catch(() => ({}));
-                                                console.error('Server responded with error', errBody);
-                                                // previously showed savedMessage; now just log
-                                                console.debug('Save failed:', errBody?.error || errBody?.message || 'Failed to save to server');
-                                            } else {
-                                                const data = await res.json().catch(() => ({}));
-                                                console.debug('Saved to server', data?.message || 'Saved to server');
-                                                // If it was a new POST, and server returned id, set editId so further saves update
-                                                if (!editId && data?.data?._id) setEditId(data.data._id);
-                                                // Set server-assigned invoiceNo in UI if returned
-                                                const returnedInvoiceNo = data?.data?.invoiceNo || data?.invoiceNo || '';
-                                                if (returnedInvoiceNo) setInvoiceNo(returnedInvoiceNo);
-                                                // Notify other UI that product stocks may have changed
-                                                try { window.dispatchEvent(new Event('productsUpdated')); } catch (e) {}
-                                                // Redirect user to the invoice download/view page for this invoice
-                                                try {
-                                                    const returnedId = data?.data?._id || data?._id || editId;
-                                                    if (returnedId) {
-                                                        // navigate to the download/view page which renders InvoiceDownload
-                                                        router.push(`/dashboard/sale/sales-invoice/${returnedId}`);
-                                                        return; // stop further execution in this handler after redirect
-                                                    }
-                                                } catch (e) {
-                                                    // ignore routing errors
-                                                }
-                                            }
-                                        } catch (err) {
-                                            console.error('Failed to save to server', err);
-                                            console.debug('Failed to save to server', err);
-                                            // clear temporary assigning label if present
-                                            try { if (!editId) setInvoiceNo(''); } catch (e) {}
-                                        } finally {
-                                            setSaving(false);
-                                        }
-                                }}
-                            >
-                                {saving ? 'Saving…' : 'Save Sales Invoice'}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    className="bg-white border border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-md cursor-pointer"
+                                    onClick={() => handleSave(false)}
+                                >
+                                    {saving ? 'Saving…' : 'Save & New'}
+                                </Button>
+                                <Button
+                                    className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-8 py-2 rounded-md shadow-md cursor-pointer"
+                                    onClick={() => handleSave(true)}
+                                >
+                                    {saving ? 'Saving…' : 'Save'}
+                                </Button>
+                            </div>
 
                             
                         </div>
@@ -865,13 +944,14 @@ const CreateSalesInvoicePage = () => {
                             selectedParty={selectedParty}
                             onSelectParty={setSelectedParty}
                             onClearParty={() => setSelectedParty(null)}
-                            partyType="Customer" />
+                            partyType="Customer"
+                            showAll={true} />
                         <div className="flex flex-col items-end gap-4">
                              <div className="flex flex-col sm:flex-row gap-4">
                                  <div className="w-full sm:w-64">
                                      <label htmlFor="invoiceNo" className="text-sm font-medium text-gray-700 mb-1 block text-right">Sales Invoice No:</label>
                                      {/* Invoice number is assigned by the server on create and cannot be edited here */}
-                                     <Input id="invoiceNo" type="text" value={invoiceNo || (editId ? (invoiceNumber ? String(invoiceNumber) : '') : 'Will be assigned on save')} readOnly className="text-right bg-gray-100 cursor-not-allowed"/>
+                                     <Input id="invoiceNo" type="text" value={invoiceNo || (invoiceNumber ? String(invoiceNumber) : 'Will be assigned on save')} readOnly className="text-right bg-gray-100 cursor-not-allowed"/>
                                  </div>
                                  <div className="w-full sm:w-64">
                                     <label htmlFor="invoiceDate" className="text-sm font-medium text-gray-700 mb-1 block text-right">Sales Invoice Date:</label>
@@ -947,7 +1027,7 @@ const CreateSalesInvoicePage = () => {
                                         <td className="px-2 py-2"><Input type="text" placeholder="HSN" value={item.hsn} onChange={e => handleItemChange(item.id, 'hsn', e.target.value)} /></td>
                                                                                 <td className="px-2 py-2">
                                                                                     <div className="flex flex-col">
-                                                                                        <Input type="number" placeholder="1" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} />
+                                                                                        <Input type="number" placeholder="1" value={item.qty === 0 ? '' : item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} />
                                                                                         {(() => {
                                                                                             // prefer live currentStock from productsCache when available
                                                                                             const p = (item.productId && productsCache.length) ? productsCache.find(pp => String(pp._id) === String(item.productId)) : null;
@@ -1195,7 +1275,23 @@ const CreateSalesInvoicePage = () => {
                                                     id="discount-amount-percent"
                                                     placeholder="0.00"
                                                     value={discountPercentStr}
-                                                    onChange={(e) => { setDiscountPercentStr(e.target.value); setLastDiscountInput('percent'); }}
+                                                    onChange={(e) => {
+                                                        const v = e.target.value;
+                                                        if (v === '' || v === '-') {
+                                                            setDiscountPercentStr('');
+                                                            setLastDiscountInput('percent');
+                                                            return;
+                                                        }
+                                                        let n = parseFloat(v);
+                                                        if (isNaN(n)) n = 0;
+                                                        if (n < 0) n = 0;
+                                                        // If user attempts to enter >100%, ignore the change so the input cannot be set above 100
+                                                        if (n > 100) return;
+                                                        // remove trailing .00 for cleaner display
+                                                        const out = Number.isFinite(n) ? (n % 1 === 0 ? String(n) : String(Number(n.toFixed(2)))) : String(n);
+                                                        setDiscountPercentStr(out);
+                                                        setLastDiscountInput('percent');
+                                                    }}
                                                     className="pr-7 text-right h-9 w-full"
                                                 />
                                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">%</span>
@@ -1203,13 +1299,39 @@ const CreateSalesInvoicePage = () => {
                                             <div className="relative">
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">₹</span>
                                                 <Input
-                                                    type="number"
-                                                    id="discount-amount-rupees"
-                                                    placeholder="0.00"
-                                                    value={discountFlatStr}
-                                                    onChange={(e) => { setDiscountFlatStr(e.target.value); setLastDiscountInput('flat'); }}
-                                                    className="pl-6 text-right h-9 w-full"
-                                                />
+                                                        type="number"
+                                                        id="discount-amount-rupees"
+                                                        placeholder="0.00"
+                                                        value={discountFlatStr}
+                                                        onChange={(e) => {
+                                                            const v = e.target.value;
+                                                            // Allow the user to type '-' or empty to clear.
+                                                            if (v === '' || v === '-') {
+                                                                setDiscountFlatStr('');
+                                                                setLastDiscountInput('flat');
+                                                                return;
+                                                            }
+                                                            let n = parseFloat(v);
+                                                            if (isNaN(n)) n = 0;
+                                                            if (n < 0) n = 0;
+                                                            const cap = Number.isFinite(discountBase) ? discountBase : Infinity;
+                                                            // If attempted value exceeds cap (100%), ignore the change so user cannot enter >100%
+                                                            if (n > cap) return;
+                                                            // keep the user's raw input for typing; cap/format on blur
+                                                            setDiscountFlatStr(v);
+                                                            setLastDiscountInput('flat');
+                                                        }}
+                                                        onBlur={() => {
+                                                            // sanitize and cap when the user leaves the field
+                                                            if (discountFlatStr === '' || discountFlatStr === '-') return;
+                                                            let n = parseFloat(discountFlatStr) || 0;
+                                                            if (n < 0) n = 0;
+                                                            const cap = Number.isFinite(discountBase) ? discountBase : n;
+                                                            if (n > cap) n = cap;
+                                                            setDiscountFlatStr(n > 0 ? n.toFixed(2) : '');
+                                                        }}
+                                                        className="pl-6 text-right h-9 w-full"
+                                                    />
                                             </div>
                                         </div>
                                         <Button

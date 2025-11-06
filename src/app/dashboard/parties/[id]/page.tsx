@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, usePathname } from "next/navigation";
 import toast from "react-hot-toast";
 import { apiService, Transaction, TransactionData } from "@/services/apiService";
-import { ArrowLeft, Edit, Trash2, Phone, Mail, FileText, Banknote, Landmark, Building, Ship, Plus, List } from "lucide-react";
+import { ArrowLeft, ArrowUp, ArrowDown, Edit, Trash2, Phone, Mail, FileText, Banknote, Landmark, Building, Ship, Plus, List } from "lucide-react";
 import HeaderTabs from "@/components/HeaderTabs";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -164,9 +164,16 @@ export default function PartyDetailPage() {
                 <div className="flex items-center gap-2 text-sm mt-1 text-gray-500">
                   <span>{party.partyType}</span>
                   <span className="text-gray-300">|</span>
-                  <span className={`font-semibold ${party.balance > 0 ? 'text-green-600' : party.balance < 0 ? 'text-red-600' : 'text-gray-700'}`}>
-                    ₹{Math.abs(party.balance).toFixed(2)}{party.balance !== 0 && <span className="text-xs ml-1 font-normal">{party.balance > 0 ? '(To Receive)' : '(To Pay)'}</span>}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {party.balance > 0 ? (
+                      <ArrowDown className="w-4 h-4 text-green-600" />
+                    ) : party.balance < 0 ? (
+                      <ArrowUp className="w-4 h-4 text-red-600" />
+                    ) : null}
+                    <span className={`font-semibold ${party.balance > 0 ? 'text-green-600' : party.balance < 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                      ₹{Math.abs(party.balance).toFixed(2)}{party.balance !== 0 && <span className="text-xs ml-1 font-normal">{party.balance > 0 ? '(To Collect)' : '(To Pay)'}</span>}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -232,7 +239,20 @@ export default function PartyDetailPage() {
                 <Card>
                   <CardHeader><CardTitle>Financials</CardTitle></CardHeader>
                   <CardContent>
-                    <DetailItemWithIcon icon={<Banknote size={20} />} label="Opening Balance" value={`₹ ${party.openingBalance?.toFixed(2)}`} />
+                    {/* Show opening balance as absolute value and color-label like the main balance */}
+                    <div className="flex items-center gap-3">
+                      {party.openingBalance > 0 ? (
+                        <ArrowDown className="w-4 h-4 text-green-600" />
+                      ) : party.openingBalance < 0 ? (
+                        <ArrowUp className="w-4 h-4 text-red-600" />
+                      ) : null}
+                      <div className={`${party.openingBalance > 0 ? 'text-green-600' : party.openingBalance < 0 ? 'text-red-600' : 'text-gray-700'} font-semibold text-lg`}>
+                        ₹{Math.abs(party.openingBalance || 0).toFixed(2)}
+                      </div>
+                      {party.openingBalance !== 0 && (
+                        <div className="text-xs text-gray-600">{party.openingBalance > 0 ? 'To Collect' : 'To Pay'}</div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
 

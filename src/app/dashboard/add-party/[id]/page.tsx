@@ -14,6 +14,13 @@ import {
   Plus,
   Building,
 } from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from '@/components/ui/select';
 
 // --- Types ---
 interface BankDetails {
@@ -34,6 +41,8 @@ interface PartyFormData {
   billingAddress: string;
   shippingAddress: string;
   bankDetails: BankDetails | null;
+  openingBalance?: string | number | null;
+  openingBalanceType?: string | null;
 }
 
 type FormErrors = Partial<Record<keyof PartyFormData, string>>;
@@ -49,6 +58,8 @@ const initialFormState: PartyFormData = {
   billingAddress: "",
   shippingAddress: "",
   bankDetails: null,
+  openingBalance: '',
+  openingBalanceType: 'To Collect',
 };
 
 // --- Input Components ---
@@ -178,6 +189,8 @@ export default function EditPartyPage() {
                 upiId: party.bankDetails.upiId || "",
               }
             : null,
+          openingBalance: party.openingBalance ?? '',
+          openingBalanceType: party.openingBalanceType ?? 'To Collect',
         };
 
         setFormData(mapped);
@@ -200,6 +213,22 @@ export default function EditPartyPage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Live validation for mobile number
+    if (name === "mobileNumber") {
+      const digitsOnly = String(value).replace(/\D/g, "");
+      setErrors((prev) => {
+        const next = { ...prev };
+        if (!digitsOnly) {
+          next.mobileNumber = "Mobile number is required.";
+        } else if (!/^\d{10}$/.test(digitsOnly)) {
+          next.mobileNumber = "Enter a valid 10-digit mobile number.";
+        } else {
+          delete next.mobileNumber;
+        }
+        return next;
+      });
+    }
   };
 
   const handleSaveBankDetails = (details: BankDetails) => {
@@ -210,8 +239,14 @@ export default function EditPartyPage() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     if (!formData.partyName) newErrors.partyName = "Party name is required.";
-    if (!formData.mobileNumber)
+    if (!formData.mobileNumber) {
       newErrors.mobileNumber = "Mobile number is required.";
+    } else {
+      const digitsOnly = String(formData.mobileNumber).replace(/\D/g, "");
+      if (!/^\d{10}$/.test(digitsOnly)) {
+        newErrors.mobileNumber = "Enter a valid 10-digit mobile number.";
+      }
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -308,6 +343,37 @@ export default function EditPartyPage() {
                 onChange={handleInputChange}
                 placeholder="Enter email"
               />
+              {/* Opening Balance: attached control (amount + type) using shadcn Select */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Opening Balance</label>
+                <div className="inline-flex w-full items-stretch border border-gray-300 rounded-md overflow-hidden bg-white">
+                  <div className="flex-1 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600">₹</span>
+                    <input
+                      type="number"
+                      name="openingBalance"
+                      value={formData.openingBalance as any ?? ''}
+                      onChange={handleInputChange}
+                      placeholder="0"
+                      className="w-full pl-9 pr-3 h-9 text-sm focus:outline-none"
+                    />
+                  </div>
+                  <div className="border-l border-gray-200 w-36 h-9 flex items-center">
+                    <Select
+                      value={formData.openingBalanceType || 'To Collect'}
+                      onValueChange={(v) => setFormData((prev) => ({ ...prev, openingBalanceType: v }))}
+                    >
+                      <SelectTrigger id="openingBalanceType" name="openingBalanceType" className="h-9 w-full px-3 text-sm bg-white border-0 rounded-none focus:ring-0 cursor-pointer">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="To Collect">To Collect</SelectItem>
+                        <SelectItem value="To Pay">To Pay</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

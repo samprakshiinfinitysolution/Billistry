@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Settings, CalendarIcon, Trash2, QrCode, X, ArrowLeft, Search, ClipboardX, ArrowUp } from 'lucide-react';
 import {
@@ -72,6 +73,8 @@ interface InvoiceItem {
     price: number;
     numericStock?: number | null;
     unit?: string | null;
+    productId?: string | null;
+    originalQty?: number;
     discountPercentStr: string; // The user-inputted discount percentage
     discountAmountStr: string; // The calculated discount amount
     lastDiscountInput: 'percent' | 'flat'; // Which discount input was last used
@@ -123,6 +126,7 @@ const CreateSalesReturnInvoicePage = () => {
 
     const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
     const [isScanBarcodeModalOpen, setIsScanBarcodeModalOpen] = useState(false);
+    const [productsCache, setProductsCache] = useState<any[]>([]);
     const [businessName, setBusinessName] = useState<string>('Business Name');
     const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
     const [gstNumber, setGstNumber] = useState<string | null>(null);
@@ -142,7 +146,25 @@ const CreateSalesReturnInvoicePage = () => {
 
     // If the user clears the LinkToInvoice input, unlock the form (allow creating a standalone return)
     useEffect(() => {
+        // when LinkToInvoice is cleared, unset linked mode and remove any invoice-populated data
         if (!searchInvoiceTerm) {
+            if (isLinked) {
+                // clear fields that come from a linked invoice
+                setItems([]);
+                setAdditionalCharges([]);
+                setNotes('');
+                setShowNotesInput(false);
+                setDiscountPercentStr('');
+                setDiscountFlatStr('');
+                setLastDiscountInput(null);
+                setAmountReceivedStr('');
+                setIsFullyPaid(false);
+                setPaymentMode('unpaid');
+                setCommittedAdjustment(0);
+                setManualAdjustmentStr('');
+                // reset invoiceDate to today for a new standalone return
+                setInvoiceDate(new Date().toISOString().split('T')[0]);
+            }
             setIsLinked(false);
         }
     }, [searchInvoiceTerm]);
@@ -152,13 +174,15 @@ const CreateSalesReturnInvoicePage = () => {
             try {
                 const res = await fetch('/api/new_sale');
                 const data = await res.json();
-                if (data && data.success && Array.isArray(data.data)) {
+                    if (data && data.success && Array.isArray(data.data)) {
                     const mapped: Invoice[] = data.data.map((d: any) => ({
                         id: d._id,
                         date: d.invoiceDate ? (new Date(d.invoiceDate)).toISOString().split('T')[0] : (d.savedAt ? new Date(d.savedAt).toISOString().split('T')[0] : ''),
                         invoiceNo: d.invoiceNo || d.invoiceNoFormatted || (d.invoiceNumber ? `INV-${String(d.invoiceNumber).padStart(5, '0')}` : '') || '',
                         invoiceNumber: d.invoiceNumber,
                         amount: Number(d.totalAmount || d.totalAmount || 0),
+                        // store the party id (if any) so UI can filter invoices by selected party
+                        partyId: d.selectedParty?._id || d.selectedParty?.id || (d.selectedParty || undefined),
                     }));
                     setFetchedInvoices(mapped);
                 } else {
@@ -563,6 +587,9 @@ const CreateSalesReturnInvoicePage = () => {
         const newItem: InvoiceItem = {
             id: nextItemId.current++,
             name: itemToAdd.name,
+            productId: itemToAdd.id || null,
+            numericStock: (itemToAdd as any).numericStock ?? null,
+            unit: itemToAdd.unit || null,
             hsn: itemToAdd.hsnCode || '', // Use hsnCode from modal
             qty: quantity,
             price: price,
@@ -575,6 +602,26 @@ const CreateSalesReturnInvoicePage = () => {
         setItems(prevItems => [...prevItems, newItem]);
         console.log(`Added ${quantity} of item:`, itemToAdd.name);
     };
+
+    // Fetch product list into cache so return editor can show live currentStock when available
+    useEffect(() => {
+        let mounted = true;
+        const fetchProducts = async () => {
+            try {
+                const res = await fetch('/api/product', { credentials: 'include' });
+                if (!res.ok) return;
+                const body = await res.json().catch(() => ({}));
+                const products = Array.isArray(body.products) ? body.products : [];
+                if (mounted) setProductsCache(products);
+            } catch (e) {
+                // ignore
+            }
+        };
+        fetchProducts();
+        const onUpd = () => fetchProducts();
+        try { window.addEventListener('productsUpdated', onUpd as any); } catch (e) {}
+        return () => { mounted = false; try { window.removeEventListener('productsUpdated', onUpd as any); } catch (e) {} };
+    }, []);
 
     const handleRemoveItem = (id: number) => {
         setItems(items.filter(item => item.id !== id));
@@ -616,13 +663,30 @@ const CreateSalesReturnInvoicePage = () => {
             const itemTotal = (item.qty || 0) * (item.price || 0);
 
             if (inputType === 'percent') {
-                updatedItem.discountPercentStr = value;
-                const percent = parseFloat(value) || 0;
-                updatedItem.discountAmountStr = itemTotal > 0 ? ((itemTotal * percent) / 100).toFixed(2) : '';
+                // sanitize percent and DO NOT allow >100 (ignore updates >100)
+                if (value === '' || value === '-') {
+                    updatedItem.discountPercentStr = '';
+                    updatedItem.discountAmountStr = '';
+                } else {
+                    let percent = parseFloat(value) || 0;
+                    if (percent < 0) percent = 0;
+                    if (percent > 100) return item; // ignore update
+                    const percentStr = Number.isFinite(percent) ? percent.toFixed(2).replace(/\.00$/, '') : String(percent);
+                    updatedItem.discountPercentStr = percentStr;
+                    updatedItem.discountAmountStr = itemTotal > 0 ? ((itemTotal * percent) / 100).toFixed(2) : '';
+                }
             } else { // flat
-                updatedItem.discountAmountStr = value;
-                const amount = parseFloat(value) || 0;
-                updatedItem.discountPercentStr = itemTotal > 0 ? ((amount / itemTotal) * 100).toFixed(2) : '';
+                // disallow flat amount that exceeds item total (100%). Ignore updates > itemTotal
+                if (value === '' || value === '-') {
+                    updatedItem.discountAmountStr = '';
+                    updatedItem.discountPercentStr = '';
+                } else {
+                    let amount = parseFloat(value) || 0;
+                    if (amount < 0) amount = 0;
+                    if (amount > itemTotal) return item;
+                    updatedItem.discountAmountStr = String(value);
+                    updatedItem.discountPercentStr = itemTotal > 0 ? (Math.min((amount / itemTotal) * 100, 100)).toFixed(2).replace(/\.00$/, '') : '';
+                }
             }
 
             // Recalculate tax based on new discount
@@ -683,6 +747,146 @@ const CreateSalesReturnInvoicePage = () => {
         setPartySearchTerm('');
     };
 
+    // Centralized save handler reused by both "Save" and "Save & New"
+    const handleSave = async (shouldRedirect: boolean) => {
+        try {
+            // Validation: party and items required
+            if (!selectedParty) {
+                toast.error('Please select a party before saving the sales return');
+                return;
+            }
+            if (!items || items.length === 0) {
+                toast.error('Please add at least one item before saving the sales return');
+                return;
+            }
+            setSaving(true);
+
+            let numericAmountReceived = parseFloat(amountReceivedStr) || 0;
+            if (isFullyPaid && numericAmountReceived < finalAmountForBalance) {
+                numericAmountReceived = finalAmountForBalance;
+            }
+            const isPaid = isFullyPaid || numericAmountReceived >= finalAmountForBalance;
+            const paymentStatusToSend = isPaid ? paymentMode : 'unpaid';
+
+            let selectedPartyToSend: any = undefined;
+            if (selectedParty) {
+                if ((selectedParty as any).id) selectedPartyToSend = (selectedParty as any).id;
+                else if ((selectedParty as any)._id) selectedPartyToSend = (selectedParty as any)._id;
+                else selectedPartyToSend = selectedParty as any;
+            }
+
+            const payload: any = {
+                originalSale: undefined,
+                returnDate: invoiceDate,
+                reason: '',
+                items,
+                additionalCharges,
+                terms,
+                notes,
+                autoRoundOff,
+                adjustmentType,
+                manualAdjustment: autoRoundOff ? 0 : committedAdjustment,
+                totalAmount: finalAmountForBalance,
+                amountRefunded: numericAmountReceived,
+                balanceAmount: finalAmountForBalance - numericAmountReceived,
+                paymentStatus: paymentStatusToSend,
+                savedAt: new Date().toISOString(),
+            };
+
+            try {
+                const match = searchInvoiceTerm && fetchedInvoices.find(f => (f.invoiceNo === searchInvoiceTerm) || (String(f.invoiceNumber) === searchInvoiceTerm));
+                if (match) payload.originalSale = match.id;
+            } catch (e) {}
+
+            try {
+                if (selectedPartyToSend) payload.selectedParty = selectedPartyToSend;
+            } catch (e) {}
+
+            let res: Response;
+            if (editId) {
+                res = await fetch(`/api/new_sale_return/${encodeURIComponent(editId)}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            } else {
+                res = await fetch('/api/new_sale_return', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            }
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                console.error('Failed to save sales return', err);
+                toast.error('Failed to save sales return.');
+            } else {
+                const body = await res.json().catch(() => ({}));
+                try {
+                    const returnedId = body?.data?._id || body?.data?.id || editId;
+                    if (returnedId) {
+                        try { setEditId(returnedId); } catch (e) {}
+                    }
+                } catch (e) {}
+
+                // notify other tabs / components that product data may have changed
+                try { window.dispatchEvent(new Event('productsUpdated')); } catch (e) {}
+
+                // If caller wants to redirect to the saved invoice, do so
+                const returnedId = body?.data?._id || body?._id || editId;
+                if (shouldRedirect && returnedId) {
+                    router.push(`/dashboard/return/sale/sales-return-invoice/${returnedId}`);
+                    return;
+                }
+
+                // Save & New flow: clear form but show updated (local) invoice number for next invoice
+                if (!shouldRedirect) {
+                    const nextNum = body?.nextInvoiceNumber || (returnInvoiceNumber ? returnInvoiceNumber + 1 : (typeof returnInvoiceNumber === 'number' ? returnInvoiceNumber + 1 : 1));
+
+                    if (body?.nextInvoiceFormatted) {
+                        setReturnInvoiceNo(body.nextInvoiceFormatted);
+                    } else {
+                        const returnedInvoiceNo = body?.data?.invoiceNo || body?.invoiceNo || '';
+                        const source = returnedInvoiceNo || String(returnInvoiceNo || '');
+                        const numericMatch = source.match(/(\d+)$/);
+                        if (numericMatch) {
+                            const numericPart = numericMatch[1];
+                            const prefix = source.slice(0, numericMatch.index || 0);
+                            const width = numericPart.length;
+                            const padded = String(nextNum).padStart(width, '0');
+                            setReturnInvoiceNo(prefix + padded);
+                        } else {
+                            const prefixFromReturned = (returnedInvoiceNo && returnedInvoiceNo.match(/^[^0-9]*/)?.[0]) || '';
+                            const prefixFromCurrent = (returnInvoiceNo && String(returnInvoiceNo).match(/^[^0-9]*/)?.[0]) || '';
+                            const prefix = prefixFromReturned || prefixFromCurrent || '';
+                            setReturnInvoiceNo(prefix + String(nextNum));
+                        }
+                    }
+
+                    setEditId(null);
+                    setItems([]);
+                    setSelectedParty(null);
+                    // Clear linked invoice input when starting a new return
+                    try { setSearchInvoiceTerm(''); } catch (e) {}
+                    try { setIsLinked(false); } catch (e) {}
+                    setTerms('1. Goods once sold will not be taken back or exchanged\n2. All disputes are subject to [ENTER_YOUR_CITY_NAME] jurisdiction only');
+                    setNotes('');
+                    setAdditionalCharges([]);
+                    setDiscountFlatStr('');
+                    setDiscountPercentStr('');
+                    setLastDiscountInput(null);
+                    setManualAdjustmentStr('');
+                    setCommittedAdjustment(0);
+                    setTotalAmountManuallySet(false);
+                    setAmountReceivedStr('');
+                    setIsFullyPaid(false);
+                    setPaymentMode('unpaid');
+                    setInvoiceDate(new Date().toISOString().split('T')[0]);
+                    setReturnInvoiceNumber(nextNum);
+                    toast.success('Sales return saved. Ready for new return.');
+                }
+            }
+        } catch (e) {
+            console.error('Save sales return failed', e);
+            toast.error('Failed to save sales return.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (isFetching) {
         return <div className="bg-gray-50 min-h-screen"><FormSkeleton /></div>;
     }
@@ -716,90 +920,24 @@ const CreateSalesReturnInvoicePage = () => {
                             <h1 className="text-xl font-semibold text-gray-800">{editId ? 'Update Sales Return' : 'Create Sales Return'}</h1>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-md shadow-sm cursor-pointer" onClick={() => setIsSettingsOpen(true)}>
-                                <Settings className="h-4 w-4 mr-2" /> Settings
+                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-md cursor-pointer" onClick={() => setIsSettingsOpen(true)}>
+                                <Settings className="h-4 w-4 mr-2 text-gray-600" /> Settings
                             </Button>
 
-                            <Button
-                                className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2 rounded-md shadow-md cursor-pointer"
-                                onClick={async () => {
-                                    try {
-                                        setSaving(true);
-                                        let numericAmountReceived = parseFloat(amountReceivedStr) || 0;
-                                        if (isFullyPaid && numericAmountReceived < finalAmountForBalance) {
-                                            numericAmountReceived = finalAmountForBalance;
-                                        }
-                                        const isPaid = isFullyPaid || numericAmountReceived >= finalAmountForBalance;
-                                        const paymentStatusToSend = isPaid ? paymentMode : 'unpaid';
-
-                                        let selectedPartyToSend: any = undefined;
-                                        if (selectedParty) {
-                                            if ((selectedParty as any).id) selectedPartyToSend = (selectedParty as any).id;
-                                            else if ((selectedParty as any)._id) selectedPartyToSend = (selectedParty as any)._id;
-                                            else selectedPartyToSend = selectedParty as any;
-                                        }
-
-                                        const payload: any = {
-                                            originalSale: undefined,
-                                            returnDate: invoiceDate,
-                                            reason: '',
-                                            items,
-                                            additionalCharges,
-                                            terms,
-                                            notes,
-                                            autoRoundOff,
-                                            adjustmentType,
-                                            manualAdjustment: autoRoundOff ? 0 : committedAdjustment,
-                                            totalAmount: finalAmountForBalance,
-                                            amountRefunded: numericAmountReceived,
-                                            balanceAmount: finalAmountForBalance - numericAmountReceived,
-                                            paymentStatus: paymentStatusToSend,
-                                            savedAt: new Date().toISOString(),
-                                        };
-
-                                        try {
-                                            const match = searchInvoiceTerm && fetchedInvoices.find(f => (f.invoiceNo === searchInvoiceTerm) || (String(f.invoiceNumber) === searchInvoiceTerm));
-                                            if (match) payload.originalSale = match.id;
-                                        } catch (e) {}
-
-                                        try {
-                                            if (selectedPartyToSend) payload.selectedParty = selectedPartyToSend;
-                                        } catch (e) {}
-
-                                        const editIdParam = searchParams?.get('editId');
-                                        let res: Response;
-                                        if (editIdParam) {
-                                            res = await fetch(`/api/new_sale_return/${encodeURIComponent(editIdParam)}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                                        } else {
-                                            res = await fetch('/api/new_sale_return', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                                        }
-
-                                        if (!res.ok) {
-                                            const err = await res.json().catch(() => ({}));
-                                            console.error('Failed to save sales return', err);
-                                        } else {
-                                            const body = await res.json().catch(() => ({}));
-                                            try {
-                                                const returnedId = body?.data?._id || body?.data?.id || editIdParam;
-                                                if (returnedId) {
-                                                    try { setEditId(returnedId); } catch (e) {}
-                                                    try { router.push(`/dashboard/return/sale/sales-return-invoice/${encodeURIComponent(String(returnedId))}`); } catch (e) {}
-                                                } else {
-                                                    try { router.push('/dashboard/return/sale/sales-return-data'); } catch (e) {}
-                                                }
-                                            } catch (e) {
-                                                try { router.push('/dashboard/return/sale/sales-return-data'); } catch (err) {}
-                                            }
-                                        }
-                                    } catch (e) {
-                                        console.error('Save sales return failed', e);
-                                    } finally {
-                                        setSaving(false);
-                                    }
-                                }}
-                            >
-                                Save Sales Return
-                            </Button>
+                            <>
+                                <Button
+                                    className="bg-white border border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-md cursor-pointer"
+                                    onClick={async () => await handleSave(false)}
+                                >
+                                    Save & New
+                                </Button>
+                                <Button
+                                    className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-8 py-2 rounded-md shadow-md cursor-pointer"
+                                    onClick={async () => await handleSave(true)}
+                                >
+                                    Save
+                                </Button>
+                            </>
                         </div>
                     </div>
                 </div>
@@ -841,8 +979,9 @@ const CreateSalesReturnInvoicePage = () => {
                                     </div>
                                  </div>
                              </div>
+                            {/* Pass only invoices belonging to the selected party (if one is selected) */}
                             <LinkToInvoice
-                                invoiceList={fetchedInvoices}
+                                invoiceList={selectedParty ? fetchedInvoices.filter(inv => inv.partyId && (inv.partyId === (selectedParty as any).id || inv.partyId === (selectedParty as any)._id || inv.partyId === (selectedParty as any))) : fetchedInvoices}
                                 searchTerm={searchInvoiceTerm}
                                 onSearchTermChange={setSearchInvoiceTerm}
                                 onSelectInvoice={handleSelectInvoice}
@@ -891,12 +1030,28 @@ const CreateSalesReturnInvoicePage = () => {
                                             />
                                         </td>
                                         <td className="px-2 py-2">
-                                            <Input
-                                                type="number"
-                                                placeholder="1"
-                                                value={item.qty}
-                                                onChange={e => handleItemChange(item.id, 'qty', e.target.value)}
-                                            />
+                                            <div className="flex flex-col">
+                                                <Input
+                                                    type="number"
+                                                    placeholder="1"
+                                                    value={item.qty === 0 ? '' : item.qty}
+                                                    readOnly={isLinked}
+                                                    onChange={e => { if (!isLinked) handleItemChange(item.id, 'qty', e.target.value); }}
+                                                />
+                                                {(() => {
+                                                    // prefer live currentStock from productsCache when available
+                                                    const p = (item as any).productId && productsCache.length ? productsCache.find((pp: any) => String(pp._id) === String((item as any).productId)) : null;
+                                                    const liveStock = p ? (typeof p.currentStock !== 'undefined' && p.currentStock !== null ? Number(p.currentStock) : (typeof p.openingStock !== 'undefined' && p.openingStock !== null ? Number(p.openingStock) : null)) : item.numericStock;
+                                                    if (typeof liveStock !== 'number') return null;
+                                                    const orig = typeof (item as any).originalQty === 'number' ? (item as any).originalQty : 0;
+                                                    const delta = (item.qty || 0) - orig;
+                                                    const raw = (liveStock || 0) - delta;
+                                                    const cls = raw <= 0 ? 'text-red-600' : 'text-gray-500';
+                                                    const unitLabel = item.unit || (p && p.unit) || 'pcs';
+                                                    if (raw <= 0) return <span className={`text-xs ${cls}`}>{`Out of stock ${unitLabel}`}</span>;
+                                                    return <span className={`text-xs ${cls}`}>{`Available: ${raw} ${unitLabel}`}</span>;
+                                                })()}
+                                            </div>
                                         </td>
                                         <td className="px-2 py-2">
                                             <Input
@@ -1164,7 +1319,18 @@ const CreateSalesReturnInvoicePage = () => {
                                                         placeholder="0.00"
                                                         value={discountPercentStr}
                                                         readOnly={isLinked}
-                                                        onChange={(e) => { if (!isLinked) { setDiscountPercentStr(e.target.value); setLastDiscountInput('percent'); } }}
+                                                        onChange={(e) => {
+                                                            if (isLinked) return;
+                                                            const v = e.target.value;
+                                                            if (v === '' || v === '-') { setDiscountPercentStr(''); setLastDiscountInput('percent'); return; }
+                                                            let n = parseFloat(v);
+                                                            if (isNaN(n)) n = 0;
+                                                            if (n < 0) n = 0;
+                                                            if (n > 100) return; // ignore >100
+                                                            const out = Number.isFinite(n) ? (n % 1 === 0 ? String(n) : String(Number(n.toFixed(2)))) : String(n);
+                                                            setDiscountPercentStr(out);
+                                                            setLastDiscountInput('percent');
+                                                        }}
                                                         className={`pr-7 text-right h-9 w-full ${isLinked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                                     />
                                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">%</span>
@@ -1177,7 +1343,26 @@ const CreateSalesReturnInvoicePage = () => {
                                                     placeholder="0.00"
                                                     value={discountFlatStr}
                                                     readOnly={isLinked}
-                                                    onChange={(e) => { if (!isLinked) { setDiscountFlatStr(e.target.value); setLastDiscountInput('flat'); } }}
+                                                    onChange={(e) => {
+                                                        if (isLinked) return;
+                                                        const v = e.target.value;
+                                                        if (v === '' || v === '-') { setDiscountFlatStr(''); setLastDiscountInput('flat'); return; }
+                                                        let n = parseFloat(v);
+                                                        if (isNaN(n)) n = 0;
+                                                        if (n < 0) n = 0;
+                                                        const cap = Number.isFinite(discountBase) ? discountBase : Infinity;
+                                                        if (n > cap) return; // ignore >cap
+                                                        setDiscountFlatStr(v);
+                                                        setLastDiscountInput('flat');
+                                                    }}
+                                                    onBlur={() => {
+                                                        if (discountFlatStr === '' || discountFlatStr === '-') return;
+                                                        let n = parseFloat(discountFlatStr) || 0;
+                                                        if (n < 0) n = 0;
+                                                        const cap = Number.isFinite(discountBase) ? discountBase : n;
+                                                        if (n > cap) n = cap;
+                                                        setDiscountFlatStr(n > 0 ? n.toFixed(2) : '');
+                                                    }}
                                                     className={`pl-6 text-right h-9 w-full ${isLinked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                                 />
                                             </div>

@@ -336,11 +336,7 @@ export default function PartiesReportPage() {
           </div>
 
           <div ref={setPdfRef} className="flex-1 flex flex-col overflow-hidden" id="report-content">
-            <div className="mb-6 pb-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-700">
-                Parties Summary
-              </h2>
-            </div>
+            {/* Removed small "Parties Summary" heading per UX request */}
 
             
 

@@ -8,14 +8,15 @@ interface SalesData {
 
 interface SalesChartProps {
   data: SalesData[];
+  subtitle?: string;
 }
 
-export default function SalesChart({ data }: SalesChartProps) {
+export default function SalesChart({ data, subtitle }: SalesChartProps) {
   return (
     <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">
       <div className="mb-4">
         <h3 className="text-lg font-semibold">Sales & Purchase Trends</h3>
-        <p className="text-sm text-gray-400">(Last 6 Months)</p>
+        <p className="text-sm text-gray-400">{subtitle ?? '(Last 6 Months)'}</p>
       </div>
       <ResponsiveContainer width="100%" height={250}>
         <LineChart data={data}>

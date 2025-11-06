@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import TableSkeleton from '@/components/ui/TableSkeleton';
-  import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   format,
   isToday,
@@ -216,7 +216,7 @@ export default function PurchaseSummaryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 p-4 flex items-center">
         <div className="flex items-center text-lg font-semibold text-gray-800">
           <svg xmlns="http://www.w3.org/2000/svg" onClick={() => router.back()} className="h-5 w-5 mr-2 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -226,8 +226,8 @@ export default function PurchaseSummaryPage() {
         </div>
       </header>
 
-      <main className="container mx-auto p-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+      <main className="container mx-auto p-6 flex-1 flex flex-col overflow-hidden">
+        <div className="bg-white p-6 rounded-lg shadow-md flex-1 flex flex-col overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
             <div className="flex flex-wrap gap-2 items-center">
               <Input placeholder="Search supplier or invoice..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
@@ -251,40 +251,52 @@ export default function PurchaseSummaryPage() {
             <div className="flex items-center gap-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">Export Options <ChevronDown className="w-4 h-4 text-gray-600 ml-1" /></Button>
+                  <Button variant="outline" className="flex items-center gap-2 cursor-pointer">Export Options <ChevronDown className="w-4 h-4 text-gray-600 ml-1" /></Button>
                 </DropdownMenuTrigger>
+
                 <DropdownMenuContent>
                   <DropdownMenuItem onClick={exportExcel}>Download Excel</DropdownMenuItem>
                   <DropdownMenuItem onClick={exportPDF}>Print PDF</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Button variant="outline" className="flex items-center gap-2" onClick={printTable}>Print Purchase Return Summary <FileText className="w-4 h-4" /></Button>
+              <Button variant="outline" className="flex items-center gap-2 cursor-pointer" onClick={printTable}>Print Purchase Return Summary <FileText className="w-4 h-4" /></Button>
             </div>
           </div>
 
-          <div ref={setPdfRef} className="mb-6">
+          <div ref={setPdfRef} className="flex-1 flex flex-col overflow-hidden" id="report-content">
             <div className="mb-6 pb-4 border-b border-gray-200">
               <h2 className="text-lg font-medium text-gray-700">Total Purchase Return Amount: <span className="text-xl font-bold text-gray-900">₹ <AnimatedNumber value={totalPurchaseAmount} duration={1200} /></span></h2>
             </div>
 
-            <div className="overflow-x-auto">
-              <Table className="min-w-full text-sm">
-                <TableHeader className="bg-gray-100">
+            <div className="flex-1 overflow-hidden">
+              <Table wrapperClassName="h-full overflow-y-auto overflow-x-hidden" className="w-full table-fixed text-sm h-full">
+                <colgroup>
+                  <col style={{ width: '5%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '35%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '13%' }} />
+                </colgroup>
+
+                <TableHeader className="bg-gray-100 sticky top-0 z-20">
                   <TableRow>
-                    <TableHead>S. No.</TableHead>
-                    <TableHead onClick={() => handleSort("invoiceNo")} className="cursor-pointer">Invoice No. <ArrowUpDown className={`w-4 h-4 inline-block ${sortConfig.key === "invoiceNo" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} /></TableHead>
-                    <TableHead onClick={() => handleSort("supplier")} className="cursor-pointer">Supplier <ArrowUpDown className={`w-4 h-4 inline-block ${sortConfig.key === "supplier" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} /></TableHead>
-                    <TableHead onClick={() => handleSort("date")} className="cursor-pointer">Date <ArrowUpDown className={`w-4 h-4 inline-block ${sortConfig.key === "date" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} /></TableHead>
+                    <TableHead className="sticky left-0 top-0 bg-gray-100 z-30">S. No.</TableHead>
+                    <TableHead onClick={() => handleSort("invoiceNo")} className="cursor-pointer select-none">Invoice No. <ArrowUpDown className={`w-4 h-4 inline-block ${sortConfig.key === "invoiceNo" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} /></TableHead>
+                    <TableHead onClick={() => handleSort("supplier")} className="cursor-pointer select-none">Supplier <ArrowUpDown className={`w-4 h-4 inline-block ${sortConfig.key === "supplier" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} /></TableHead>
+                    <TableHead onClick={() => handleSort("date")} className="cursor-pointer select-none">Date <ArrowUpDown className={`w-4 h-4 inline-block ${sortConfig.key === "date" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} /></TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Quantity</TableHead>
-                    <TableHead onClick={() => handleSort("amount")} className="cursor-pointer">Amount <ArrowUpDown className={`w-4 h-4 inline-block ${sortConfig.key === "amount" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} /></TableHead>
+                    <TableHead onClick={() => handleSort("amount")} className="cursor-pointer select-none">Amount <ArrowUpDown className={`w-4 h-4 inline-block ${sortConfig.key === "amount" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} /></TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="p-0">
+                      <TableCell colSpan={7} className="p-0 w-full">
                         <TableSkeleton rows={6} />
                       </TableCell>
                     </TableRow>
@@ -295,11 +307,11 @@ export default function PurchaseSummaryPage() {
                   ) : (
                     filteredPurchases.map((p, i) => (
                       <TableRow key={p._id}>
-                        <TableCell>{i + 1}</TableCell>
+                        <TableCell className="sticky left-0 bg-white z-10">{i + 1}</TableCell>
                         <TableCell>{p.returnInvoiceNo}</TableCell>
                         <TableCell>{p.selectedParty?.name ?? "N/A"}</TableCell>
                         <TableCell>{format(parseISO(p.returnDate), "dd/MM/yyyy")}</TableCell>
-                        <TableCell className="align-top">
+                        <TableCell className="whitespace-normal break-words max-w-[36ch] align-top">
                           {(() => {
                             const items = p.items || [];
                             if (!items.length) return <span className="text-sm text-gray-600">-</span>;
@@ -312,7 +324,7 @@ export default function PurchaseSummaryPage() {
                                 {remaining.length > 0 && (
                                   <Popover>
                                     <PopoverTrigger asChild>
-                                      <button className="text-xs text-indigo-600 hover:underline">+{remaining.length} more</button>
+                                      <button className="text-xs text-indigo-600 hover:underline cursor-pointer">+{remaining.length} more</button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-2">
                                       <div className="text-sm text-gray-700 whitespace-pre-line">{fullList}</div>
@@ -334,7 +346,7 @@ export default function PurchaseSummaryPage() {
                                 <span className="text-sm text-gray-800">{totalQty}</span>
                                 <Popover>
                                   <PopoverTrigger asChild>
-                                    <button className="text-xs text-gray-500">details</button>
+                                    <button className="text-xs text-gray-500 cursor-pointer">details</button>
                                   </PopoverTrigger>
                                   <PopoverContent className="w-auto p-2">
                                     <div className="text-sm text-gray-700">{items.map((it, idx) => (
@@ -346,7 +358,7 @@ export default function PurchaseSummaryPage() {
                             );
                           })()}
                         </TableCell>
-                        <TableCell>₹{(p.totalAmount || 0).toFixed(2)}</TableCell>
+                        <TableCell className="min-w-[120px] text-right whitespace-nowrap">₹{(p.totalAmount || 0).toFixed(2)}</TableCell>
                       </TableRow>
                     ))
                   )}

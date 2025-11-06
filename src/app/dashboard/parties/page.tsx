@@ -12,6 +12,8 @@ import {
   Trash2,
   FileText,
   BookOpen,
+  ArrowUp,
+  ArrowDown,
   ArrowUpDown,
 } from "lucide-react";
 import Link from "next/link";
@@ -63,6 +65,7 @@ export default function PartiesPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [partyTypeFilter, setPartyTypeFilter] = useState<"all" | "Customer" | "Supplier">("all");
+  const [selectedStat, setSelectedStat] = useState<'all' | 'toCollect' | 'toPay'>('all');
   const [sortOption, setSortOption] = useState<'az' | 'za' | 'latest'>('latest');
   
 
@@ -137,6 +140,14 @@ export default function PartiesPage() {
       currentParties = currentParties.filter((p) => p.partyType === partyTypeFilter);
     }
 
+    // Apply selected stat/tab filter.
+    // Per requested behavior: when 'toCollect' is selected show Suppliers, when 'toPay' is selected show Customers.
+    if (selectedStat === 'toCollect') {
+      currentParties = currentParties.filter((p) => Number(p.balance) > 0 && p.partyType === 'Supplier');
+    } else if (selectedStat === 'toPay') {
+      currentParties = currentParties.filter((p) => Number(p.balance) < 0 && p.partyType === 'Customer');
+    }
+
     // (balance filter removed) keep balance column visible in table
 
     // Sorting according to sortOption
@@ -150,7 +161,7 @@ export default function PartiesPage() {
     }
 
     return currentParties;
-  }, [parties, searchTerm, partyTypeFilter, sortOption]);
+  }, [parties, searchTerm, partyTypeFilter, sortOption, selectedStat]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-3 font-inter">
@@ -158,7 +169,7 @@ export default function PartiesPage() {
       <main className="flex-1 pt-3 space-y-3 flex flex-col overflow-hidden">
         {/* page content constrained to the same max width as other dashboard pages */}
         <div className="w-full min-h-0">
-          <PartiesStats parties={parties} />
+          <PartiesStats parties={parties} selected={selectedStat} onSelect={setSelectedStat} />
 
           {/* Actions */}
       <div className="space-y-4 flex flex-col flex-1 min-h-0">
@@ -250,48 +261,106 @@ const PartiesHeader: React.FC<PartiesHeaderProps> = ({ onAddParty }) => (
           </Button>
         </Link>
 
-        <Button onClick={onAddParty} className="ml-2">
+        <Button onClick={onAddParty} className="ml-2 bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5">
           Create Party
         </Button>
       </div>
   </header>
 );
 
-const PartiesStats: React.FC<{ parties: Party[] }> = ({ parties }) => {
+const PartiesStats: React.FC<{ parties: Party[]; selected: 'all' | 'toCollect' | 'toPay'; onSelect: (s: 'all' | 'toCollect' | 'toPay') => void }> = ({ parties, selected, onSelect }) => {
   const customers = parties.filter((p) => p.partyType === "Customer").length;
   const suppliers = parties.filter((p) => p.partyType === "Supplier").length;
+  const toCollectTotal = parties.reduce((sum, p) => sum + (Number(p.balance) > 0 ? Number(p.balance) : 0), 0);
+  const toPayTotal = parties.reduce((sum, p) => sum + (Number(p.balance) < 0 ? Math.abs(Number(p.balance)) : 0), 0);
+
+  const StatCard = ({
+    title,
+    amount,
+    isSelected,
+    onClick,
+    subtitle,
+    icon,
+    iconBg = 'bg-blue-100',
+    iconColor = 'text-blue-600',
+    isCurrency = true,
+    amountColor = 'text-gray-800',
+    titleColor = '',
+  }: {
+    title: string;
+    subtitle?: string;
+    amount: number;
+    isSelected?: boolean;
+    onClick?: () => void;
+    icon?: React.ReactNode;
+    iconBg?: string;
+    iconColor?: string;
+    isCurrency?: boolean;
+    amountColor?: string;
+    titleColor?: string;
+  }) => {
+    const bg = isSelected ? 'bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700';
+    return (
+      <div
+        className={`rounded-lg shadow-sm relative ${bg} group cursor-pointer h-full`}
+        onClick={onClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onClick && onClick();
+        }}
+      >
+        <div className="p-3 flex items-center gap-3">
+          <div className={`p-2 rounded-md ${iconBg} inline-flex items-center justify-center`}>{icon && <span className={`${iconColor} h-5 w-5`}>{icon}</span>}</div>
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+                <div className={`text-sm font-semibold ${titleColor || 'text-gray-700'} dark:text-gray-200`}>{title}</div>
+              </div>
+            <div className={`mt-2 text-2xl font-bold ${amountColor} dark:text-gray-100`}>
+              {isCurrency ? (
+                <>₹ <AnimatedNumber value={Math.round(amount)} duration={800} /></>
+              ) : (
+                <AnimatedNumber value={Math.round(amount)} duration={800} />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 w-full">
-      <Card>
-        <CardContent className="p-0.5 flex flex-col items-start">
-          <div className="flex items-center gap-1 pl-6">
-            <Users className="h-5 w-5 text-blue-500 " />
-            <span className="text-sm font-medium text-gray-600">All Parties</span>
-          </div>
-          <div className="mt-0 text-2xl font-bold text-gray-800 pl-6"><AnimatedNumber value={parties.length} duration={800} /></div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0.5 flex flex-col items-start">
-          <div className="flex items-center gap-1 pl-6">
-            <FileText className="h-5 w-5 text-green-500" />
-            <span className="text-sm font-medium text-gray-600">Customers</span>
-          </div>
-          <div className="mt-0 text-2xl font-bold text-gray-800 pl-6"><AnimatedNumber value={customers} duration={800} /></div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0.5 flex flex-col items-start">
-          <div className="flex items-center gap-1 pl-6">
-            <BookOpen className="h-5 w-5 text-orange-500" />
-            <span className="text-sm font-medium text-gray-600">Suppliers</span>
-          </div>
-          <div className="mt-0 text-2xl font-bold text-gray-800 pl-6"><AnimatedNumber value={suppliers} duration={800} /></div>
-        </CardContent>
-      </Card>
+      <StatCard
+        title={`All Parties`}
+        amount={parties.length}
+        isSelected={selected === 'all'}
+        onClick={() => onSelect('all')}
+        isCurrency={false}
+        icon={<Users className="h-5 w-5" />}
+        iconBg="bg-blue-100"
+        iconColor="text-blue-600"
+      />
+      <StatCard
+        title="To Collect"
+        amount={toCollectTotal}
+        isSelected={selected === 'toCollect'}
+        onClick={() => onSelect('toCollect')}
+        icon={<FileText className="h-5 w-5" />}
+        iconBg="bg-green-100"
+        iconColor="text-green-600"
+        titleColor="text-green-600"
+      />
+      <StatCard
+        title="To Pay"
+        amount={toPayTotal}
+        isSelected={selected === 'toPay'}
+        onClick={() => onSelect('toPay')}
+        icon={<BookOpen className="h-5 w-5" />}
+        iconBg="bg-red-100"
+        iconColor="text-red-600"
+        titleColor="text-red-600"
+      />
     </div>
   );
 };
@@ -427,10 +496,17 @@ const PartiesTable: React.FC<{
             <td className="px-2 py-2 text-sm">
               {party.balance !== 0 ? (
                 <div className="flex flex-col">
-                  <span className={`font-medium ${party.balance > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    ₹ {Math.abs(party.balance).toFixed(2)}
-                  </span>
-                  <span className="text-xs text-gray-500">{party.balance > 0 ? 'To Receive' : 'To Pay'}</span>
+                  <div className="flex items-center gap-2">
+                    {party.balance > 0 ? (
+                      <ArrowDown className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <ArrowUp className="w-4 h-4 text-red-600" />
+                    )}
+                    <span className={`font-medium ${party.balance > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ₹ {Math.abs(party.balance).toFixed(2)}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-500">{party.balance > 0 ? 'To Collect' : 'To Pay'}</span>
                 </div>
               ) : (
                 <span className="font-medium text-gray-800">₹ 0.00</span>

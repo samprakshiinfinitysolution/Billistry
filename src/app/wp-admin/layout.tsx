@@ -19,6 +19,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [adminName, setAdminName] = useState<string | null>(null);
+  const [adminAvatar, setAdminAvatar] = useState<string | null>(null);
 
   useEffect(() => {
     const verifySession = async () => {
@@ -32,6 +34,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       try {
         const res = await fetch('/api/admin/auth/me'); // Assuming you have a "me" endpoint
         if (res.ok) {
+          const data = await res.json();
+          // populate admin display fields if provided by the API
+          const name = data?.name || data?.fullName || data?.username || null;
+          const avatar = data?.avatar || data?.avatarUrl || data?.image || data?.profileImage || data?.picture || null;
+          setAdminName(name);
+          setAdminAvatar(avatar || null);
           setIsAuthenticated(true);
         } else {
           toast.error('Session expired. Please log in.');
@@ -258,11 +266,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     className="inline-flex items-center gap-3 cursor-pointer select-none rounded-md px-2 py-1 hover:bg-gray-50"
                   >
                     <Avatar>
-                      {/* removed external default image; show fallback initial */}
-                      <AvatarFallback>A</AvatarFallback>
+                      {adminAvatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <AvatarImage src={adminAvatar} alt={adminName || 'Admin'} />
+                      ) : (
+                        <AvatarFallback>{(adminName && adminName[0]) || 'A'}</AvatarFallback>
+                      )}
                     </Avatar>
                     <div className="flex items-center gap-1">
-                      <span className="text-sm text-gray-700">Admin</span>
+                      <span className="text-sm text-gray-700">{adminName || 'Admin'}</span>
                       <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : 'rotate-0'}`} />
                     </div>
                   </div>
@@ -351,10 +363,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                 <div className="p-6 flex flex-col items-center text-center">
                   <Avatar>
-                    {/* removed external default image in exit modal; show fallback initial */}
-                    <AvatarFallback>A</AvatarFallback>
+                    {adminAvatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <AvatarImage src={adminAvatar} alt={adminName || 'Admin'} />
+                    ) : (
+                      <AvatarFallback>{(adminName && adminName[0]) || 'A'}</AvatarFallback>
+                    )}
                   </Avatar>
-                  <div className="mt-3 text-lg font-semibold">Admin</div>
+                  <div className="mt-3 text-lg font-semibold">{adminName || 'Admin'}</div>
                   <p className="mt-4 text-sm text-gray-600">Are you sure you want to exit?</p>
 
                   <div className="mt-6 flex gap-3">

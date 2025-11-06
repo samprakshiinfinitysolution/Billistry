@@ -101,6 +101,8 @@ export default function Dashboard() {
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
   const [chartData, setChartData] = useState<SalesData[]>([]);
+  const [allSalesData, setAllSalesData] = useState<any[] | null>(null);
+  const [allPurchasesData, setAllPurchasesData] = useState<any[] | null>(null);
   const [statsData, setStatsData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,8 +117,13 @@ export default function Dashboard() {
       const salesJson = await salesRes.json();
       const purchasesJson = await purchasesRes.json();
 
-      const merged = groupByMonth(salesJson.data, purchasesJson.data);
-      setChartData(merged);
+  const salesArr = salesJson?.data || salesJson?.sales || salesJson || [];
+  const purchasesArr = purchasesJson?.data || purchasesJson?.purchases || purchasesJson || [];
+  const merged = groupByMonth(salesArr, purchasesArr);
+  setChartData(merged);
+  // cache full arrays so range filtering can be done client-side without refetching
+  setAllSalesData(salesArr);
+  setAllPurchasesData(purchasesArr);
 
       // Month-to-date calculation for StatsCards
       const now = new Date();
@@ -165,6 +172,95 @@ export default function Dashboard() {
       setError("Could not load chart data.");
     });
   }, []);
+
+  // Handler: parent for StatsCards range changes. Fetches sales/purchases then filters by the requested range
+  async function handleRangeChange(range: string, customStart?: string | null, customEnd?: string | null) {
+    try {
+      setLoading(true);
+      setError(null);
+      const [salesRes, purchasesRes] = await Promise.all([
+        fetch('/api/new_sale'),
+        fetch('/api/new_purchase')
+      ]);
+      const salesJson = await salesRes.json();
+      const purchasesJson = await purchasesRes.json();
+  // try to use cached arrays if available to avoid inconsistency across repeated API calls
+  const salesData = allSalesData ?? (salesJson?.data || salesJson?.sales || []);
+  const purchasesData = allPurchasesData ?? (purchasesJson?.data || purchasesJson?.purchases || []);
+
+      // determine date window
+      let start: Date | null = null;
+      let end: Date | null = null;
+      const now = new Date();
+      if (range === 'custom' && customStart) {
+        start = new Date(customStart);
+        end = customEnd ? new Date(customEnd) : new Date();
+      } else if (range === 'Today') {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        end = new Date();
+      } else if (range === 'This Week') {
+        // last 7 days including today
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+        end = new Date();
+      } else if (range === 'MTD' || range === 'This Month') {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date();
+      } else if (range === 'This Year') {
+        start = new Date(now.getFullYear(), 0, 1);
+        end = new Date();
+      } else {
+        // default fallback: full range
+        start = null;
+        end = null;
+      }
+
+      const filterBetween = (arr: any[], startD: Date | null, endD: Date | null, dateKey = 'invoiceDate') => {
+        if (!Array.isArray(arr)) return [];
+        if (!startD || !endD) return arr;
+        const s = startD.getTime();
+        const e = endD.getTime();
+        return arr.filter(it => {
+          const t = new Date(it[dateKey]);
+          if (isNaN(t.getTime())) return false;
+          const time = t.getTime();
+          return time >= s && time <= e;
+        });
+      };
+
+      const filteredSales = filterBetween(salesData, start, end);
+      const filteredPurchases = filterBetween(purchasesData, start, end);
+
+      // Sum amounts
+      const sum = (arr: any[]) => (Array.isArray(arr) ? arr.reduce((acc: number, it: any) => acc + (Number(it.totalAmount ?? it.invoiceAmount ?? 0) || 0), 0) : 0);
+      const salesTotal = sum(filteredSales);
+      const purchasesTotal = sum(filteredPurchases);
+
+      setStatsData(prev => ({
+        salesMTD: salesTotal,
+        purchasesMTD: purchasesTotal,
+        salesMomChange: prev?.salesMomChange ?? null,
+        purchasesMomChange: prev?.purchasesMomChange ?? null,
+        stockValue: prev?.stockValue ?? null,
+        lowStockCount: prev?.lowStockCount ?? null
+      }));
+
+      // Update chart data:
+      // - For 'MTD' (and 'This Month') we keep the original multi-month trend (same as default view)
+      // - For other ranges show the filtered months only
+      if (range === 'MTD' || range === 'This Month') {
+        const mergedFull = groupByMonth(allSalesData || salesData, allPurchasesData || purchasesData);
+        setChartData(mergedFull);
+      } else {
+        const merged = groupByMonth(filteredSales, filteredPurchases);
+        setChartData(merged);
+      }
+    } catch (err) {
+      console.error('Failed to apply range filter', err);
+      setError('Failed to apply filter');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // const salesTrendData: SalesData[] = [
   //   { month: 'Jan', sales: 1700, purchases: 1800 },
@@ -382,7 +478,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-100">
       <main className="p-6 max-w-7xl mx-auto">
-        <StatsCards data={statsData} loading={loading} />
+  <StatsCards data={statsData} loading={loading} onRangeChange={handleRangeChange} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <SalesChart data={chartData} />
           <StockOverview data={categoryData} />

@@ -12,15 +12,13 @@ interface ClientLayoutProps {
 }
 
 export default function ClientLayout({ children }: ClientLayoutProps) {
-  // usePathname() can sometimes be empty during hydration; fall back to window.location.pathname when available
-  let pathname = usePathname();
-  if ((!pathname || pathname === '/') && typeof window !== 'undefined') {
-    pathname = window.location.pathname;
-  }
+  // usePathname() can sometimes be null during hydration. Resolve a stable pathname value
+  // by falling back to window.location.pathname on the client, or '/' on the server.
+  let pathname = usePathname() ?? (typeof window !== 'undefined' ? window.location.pathname : '/');
 
-  const isDashboard = pathname.startsWith('/dashboard');
-  
-  const isWpAdmin = pathname.startsWith('/wp-admin');
+  // Compute flags defensively — pathname may still be undefined in some edge cases
+  const isDashboard = pathname ? pathname.startsWith('/dashboard') : false;
+  const isWpAdmin = pathname ? pathname.startsWith('/wp-admin') : false;
   
 
   return (

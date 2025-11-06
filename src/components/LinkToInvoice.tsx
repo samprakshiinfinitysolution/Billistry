@@ -9,6 +9,7 @@ export interface Invoice {
     invoiceNo: string;
     invoiceNumber?: number;
     amount: number;
+    partyId?: string;
 }
 
 // Mock Data

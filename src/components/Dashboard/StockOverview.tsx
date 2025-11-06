@@ -11,15 +11,27 @@ interface CategoryData {
 
 interface StockOverviewProps {
   data: CategoryData[];
+  range?: string;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
-export default function StockOverview({ data }: StockOverviewProps) {
+export default function StockOverview({ data, range, startDate, endDate }: StockOverviewProps) {
   // total stock to calculate percentages
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">
       <h3 className="text-lg font-semibold mb-4">Stock Overview by Category</h3>
+      {range && (
+        <p className="text-sm text-gray-400 mb-2">
+          {range === 'custom' && startDate && endDate ? (
+            <>{new Date(startDate).toLocaleDateString()} — {new Date(endDate).toLocaleDateString()}</>
+          ) : (
+            <>Range: {range}</>
+          )}
+        </p>
+      )}
       <div className="flex items-center justify-between">
         {/* Pie Chart */}
         <div className="flex-1 relative">

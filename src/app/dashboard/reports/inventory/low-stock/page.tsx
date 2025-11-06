@@ -364,7 +364,7 @@ export default function StockSummaryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 p-4 flex items-center">
         <div className="flex items-center text-lg font-semibold text-gray-800">
           <svg
@@ -385,8 +385,8 @@ export default function StockSummaryPage() {
           Low Stock Summary
         </div>
       </header>
-      <main className="container mx-auto p-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+      <main className="container mx-auto p-6 flex-1 flex flex-col overflow-hidden">
+        <div className="bg-white p-6 rounded-lg shadow-md flex-1 flex flex-col overflow-hidden">
           {/* Filter and Action Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div className="flex flex-wrap items-center gap-4 cursor-pointer">
@@ -526,8 +526,8 @@ export default function StockSummaryPage() {
 
             <div className="flex items-center gap-3">
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2 cursor-pointer">
                     Export Options
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -558,7 +558,7 @@ export default function StockSummaryPage() {
 
               <Button
                 variant="outline"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 cursor-pointer"
                 onClick={printTable}
               >
                 Print Low Stock Summary
@@ -579,7 +579,7 @@ export default function StockSummaryPage() {
               </Button>
             </div>
           </div>
-          <div ref={pdfRef}>
+          <div ref={pdfRef} className="flex-1 flex flex-col overflow-hidden" id="report-content">
             {/* Total Stock Value */}
             <div className="mb-6 pb-4 border-b border-gray-200">
               <h2 className="text-lg font-medium text-gray-700">
@@ -606,33 +606,45 @@ export default function StockSummaryPage() {
             </div>
 
             {/* Stock Summary Table */}
-            <div className="overflow-x-auto">
-              <Table className="text-sm">
-                        <TableHeader className="bg-gray-100">
-                            <TableRow>
-                              <TableHead>S. No.</TableHead>
-                              <TableHead>PRODUCT NAME</TableHead>
-                              <TableHead>SKU CODE</TableHead>
-                              <TableHead>GST %</TableHead>
-                              <TableHead>PURCHASE PRICE (₹)</TableHead>
-                              <TableHead>SELLING PRICE (₹)</TableHead>
-                              <TableHead>LOW STOCK</TableHead>
-                              <TableHead>CURRENT STOCK</TableHead>
-                              <TableHead>STOCK VALUE</TableHead>
-                              {/* <TableHead>Purchase Product</TableHead> */}
-                            </TableRow>
-                          </TableHeader>
+            <div className="flex-1 overflow-hidden">
+              <Table wrapperClassName="h-full overflow-y-auto overflow-x-hidden" className="w-full table-fixed text-sm h-full">
+                <colgroup>
+                  <col style={{ width: '5%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '6%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '11%' }} />
+                  <col style={{ width: '12%' }} />
+                </colgroup>
+
+                <TableHeader className="bg-gray-100 sticky top-0 z-20">
+                  <TableRow>
+                    <TableHead className="sticky left-0 top-0 bg-gray-100 z-30">S. No.</TableHead>
+                    <TableHead className="whitespace-normal">PRODUCT NAME</TableHead>
+                    <TableHead>SKU CODE</TableHead>
+                    <TableHead>GST %</TableHead>
+                    <TableHead className="min-w-[130px] text-right whitespace-nowrap">PURCHASE PRICE (₹)</TableHead>
+                    <TableHead className="min-w-[130px] text-right whitespace-nowrap">SELLING PRICE (₹)</TableHead>
+                    <TableHead className="min-w-[90px] text-right">LOW STOCK</TableHead>
+                    <TableHead className="min-w-[90px] text-right">CURRENT STOCK</TableHead>
+                    <TableHead className="min-w-[110px] text-right">STOCK VALUE</TableHead>
+                  </TableRow>
+                </TableHeader>
+
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="p-0">
+                      <TableCell colSpan={9} className="p-0 w-full">
                         <TableSkeleton rows={6} />
                       </TableCell>
                     </TableRow>
                   ) : filteredProducts.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={7}
+                        colSpan={9}
                         className="text-center py-4 text-gray-500"
                       >
                         No low stock products found
@@ -641,34 +653,30 @@ export default function StockSummaryPage() {
                   ) : (
                     filteredProducts.map((p, index) => {
                       const stock = typeof p.currentStock !== "undefined" && p.currentStock !== null ? Number(p.currentStock) : Number(p.openingStock ?? 0);
+                      const subtotal = calculateSubtotal(p);
                       return (
                         <TableRow key={p._id}>
-                          <TableCell>{index + 1}</TableCell>
-                          <TableCell>{p.name}</TableCell>
+                          <TableCell className="sticky left-0 bg-white z-10">{index + 1}</TableCell>
+                          <TableCell className="whitespace-normal break-words max-w-[36ch]">{p.name}</TableCell>
                           <TableCell>{p.sku || "-"}</TableCell>
                           <TableCell>{p.taxPercent || "-"}</TableCell>
-                          <TableCell className="flex items-center gap-2">
+                          <TableCell className="min-w-[130px] flex items-center gap-2 justify-end">
                             <span>₹{p.purchasePrice || "-"}</span>
                             {p.purchasePriceWithTax && (
                               <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">
                                 With Tax
                               </span>
                             )}
-                            {!p.purchasePriceWithTax && (
+                            {p.purchasePriceWithTax === false && (
                               <span className="bg-red-100 text-red-500 text-xs font-semibold px-2 py-0.5 rounded-full">
                                 Without Tax
                               </span>
                             )}
                           </TableCell>
-                          <TableCell>₹{p.sellingPrice || "-"}</TableCell>
-                          <TableCell>{p.lowStockAlert ?? "-"}</TableCell>
-                          <TableCell>
-                            {stock} {p.unit || ""}
-                          </TableCell>
-                          <TableCell>
-                            ₹{Math.round(calculateSubtotal(p)).toLocaleString()}
-                          </TableCell>
-                          {/* <TableCell><Link href="/dashboard/purchase" className="text-blue-600 hover:underline">Purchase</Link></TableCell> */}
+                          <TableCell className="min-w-[110px] text-right whitespace-nowrap">₹{p.sellingPrice || "-"}</TableCell>
+                          <TableCell className="min-w-[90px] text-right whitespace-nowrap">{p.lowStockAlert ?? "-"}</TableCell>
+                          <TableCell className="min-w-[90px] text-right whitespace-nowrap">{stock} {p.unit || ""}</TableCell>
+                          <TableCell className="min-w-[110px] text-right whitespace-nowrap">₹{subtotal.toLocaleString()}</TableCell>
                         </TableRow>
                       );
                     })

@@ -47,10 +47,15 @@ interface AddPartyProps {
     selectedParty: Party | null;
     onSelectParty: (party: Party) => void;
     onClearParty: () => void;
-    partyType: 'Customer' | 'Supplier'; 
+    partyType?: 'Customer' | 'Supplier';
+    /**
+     * When true, fetch and show all parties (both Customers and Suppliers).
+     * Useful when you want the same party list for sales and purchases.
+     */
+    showAll?: boolean;
 }
 
-export const AddParty = ({ selectedParty, onSelectParty, onClearParty, partyType }: AddPartyProps) => {
+export const AddParty = ({ selectedParty, onSelectParty, onClearParty, partyType, showAll }: AddPartyProps) => {
     const [isAddingParty, setIsAddingParty] = useState(false);
     const [partySearchTerm, setPartySearchTerm] = useState('');
     const [partyList, setPartyList] = useState<Party[]>([]);
@@ -76,7 +81,9 @@ export const AddParty = ({ selectedParty, onSelectParty, onClearParty, partyType
             if (isAddingParty) {
                 setLoading(true);
                 try {
-                    const res = await fetch(`/api/parties?type=${partyType}`);
+                    // If showAll is true, fetch all parties without filtering by type.
+                    const url = showAll ? `/api/parties` : `/api/parties?type=${partyType}`;
+                    const res = await fetch(url);
                     const data = await res.json();
                     if (data.success) {
                         const mappedParties: Party[] = data.parties.map((p: any) => ({
@@ -119,14 +126,14 @@ export const AddParty = ({ selectedParty, onSelectParty, onClearParty, partyType
         (party.address && party.address.toLowerCase().includes(partySearchTerm.toLowerCase()))
     );
 
-    const label = partyType === 'Customer' ? 'Bill To' : 'Bill From';
+    const label = showAll ? 'Party' : (partyType === 'Customer' ? 'Bill To' : 'Bill From');
 
     return (
         <>
             <CreateParty
                 isOpen={isCreatePartyModalOpen}
                 onClose={() => setCreatePartyModalOpen(false)} 
-                partyType={partyType}
+                partyType={partyType || 'Customer'}
                 onSaveSuccess={(newPartyData) => {
                     // This function is called from CreateParty after a successful save
                     const newParty: Party = {

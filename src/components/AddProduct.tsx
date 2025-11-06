@@ -424,7 +424,7 @@ export default function AddProduct({
                     fill="#fff"
                   ></path>
                 </svg>
-                Basic Details *
+                <>Basic Details <span className={activeForm === 'basic' ? 'text-white' : 'text-red-600'}>*</span></>
               </Button>
               <hr />
               <div className="flex flex-col gap-5">
@@ -520,7 +520,7 @@ export default function AddProduct({
                 <div className="space-y-4 ">
                   {/* Name */}
                   <div className="flex flex-col space-y-1 p-2">
-                    <label className="text-sm font-medium">Name *</label>
+                    <label className="text-sm font-medium">Name <span className="text-red-600">*</span></label>
                     <Input
                       placeholder="Product Name"
                       value={formData.name}
@@ -547,8 +547,7 @@ export default function AddProduct({
                       <Input
                         placeholder="SKU"
                         value={formData.sku}
-                        readOnly
-                        required
+                        onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                         className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
                       />
                       {!formData._id && ( // only show button for new products
@@ -639,9 +638,7 @@ export default function AddProduct({
 
                   {/* Opening Stock */}
                   <div className="flex flex-col space-y-1 p-2">
-                    <label className="text-sm font-medium">
-                      Opening Stock *
-                    </label>
+                    <label className="text-sm font-medium">Opening Stock <span className="text-red-600">*</span></label>
                     <Input
                       type="number"
                       min={0}
@@ -767,7 +764,7 @@ export default function AddProduct({
                       <Input
                         placeholder="Barcode"
                         value={formData.sku || ""}
-                        readOnly
+                        onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                         className="bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2"
                       />
                       {!formData._id && ( // only show button for new products
@@ -785,9 +782,7 @@ export default function AddProduct({
 
                   {/* Opening Stock */}
                   <div className="flex flex-col space-y-1 p-2">
-                    <label className="text-sm font-medium">
-                      Opening Stock *
-                    </label>
+                    <label className="text-sm font-medium">Opening Stock <span className="text-red-600">*</span></label>
                     <Input
                       type="number"
                       min={0}

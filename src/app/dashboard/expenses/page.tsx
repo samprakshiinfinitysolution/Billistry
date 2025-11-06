@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Edit2, Trash2, FileBarChart } from "lucide-react";
 import AnimatedNumber from '@/components/AnimatedNumber';
+import toast from 'react-hot-toast';
 import TableSkeleton from '@/components/ui/TableSkeleton';
 import {
   Dialog,
@@ -120,7 +121,7 @@ export default function ExpensePage() {
 
   const handleSaveExpense = async () => {
     if (!formData.amount.trim()) {
-      alert("Amount is required");
+      toast.error("Amount is required");
       return;
     }
 
@@ -149,13 +150,13 @@ export default function ExpensePage() {
         await loadExpenses();
         resetForm();
         setOpen(false);
-        alert(`Expense ${editingExpense ? "updated" : "created"} successfully!`);
+        toast.success(`Expense ${editingExpense ? "updated" : "created"} successfully!`);
       } else {
-        alert(data.error || "Something went wrong");
+        toast.error(data.error || "Something went wrong");
       }
     } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
+  console.error(err);
+  toast.error("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -175,7 +176,7 @@ export default function ExpensePage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this expense?")) return;
+  if (!confirm("Are you sure you want to delete this expense?")) return;
     try {
       const res = await fetch(`/api/expenses?id=${id}`, {
         method: "DELETE",
@@ -184,13 +185,13 @@ export default function ExpensePage() {
       const data = await res.json();
       if (data.success) {
         setExpenses((prev) => prev.filter((e) => e._id !== id));
-        alert("Expense deleted successfully");
+        toast.success("Expense deleted successfully");
       } else {
-        alert(data.error || "Failed to delete expense");
+        toast.error(data.error || "Failed to delete expense");
       }
     } catch (err) {
       console.error(err);
-      alert("Something went wrong");
+      toast.error("Something went wrong");
     }
   };
 
@@ -200,8 +201,8 @@ export default function ExpensePage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-4">
-      <header className="flex items-center justify-between pb-4 border-b">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900 p-3">
+      <header className="flex items-center justify-between pb-3 border-b">
         <h1 className="text-xl font-bold text-gray-800">Expenses</h1>
           <div className="flex items-center gap-2">
           <Link href="/dashboard/reports/expense">
@@ -220,7 +221,7 @@ export default function ExpensePage() {
       </header>
 
       {/* Page content */}
-      <main className="flex-1 pt-4 space-y-4 flex flex-col overflow-hidden">
+  <main className="flex-1 pt-3 space-y-3 flex flex-col overflow-hidden">
       {/* Add/Edit Modal */}
       <Dialog
         open={open}
@@ -235,10 +236,11 @@ export default function ExpensePage() {
               {editingExpense ? "Edit Expense" : "New Expense"}
             </DialogTitle>
           </DialogHeader>
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveExpense(); }}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="amount" className="mb-2">Amount *</Label>
+                  <Label htmlFor="amount" className="mb-2">Amount <span className="text-red-600">*</span></Label>
                   <Input
                     id="amount"
                     type="number"
@@ -286,10 +288,10 @@ export default function ExpensePage() {
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>
+              <Button variant="outline" onClick={() => setOpen(false)} type="button">
                 Cancel
               </Button>
-              <Button onClick={handleSaveExpense} disabled={loading}>
+              <Button type="submit" disabled={loading}>
                 {loading
                   ? editingExpense
                     ? "Saving..."
@@ -299,11 +301,12 @@ export default function ExpensePage() {
                   : "Save"}
               </Button>
             </div>
+            </form>
         </DialogContent>
       </Dialog>
 
       {/* Summary Card */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <h3 className="text-sm font-medium text-gray-500">Total Expenses</h3>
           <p className="text-2xl font-semibold text-gray-800">₹ <AnimatedNumber value={Math.round(totalExpenseAmount)} duration={800} /></p>
@@ -311,61 +314,61 @@ export default function ExpensePage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border flex flex-wrap gap-4 items-end">
+  <div className="bg-white p-3 rounded-lg shadow-sm border flex flex-wrap gap-4 items-end">
         <div className="flex flex-wrap gap-4 items-end">
-        <div className="flex-1 min-w-[320px] md:min-w-[420px]">
-          <Label htmlFor="filter-search" className="mb-2 ">Search</Label>
+        <div className="flex-1 min-w-[300px] md:min-w-[380px]">
+          <Label htmlFor="filter-search" className="mb-1">Search</Label>
           <Input
             id="filter-search"
             name="search"
             value={filters.search}
             onChange={handleFilterChange}
             placeholder="Search expense no, category, party, amount..."
-            className="py-2 text-base w-full bg-gray-50 text-gray-800 placeholder-gray-500 dark:bg-gray-700 dark:text-gray-100"
+            className="py-1.5 text-base w-full bg-gray-50 text-gray-800 placeholder-gray-500 dark:bg-gray-700 dark:text-gray-100"
           />
         </div>
-        <div className="flex-1 min-w-[150px]">
-          <Label htmlFor="filter-dateFrom" className="mb-2">From</Label>
+        <div className="flex-1 min-w-[140px]">
+          <Label htmlFor="filter-dateFrom" className="mb-1">From</Label>
           <Input
             id="filter-dateFrom"
             name="dateFrom"
             type="date"
             value={filters.dateFrom}
             onChange={handleFilterChange}
-            className="bg-gray-50 text-gray-800 placeholder-gray-500 dark:bg-gray-700 dark:text-gray-100"
+            className="py-1.5 bg-gray-50 text-gray-800 placeholder-gray-500 dark:bg-gray-700 dark:text-gray-100"
           />
         </div>
-        <div className="flex-1 min-w-[150px]">
-          <Label htmlFor="filter-dateTo" className="mb-2">To</Label>
+        <div className="flex-1 min-w-[140px]">
+          <Label htmlFor="filter-dateTo" className="mb-1">To</Label>
           <Input
             id="filter-dateTo"
             name="dateTo"
             type="date"
             value={filters.dateTo}
             onChange={handleFilterChange}
-            className="bg-gray-50 text-gray-800 placeholder-gray-500 dark:bg-gray-700 dark:text-gray-100"
+            className="py-1.5 bg-gray-50 text-gray-800 placeholder-gray-500 dark:bg-gray-700 dark:text-gray-100"
           />
         </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm flex-1 overflow-y-auto">
-        <div className="overflow-y-auto max-h-[calc(100vh-20rem)]">
+      <div className="border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm flex-1 min-h-0">
+        <div className="overflow-y-auto h-full">
         {loading ? (
           <div className="p-0">
             <table className="min-w-full divide-y divide-gray-200 text-sm relative">
               <tbody>
                 <tr>
-                  <td colSpan={6} className="p-0">
-                    <TableSkeleton rows={6} />
+                  <td colSpan={6} className="p-0 h-full">
+                    <TableSkeleton rows={6} fillHeight={true} />
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
         ) : filteredExpenses.length === 0 ? (
-          <p className="p-4 text-center text-gray-500">No expenses found.</p>
+          <p className="p-2 text-center text-gray-500">No expenses found.</p>
         ) : (
           <table className="w-full">
             <thead>

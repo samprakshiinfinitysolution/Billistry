@@ -429,8 +429,8 @@ export default function SalesSummaryPage() {
 
             <div className="flex items-center gap-3">
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2 cursor-pointer">
                     Export Options
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -461,7 +461,7 @@ export default function SalesSummaryPage() {
 
               <Button
                 variant="outline"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 cursor-pointer"
                 onClick={printTable}
               >
                 Print Sales Summary

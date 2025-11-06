@@ -307,7 +307,7 @@ export default function SalesSummaryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 p-4 flex items-center">
         <div className="flex items-center text-lg font-semibold text-gray-800">
           <svg
@@ -329,8 +329,8 @@ export default function SalesSummaryPage() {
         </div>
       </header>
 
-      <main className="container mx-auto p-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+      <main className="container mx-auto p-6 flex-1 flex flex-col overflow-hidden">
+        <div className="bg-white p-6 rounded-lg shadow-md flex-1 flex flex-col overflow-hidden">
           {/* Filter and Action Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
             <div className="flex flex-wrap gap-2 items-center">
@@ -462,7 +462,7 @@ export default function SalesSummaryPage() {
             </div>
           </div>
 
-          <div ref={setPdfRef}>
+          <div ref={setPdfRef} className="flex-1 flex flex-col overflow-hidden" id="report-content">
             {/* Total Invoice Amount */}
             <div className="mb-6 pb-4 border-b border-gray-200">
               <h2 className="text-lg font-medium text-gray-700">
@@ -475,120 +475,69 @@ export default function SalesSummaryPage() {
             </div>
 
             {/* Sales Table */}
-            <div className="overflow-x-auto">
-              <Table className="min-w-full text-sm">
-                <TableHeader className="bg-gray-100">
+            <div className="flex-1 overflow-hidden">
+              <Table wrapperClassName="h-full overflow-y-auto overflow-x-hidden" className="w-full table-fixed text-sm h-full">
+                <colgroup>
+                  <col style={{ width: '5%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '16%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '35%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '13%' }} />
+                </colgroup>
+
+                <TableHeader className="bg-gray-100 sticky top-0 z-20">
                   <TableRow>
-                    <TableHead>S. No.</TableHead>
-                    <TableHead
-                      onClick={() => handleSort("invoiceNo")}
-                      className="cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        Invoice No.
-                        <ArrowUpDown
-                          className={`w-4 h-4 transition-transform ${
-                            sortConfig.key === "invoiceNo"
-                              ? sortConfig.direction === "asc"
-                                ? "rotate-180 text-blue-600"
-                                : "text-blue-600"
-                              : "opacity-70"
-                          }`}
-                        />
+                    <TableHead className="sticky left-0 top-0 bg-gray-100 z-30">S. No.</TableHead>
+                    <TableHead onClick={() => handleSort("invoiceNo")} className="cursor-pointer select-none"> 
+                      <div className="flex items-center gap-1">Invoice No.
+                        <ArrowUpDown className={`w-4 h-4 transition-transform ${sortConfig.key === "invoiceNo" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} />
                       </div>
                     </TableHead>
 
-                    <TableHead
-                      onClick={() => handleSort("customer")}
-                      className="cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        Customer
-                        <ArrowUpDown
-                          className={`w-4 h-4 transition-transform ${
-                            sortConfig.key === "customer"
-                              ? sortConfig.direction === "asc"
-                                ? "rotate-180 text-blue-600"
-                                : "text-blue-600"
-                              : "opacity-70"
-                          }`}
-                        />
+                    <TableHead onClick={() => handleSort("customer")} className="cursor-pointer select-none">
+                      <div className="flex items-center gap-1">Customer
+                        <ArrowUpDown className={`w-4 h-4 transition-transform ${sortConfig.key === "customer" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} />
                       </div>
                     </TableHead>
 
-                    <TableHead
-                      onClick={() => handleSort("date")}
-                      className="cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        Date
-                        <ArrowUpDown
-                          className={`w-4 h-4 transition-transform ${
-                            sortConfig.key === "date"
-                              ? sortConfig.direction === "asc"
-                                ? "rotate-180 text-blue-600"
-                                : "text-blue-600"
-                              : "opacity-70"
-                          }`}
-                        />
+                    <TableHead onClick={() => handleSort("date")} className="cursor-pointer select-none">
+                      <div className="flex items-center gap-1">Date
+                        <ArrowUpDown className={`w-4 h-4 transition-transform ${sortConfig.key === "date" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} />
                       </div>
                     </TableHead>
 
-                    <TableHead>
-                      <div className="flex items-center gap-1">Items</div>
-                    </TableHead>
+                    <TableHead>Items</TableHead>
 
-                    <TableHead>
-                      <div className="flex items-center gap-1">Quantity</div>
-                    </TableHead>
+                    <TableHead>Quantity</TableHead>
 
-                    <TableHead
-                      onClick={() => handleSort("amount")}
-                      className="cursor-pointer select-none"
-                    >
-                      <div className="flex items-center gap-1">
-                        Amount
-                        <ArrowUpDown
-                          className={`w-4 h-4 transition-transform ${
-                            sortConfig.key === "amount"
-                              ? sortConfig.direction === "asc"
-                                ? "rotate-180 text-blue-600"
-                                : "text-blue-600"
-                              : "opacity-70"
-                          }`}
-                        />
+                    <TableHead onClick={() => handleSort("amount")} className="cursor-pointer select-none">
+                      <div className="flex items-center gap-1">Amount
+                        <ArrowUpDown className={`w-4 h-4 transition-transform ${sortConfig.key === "amount" ? (sortConfig.direction === "asc" ? "rotate-180 text-blue-600" : "text-blue-600") : "opacity-70"}`} />
                       </div>
                     </TableHead>
-
-                    {/* <TableHead>Payment Status</TableHead> */}
                   </TableRow>
                 </TableHeader>
 
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="p-0">
+                      <TableCell colSpan={7} className="p-0 w-full">
                         <TableSkeleton rows={6} />
                       </TableCell>
                     </TableRow>
                   ) : filteredSales.length === 0 ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={8}
-                        className="text-center py-4 text-gray-500"
-                      >
-                        No sales returns found
-                      </TableCell>
+                      <TableCell colSpan={7} className="text-center py-4 text-gray-500">No sales returns found</TableCell>
                     </TableRow>
                   ) : (
                     filteredSales.map((sale, index) => (
                       <TableRow key={sale._id}>
-                        <TableCell>{index + 1}</TableCell>
+                        <TableCell className="sticky left-0 bg-white z-10">{index + 1}</TableCell>
                         <TableCell>{sale.returnInvoiceNo}</TableCell>
                         <TableCell>{sale.selectedParty?.name || "N/A"}</TableCell>
-                        <TableCell>
-                          {format(parseISO(sale.returnDate), "dd/MM/yyyy")}
-                        </TableCell>
+                        <TableCell>{format(parseISO(sale.returnDate), "dd/MM/yyyy")}</TableCell>
                         <TableCell className="align-top">
                           {(() => {
                             const items = sale.items || [];
@@ -636,9 +585,7 @@ export default function SalesSummaryPage() {
                             );
                           })()}
                         </TableCell>
-                        <TableCell>
-                          ₹{sale.totalAmount.toLocaleString()}
-                        </TableCell>
+                        <TableCell className="min-w-[120px] text-right whitespace-nowrap">₹{sale.totalAmount.toLocaleString()}</TableCell>
                       </TableRow>
                     ))
                   )}

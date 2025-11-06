@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -81,9 +81,33 @@ export default function CashbookPage(): React.JSX.Element {
 
   const [submitting, setSubmitting] = useState(false);
 
+  const formRef = useRef<HTMLFormElement | null>(null);
+
+  function handleFormKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key !== "Enter") return;
+    const target = e.target as HTMLElement | null;
+    // don't submit when user is typing in a textarea
+    if (target && target.tagName === "TEXTAREA") return;
+    e.preventDefault();
+    if (!formRef.current) return;
+    // modern browsers support requestSubmit which triggers the form's submit handlers
+    const anyForm = formRef.current as any;
+    if (typeof anyForm.requestSubmit === "function") {
+      anyForm.requestSubmit();
+    } else {
+      // fallback: dispatch a submit event
+      formRef.current.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    }
+  }
+
   const formatDisplayCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN').format(amount);
   };
+
+  function capitalize(s: string) {
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  }
 
   useEffect(() => {
     fetchData();
@@ -430,7 +454,7 @@ export default function CashbookPage(): React.JSX.Element {
         <div>
           <label className="text-sm block mb-1">Type</label>
           <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v as any); setPage(1); }}>
-            <SelectTrigger className="w-fit">
+            <SelectTrigger className="w-fit cursor-pointer">
               <SelectValue>
                 <span className="inline-flex items-center">
                   <span className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${typeFilter === 'ALL' ? 'bg-gray-400' : typeFilter === 'IN' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
@@ -449,7 +473,7 @@ export default function CashbookPage(): React.JSX.Element {
         <div>
           <label className="text-sm block mb-1">Mode</label>
           <Select value={modeFilter} onValueChange={(v) => { setModeFilter(v as any); setPage(1); }}>
-            <SelectTrigger className="w-fit">
+            <SelectTrigger className="w-fit cursor-pointer">
               <SelectValue>
                 <span className="inline-flex items-center">
                   <span className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${modeFilter === 'ALL' ? 'bg-gray-400' : modeFilter === 'Cash' ? 'bg-emerald-500' : 'bg-indigo-600'}`}></span>
@@ -551,9 +575,29 @@ export default function CashbookPage(): React.JSX.Element {
               paginatedEntries.map((e) => (
                 <tr key={e._id} className="border-b hover:bg-gray-50 text-sm">
                   <td className="px-3 py-2 align-top">{new Date(e.createdAt).toLocaleString()}</td>
-                  <td className={`px-3 py-2 font-semibold ${e.type === "IN" ? 'text-emerald-600' : 'text-red-600 dark:text-red-400'}`}>{e.type}</td>
+                  <td className="px-3 py-2">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      e.type === "IN"
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : e.type === "OUT"
+                        ? 'bg-red-100 text-red-600'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {String(e.type || '')}
+                    </span>
+                  </td>
                   <td className="px-3 py-2">₹{formatDisplayCurrency(e.amount)}</td>
-                  <td className="px-3 py-2">{e.mode}</td>
+                  <td className="px-3 py-2">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      (e.mode || '').toString().toLowerCase() === 'cash'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : (e.mode || '').toString().toLowerCase() === 'online'
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {capitalize(String(e.mode || ''))}
+                    </span>
+                  </td>
                   <td className="px-3 py-2">{e.description}</td>
                   <td className="px-3 py-2 text-right relative">
                     <DropdownMenu>
@@ -648,7 +692,7 @@ export default function CashbookPage(): React.JSX.Element {
               </button>
             </div>
 
-            <form onSubmit={showAddModal ? handleAddSubmit : handleEditSubmit} className="grid grid-cols-1 gap-4">
+            <form ref={formRef} onKeyDown={handleFormKeyDown} onSubmit={showAddModal ? handleAddSubmit : handleEditSubmit} className="grid grid-cols-1 gap-4">
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -705,7 +749,7 @@ export default function CashbookPage(): React.JSX.Element {
                 <button
                   type="button"
                   onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -713,7 +757,7 @@ export default function CashbookPage(): React.JSX.Element {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 cursor-pointer"
                 >
                   {submitting ? "Saving..." : "Save"}
                 </button>

@@ -8,12 +8,24 @@ interface LowStockItem {
 
 interface LowStockAlertsProps {
   data: LowStockItem[];
+  range?: string;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
-export default function LowStockAlerts({ data }: LowStockAlertsProps) {
+export default function LowStockAlerts({ data, range, startDate, endDate }: LowStockAlertsProps) {
   return (
     <div className="bg-gray-800 text-white rounded-xl p-6 shadow-lg">
       <h3 className="text-lg font-semibold mb-4">Low Stock Alerts</h3>
+      {range && (
+        <p className="text-sm text-gray-400 mb-2">
+          {range === 'custom' && startDate && endDate ? (
+            <>{new Date(startDate).toLocaleDateString()} — {new Date(endDate).toLocaleDateString()}</>
+          ) : (
+            <>Range: {range}</>
+          )}
+        </p>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>

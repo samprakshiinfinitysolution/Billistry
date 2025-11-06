@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowUpDown, ChevronDown } from "lucide-react";
+import { ArrowUpDown, ChevronDown, FileText } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -301,8 +301,8 @@ export default function ExpensesSummaryPage() {
 
             <div className="flex items-center gap-3">
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2" disabled={loading}>Export Options <ChevronDown className="w-4 h-4 text-gray-600 ml-1" /></Button>
+                  <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2 cursor-pointer" disabled={loading}>Export Options <ChevronDown className="w-4 h-4 text-gray-600 ml-1" /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem onClick={exportExcel}>Download Excel</DropdownMenuItem>
@@ -310,7 +310,7 @@ export default function ExpensesSummaryPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Button variant="outline" className="flex items-center gap-2" onClick={printTable} disabled={loading}>Print Expenses Summary</Button>
+              <Button variant="outline" className="flex items-center gap-2 cursor-pointer" onClick={printTable} disabled={loading}>Print Expenses Summary <FileText className="w-4 h-4" /></Button>
             </div>
           </div>
 
@@ -346,8 +346,8 @@ export default function ExpensesSummaryPage() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="p-0">
-                          <TableSkeleton rows={6} />
+                        <TableCell colSpan={6} className="p-0 w-full">
+                          <TableSkeleton rows={6} cols={6} fillHeight={true} />
                         </TableCell>
                       </TableRow>
                     ) : filteredExpenses.length === 0 ? (

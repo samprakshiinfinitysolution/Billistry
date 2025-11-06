@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import FormSkeleton from '@/components/ui/FormSkeleton';
 import Image from 'next/image';
+import * as ShadcnSelect from '@/components/ui/select';
 import { UploadCloud, ChevronDown, Plus, X, MessageSquare, CalendarX, Tally3, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -124,7 +125,7 @@ interface BusinessSettings {
     enableEInvoicing: boolean; enableTds: boolean; enableTcs: boolean;
     logoUrl?: string; signatureUrl?: string;
 }
-interface FormErrors { name?: string; email?: string; }
+interface FormErrors { name?: string; email?: string; panNumber?: string; }
 
 const initialSettings: BusinessSettings = {
     name: '', phone: '', email: '', address: '', state: '', pincode: '', city: '', gstNumber: '',
@@ -259,7 +260,9 @@ const BusinessSettingsPage = () => {
     
     const handleInputChange = (field: keyof BusinessSettings, value: any) => { setFormData(prev => ({ ...prev, [field]: value })); if (errors[field as keyof FormErrors]) { setErrors(prev => ({ ...prev, [field as keyof FormErrors]: undefined })); }};
     const handleGstRadioChange = (value: 'yes' | 'no') => { setIsGstRegistered(value); if (value === 'no') { handleInputChange('gstNumber', ''); }};
-    const validateForm = (): boolean => { const newErrors: FormErrors = {}; if (!formData.name.trim()) newErrors.name = 'Business Name is required.'; if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Please enter a valid email address.'; setErrors(newErrors); return Object.keys(newErrors).length === 0; };
+    const isValidPAN = (pan: string) => /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan);
+
+    const validateForm = (): boolean => { const newErrors: FormErrors = {}; if (!formData.name.trim()) newErrors.name = 'Business Name is required.'; if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Please enter a valid email address.'; if (formData.panNumber && formData.panNumber.length > 0 && !isValidPAN(formData.panNumber)) newErrors.panNumber = 'PAN must be in format AAAAA9999A.'; setErrors(newErrors); return Object.keys(newErrors).length === 0; };
     const handleCancel = () => { 
         setFormData(initialData); 
         setIsGstRegistered(initialData.gstNumber ? 'yes' : 'no'); 
@@ -340,17 +343,20 @@ const BusinessSettingsPage = () => {
                                         <FormField label="Billing Address"><textarea rows={3} value={formData.address} onChange={(e) => handleInputChange('address', e.target.value)} placeholder="Enter Billing Address" className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"/></FormField>
                                     </div>
                                     <FormField label="State">
-                                        <Select 
-                                            value={formData.state} 
-                                            onChange={(e) => handleInputChange('state', e.target.value)}
-                                        >
-                                            <option value="" disabled>Select State</option>
-                                            {INDIAN_STATES.sort().map(stateName => (
-                                                <option key={stateName} value={stateName}>
-                                                    {stateName}
-                                                </option>
-                                            ))}
-                                        </Select>
+                                        <ShadcnSelect.Select value={formData.state} onValueChange={(val) => handleInputChange('state', val)}>
+                                            <ShadcnSelect.SelectTrigger className="w-full">
+                                                <ShadcnSelect.SelectValue placeholder="Select State" />
+                                            </ShadcnSelect.SelectTrigger>
+                                            <ShadcnSelect.SelectContent>
+                                                <ShadcnSelect.SelectGroup>
+                                                    {INDIAN_STATES.sort().map(stateName => (
+                                                        <ShadcnSelect.SelectItem key={stateName} value={stateName}>
+                                                            <span>{stateName}</span>
+                                                        </ShadcnSelect.SelectItem>
+                                                    ))}
+                                                </ShadcnSelect.SelectGroup>
+                                            </ShadcnSelect.SelectContent>
+                                        </ShadcnSelect.Select>
                                     </FormField>
                                     <FormField label="Pincode"><Input value={formData.pincode} onChange={(e) => handleInputChange('pincode', e.target.value)} placeholder="Enter Pincode" /></FormField>
                                     <FormField label="City" className="md:col-span-2"><Input value={formData.city} onChange={(e) => handleInputChange('city', e.target.value)} placeholder="Enter City" /></FormField>
@@ -370,7 +376,26 @@ const BusinessSettingsPage = () => {
                                         <div className="flex items-center gap-2"><span className="font-semibold text-indigo-700">Enable e-invoicing</span><span className="bg-blue-200 text-blue-800 text-xs font-bold px-2 py-0.5 rounded-md">New</span></div>
                                         <ToggleSwitch enabled={formData.enableEInvoicing} onChange={(val) => handleInputChange('enableEInvoicing', val)} />
                                     </div>
-                                    <FormField label="PAN Number" className="md:col-span-2"><Input value={formData.panNumber} onChange={(e) => handleInputChange('panNumber', e.target.value)} placeholder="Enter your PAN Number" /></FormField>
+                                    <FormField label="PAN Number" className="md:col-span-2">
+                                        <Input
+                                            value={formData.panNumber}
+                                            onChange={(e) => {
+                                                // Allow only letters and digits, uppercase, max length 10
+                                                const raw = e.target.value.toUpperCase();
+                                                const filtered = raw.replace(/[^A-Z0-9]/g, '').slice(0, 10);
+                                                handleInputChange('panNumber', filtered);
+                                                // Live validate and set error if obviously invalid length/format
+                                                if (filtered.length === 10 && !isValidPAN(filtered)) {
+                                                    setErrors(prev => ({ ...prev, panNumber: 'PAN must be in format AAAAA9999A.' }));
+                                                } else {
+                                                    setErrors(prev => ({ ...prev, panNumber: undefined }));
+                                                }
+                                            }}
+                                            placeholder="Format: AAAAA9999A"
+                                            maxLength={10}
+                                        />
+                                        {errors.panNumber && <p className="mt-1 text-xs text-red-500">{errors.panNumber}</p>}
+                                    </FormField>
                                     <div className="md:col-span-2 flex items-center justify-between"><span className="text-sm font-medium text-gray-600">Enable TDS</span><ToggleSwitch enabled={formData.enableTds} onChange={(val) => handleInputChange('enableTds', val)} /></div>
                                     <div className="md:col-span-2 flex items-center justify-between"><span className="text-sm font-medium text-gray-600">Enable TCS</span><ToggleSwitch enabled={formData.enableTcs} onChange={(val) => handleInputChange('enableTcs', val)} /></div>
                                 </div>

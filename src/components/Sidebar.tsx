@@ -17,8 +17,7 @@ import {
   Settings,
   CheckCircle,
   Shield,
-  ArrowLeft,
-  ArrowRight,
+  
   ShoppingCart,
   Receipt,
   TrendingUp,
@@ -27,6 +26,7 @@ import {
 import clsx from 'clsx';
 import useAuthGuard from '@/hooks/useAuthGuard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCallback } from 'react';
 
 interface SidebarProps {
   user?: { name: string; role: string; businessName?: string; phoneNumber?: string } | null; // Added phoneNumber
@@ -60,6 +60,7 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
   const pathname = usePathname() || '';
   const router = useRouter();
 
+  // Sidebar collapsed state (persisted)
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try {
       if (typeof window === 'undefined') return false;
@@ -71,6 +72,7 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [dark, setDark] = useState(false); // Kept for potential future use
   const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const handleLogout = async () => {
     if (logoutLoading) return;
@@ -101,26 +103,59 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
     }
   }, [isCollapsed]);
 
-  // Memoize filtered and grouped nav links based on user permissions
-  const sections = useMemo(() => {
-    const filteredLinks = navLinks.filter(link => {
-      // Only show the 'Staff' link if the user is NOT a staff member.
-      if (link.permission === 'staff') {
-        return user?.role !== 'staff';
+  // fetch business settings to get logo url (client-side)
+  const fetchLogo = useCallback(async () => {
+    try {
+      const res = await fetch('/api/business/settings');
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json && json.success && json.data && json.data.logoUrl) {
+        setLogoUrl(json.data.logoUrl);
       }
-      return true; // Show all other links
+    } catch (e) {
+      // ignore, leave logoUrl as null
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLogo();
+  }, [fetchLogo]);
+
+  // Build ordered sections: GENERAL (Dashboard, Parties, Products, Sales, Purchases)
+  // then ACCOUNTING SOLUTIONS (everything else). Respect simple permission filter.
+  const sectionsList = useMemo(() => {
+    const filteredLinks = navLinks.filter(link => {
+      if (link.permission === 'staff') return user?.role !== 'staff';
+      return true;
     });
 
-    // Group filtered links by section
-    return filteredLinks.reduce((acc, link) => {
-      const section = link.section || 'OTHER';
-      if (!acc[section]) {
-        acc[section] = [];
-      }
-      acc[section].push(link);
-      return acc;
-    }, {} as { [key: string]: typeof navLinks });
+  const generalOrderLabels = new Set(['Dashboard', 'Parties', 'Products', 'Sales', 'Purchases', 'Reports']);
 
+    const general: typeof navLinks = [];
+    const accounting: typeof navLinks = [];
+
+    for (const link of filteredLinks) {
+      if (generalOrderLabels.has(link.label)) {
+        general.push(link);
+      } else {
+        accounting.push(link);
+      }
+    }
+
+    // Keep the requested order for GENERAL: Dashboard, Parties, Products, Sales, Purchases
+    const orderedGeneral = [
+      ...general.filter(l => l.label === 'Dashboard'),
+      ...general.filter(l => l.label === 'Parties'),
+      ...general.filter(l => l.label === 'Products'),
+      ...general.filter(l => l.label === 'Sales'),
+      ...general.filter(l => l.label === 'Purchases'),
+      ...general.filter(l => l.label === 'Reports'),
+    ].filter(Boolean);
+
+    return [
+      { title: 'GENERAL', links: orderedGeneral },
+      { title: 'ACCOUNTING SOLUTIONS', links: accounting },
+    ];
   }, [user?.permissions]);
 
   return (
@@ -132,76 +167,121 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
       )}
     >
       {/* Header (User Info & Settings) */}
-      <div className={clsx(
-        'flex items-center px-4 py-3 border-b border-gray-700/50',
-        isCollapsed ? 'justify-center' : 'justify-between'
-      )}>
-        <div className="flex items-center gap-2">
-          {/* Avatar Placeholder or Skeleton */}
-          {loading ? (
-            <Skeleton className="h-10 w-10 rounded-full" />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-gray-500 flex items-center justify-center text-sm font-semibold">
-              {user?.businessName ? user.businessName[0] : user?.name ? user.name[0] : 'U'}
-            </div>
-          )}
-
-          {!isCollapsed && (
-            loading ? (
-              <div className="flex flex-col w-40">
-                <Skeleton className="h-4 w-32 mb-2 rounded" />
-                <Skeleton className="h-3 w-28 mb-1 rounded" />
-                <Skeleton className="h-3 w-24 mb-1 rounded" />
-                <Skeleton className="h-3 w-20 rounded" />
-              </div>
-            ) : user ? (
-              <div className="flex flex-col w-40">
-                <span className="text-sm font-semibold truncate" title={user.businessName || user.name}>
-                  {user.businessName || user.name || "User"}
-                </span>
-                <span className="text-xs text-gray-400 truncate" title={user.name}>
-                  {user.phone}
-                </span>
-                <span className="text-xs text-gray-400 truncate" title={user.phone}>
-                  {user.name}
-                </span>
-                <span className="text-xs text-gray-400 truncate capitalize" title={user.role}>
-                  {user.role}
-                </span>
-              </div>
-            ) : null
-          )}
-        </div>
-        {/* Top settings: hide when sidebar is collapsed */}
-        {!isCollapsed && (
-          <Link href={"/dashboard/settings/company"}> 
-            <button className="text-gray-400 hover:text-white transition-colors">
-              <Settings className="w-5 h-5" />
+      <div
+        className={clsx(
+          'border-b border-gray-700/50',
+          isCollapsed ? 'flex flex-col items-center px-2 py-3' : 'flex items-center px-4 py-3 justify-between'
+        )}
+      >
+        {isCollapsed ? (
+          // Collapsed header: small avatar stacked with menu button
+          <div className="flex flex-col items-center gap-2">
+            {loading ? (
+              <Skeleton className="h-8 w-8 rounded-full" />
+            ) : (
+              logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded-full object-contain bg-white p-1" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-xs font-semibold">
+                  {user?.businessName ? user.businessName[0] : user?.name ? user.name[0] : 'U'}
+                </div>
+              )
+            )}
+            <button
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              onClick={() => setIsCollapsed((s) => !s)}
+              className="text-gray-400 hover:text-white transition-colors p-1 rounded cursor-pointer"
+            >
+              <Menu className="w-5 h-5" />
             </button>
-          </Link>
+          </div>
+        ) : (
+          // Expanded header: avatar + details on left, menu on right
+          <>
+            <div className="flex items-center gap-2">
+              {loading ? (
+                <Skeleton className="h-10 w-10 rounded-full" />
+              ) : (
+                logoUrl ? (
+                  <img src={logoUrl} alt="Logo" className="w-10 h-10 rounded-full object-contain bg-white p-1" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gray-500 flex items-center justify-center text-sm font-semibold">
+                    {user?.businessName ? user.businessName[0] : user?.name ? user.name[0] : 'U'}
+                  </div>
+                )
+              )}
+
+              {loading ? (
+                <div className="flex flex-col w-40">
+                  <Skeleton className="h-4 w-32 mb-2 rounded" />
+                  <Skeleton className="h-3 w-28 mb-1 rounded" />
+                  <Skeleton className="h-3 w-24 mb-1 rounded" />
+                  <Skeleton className="h-3 w-20 rounded" />
+                </div>
+              ) : user ? (
+                <div className="flex flex-col w-40">
+                  <span className="text-sm font-semibold truncate" title={user.businessName || user.name}>
+                    {user.businessName || user.name || 'User'}
+                  </span>
+                  <span className="text-xs text-gray-400 truncate" title={user.name}>
+                    {user.phone}
+                  </span>
+                  <span className="text-xs text-gray-400 truncate" title={user.phone}>
+                    {user.name}
+                  </span>
+                  <span className="text-xs text-gray-400 truncate capitalize" title={user.role}>
+                    {user.role}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                onClick={() => setIsCollapsed((s) => !s)}
+                className="text-gray-400 hover:text-white transition-colors p-1 rounded cursor-pointer"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            </div>
+          </>
         )}
       </div>
 
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 py-4 text-sm custom-scrollbar">
-        {Object.keys(sections).map((sectionTitle) => (
-          <div key={sectionTitle} className="mb-4">
+        {sectionsList.map(({ title, links }) => (
+          <div key={title} className="mb-4">
             {!isCollapsed && (
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2 mt-4">
-                {sectionTitle}
+                {title}
               </h2>
             )}
             <ul className="space-y-1">
-              {sections[sectionTitle].map((link) => {
+              {links.map((link: any) => {
                 const isDropdown = !!link.children;
 
                 if (isDropdown) {
-                  const isOpen = openDropdowns.includes(link.label) || link.children.some(child => pathname.startsWith(child.href));
+                  const isOpen = openDropdowns.includes(link.label) || link.children.some((child: any) => pathname.startsWith(child.href));
                   return (
                     <li key={link.label}>
                       <button
-                        onClick={() => toggleDropdown(link.label)}
+                        onClick={() => {
+                          // If the parent has children, navigate to the first child's page
+                          if (link.children && link.children[0] && link.children[0].href) {
+                            try {
+                              router.push(link.children[0].href);
+                            } catch (e) {
+                              // ignore
+                            }
+                              // ensure only this dropdown is open (close others)
+                              setOpenDropdowns([link.label]);
+                          } else {
+                            toggleDropdown(link.label);
+                          }
+                        }}
                         title={isCollapsed ? link.label : undefined}
                         className={clsx(
                           'flex items-center justify-between w-full px-3 py-2 rounded-md',
@@ -222,10 +302,11 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
                       </button>
                       {isOpen && !isCollapsed && (
                         <div className="ml-5 mt-1 space-y-1 bg-[#2c3e50] rounded-md py-1">
-                          {link.children.map((child) => (
+                          {link.children.map((child: any) => (
                             <Link
                               key={child.href}
                               href={child.href}
+                              onClick={() => setOpenDropdowns([])}
                               className={clsx(
                                 'block px-5 py-1.5 rounded-md transition text-gray-300',
                                 pathname.startsWith(child.href)
@@ -246,6 +327,7 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
                   <li key={link.href}>
                     <Link
                       href={link.href}
+                      onClick={() => setOpenDropdowns([])}
                       title={isCollapsed ? link.label : undefined}
                       className={clsx(
                         'flex items-center gap-3 px-3 py-2 rounded-md transition',
@@ -266,18 +348,6 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
 
       {/* Footer */}
   <div className="px-3 py-4 border-t border-gray-700/50 space-y-2">
-        {/* Collapse/Expand button */}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className={clsx(
-            'hidden md:flex items-center gap-2 w-full px-3 py-2 rounded-md transition text-gray-300 hover:bg-gray-700 hover:text-white',
-            isCollapsed && 'justify-center'
-          )}
-        >
-          {isCollapsed ? <ArrowRight className="w-5 h-5" /> : <ArrowLeft className="w-5 h-5" />}
-          {!isCollapsed && "Collapse"}
-        </button>
-
          {/* Settings Link */}
               <Link href="/dashboard/settings/company" title={isCollapsed ? 'Settings' : undefined} className={clsx(
               'flex items-center gap-2 w-full px-3 py-2 rounded-md transition',

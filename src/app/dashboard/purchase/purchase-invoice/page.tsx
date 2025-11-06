@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { Plus, Settings, CalendarIcon, Trash2, QrCode, X, ArrowLeft, Search, ArrowUp } from 'lucide-react';
 import {
@@ -402,13 +403,31 @@ const CreatePurchaseInvoicePage = () => {
             const itemTotal = (item.qty || 0) * (item.price || 0);
 
             if (inputType === 'percent') {
-                updatedItem.discountPercentStr = value;
-                const percent = parseFloat(value) || 0;
-                updatedItem.discountAmountStr = itemTotal > 0 ? ((itemTotal * percent) / 100).toFixed(2) : '';
+                // sanitize percent and DO NOT allow >100 (ignore updates >100)
+                if (value === '' || value === '-') {
+                    updatedItem.discountPercentStr = '';
+                    updatedItem.discountAmountStr = '';
+                } else {
+                    let percent = parseFloat(value) || 0;
+                    if (percent < 0) percent = 0;
+                    if (percent > 100) return item; // ignore update
+                    const percentStr = Number.isFinite(percent) ? percent.toFixed(2).replace(/\.00$/, '') : String(percent);
+                    updatedItem.discountPercentStr = percentStr;
+                    updatedItem.discountAmountStr = itemTotal > 0 ? ((itemTotal * percent) / 100).toFixed(2) : '';
+                }
             } else { // flat
-                updatedItem.discountAmountStr = value;
-                const amount = parseFloat(value) || 0;
-                updatedItem.discountPercentStr = itemTotal > 0 ? ((amount / itemTotal) * 100).toFixed(2) : '';
+                // During typing, disallow values that exceed item total (100%). If attempted, ignore the change.
+                if (value === '' || value === '-') {
+                    updatedItem.discountAmountStr = '';
+                    updatedItem.discountPercentStr = '';
+                } else {
+                    let amount = parseFloat(value) || 0;
+                    if (amount < 0) amount = 0;
+                    if (amount > itemTotal) return item; // ignore update if exceeding 100%
+                    // keep raw input for display
+                    updatedItem.discountAmountStr = String(value);
+                    updatedItem.discountPercentStr = itemTotal > 0 ? (Math.min((amount / itemTotal) * 100, 100)).toFixed(2).replace(/\.00$/, '') : '';
+                }
             }
 
             // Recalculate tax based on new discount
@@ -644,9 +663,18 @@ const CreatePurchaseInvoicePage = () => {
         return () => { cancelled = true; };
     }, []);
 
-    // Save handler (create or update)
-    const handleSave = async () => {
+    // Save handler (create or update). If shouldRedirect is true, navigate to saved invoice page after save.
+    const handleSave = async (shouldRedirect: boolean) => {
         try {
+            // Validation: party and items required
+            if (!selectedParty) {
+                toast.error('Please select a party before saving the purchase invoice');
+                return;
+            }
+            if (!items || items.length === 0) {
+                toast.error('Please add at least one item before saving the purchase invoice');
+                return;
+            }
             setSaving(true);
             let selectedPartyToSend: any = undefined;
             if (selectedParty) {
@@ -702,14 +730,58 @@ const CreatePurchaseInvoicePage = () => {
                 if (body?.data?.invoiceNo) setInvoiceNo(body.data.invoiceNo);
                 // notify other UI that products' currentStock may have changed
                 try { window.dispatchEvent(new Event('productsUpdated')); } catch (e) {}
-                // redirect to viewer page for this purchase invoice
-                try {
-                    const returnedId = body?.data?._id || body?._id || editId;
-                    if (returnedId) {
-                        router.push(`/dashboard/purchase/purchase-invoice/${returnedId}`);
-                        return;
+
+                const returnedId = body?.data?._id || body?._id || editId;
+                if (shouldRedirect && returnedId) {
+                    try { router.push(`/dashboard/purchase/purchase-invoice/${returnedId}`); } catch (e) {}
+                    return;
+                }
+
+                // Save & New: clear form and show next formatted invoice number
+                if (!shouldRedirect) {
+                    const nextNum = body?.nextInvoiceNumber || (invoiceNumber ? invoiceNumber + 1 : (typeof invoiceNumber === 'number' ? invoiceNumber + 1 : 1));
+                    if (body?.nextInvoiceFormatted) {
+                        setInvoiceNo(body.nextInvoiceFormatted);
+                    } else {
+                        const returnedInvoiceNo = body?.data?.invoiceNo || body?.invoiceNo || '';
+                        const source = returnedInvoiceNo || String(invoiceNo || '');
+                        const numericMatch = source.match(/(\d+)$/);
+                        if (numericMatch) {
+                            const numericPart = numericMatch[1];
+                            const prefix = source.slice(0, numericMatch.index || 0);
+                            const width = numericPart.length;
+                            const padded = String(nextNum).padStart(width, '0');
+                            setInvoiceNo(prefix + padded);
+                        } else {
+                            const prefixFromReturned = (returnedInvoiceNo && returnedInvoiceNo.match(/^[^0-9]*/)?.[0]) || '';
+                            const prefixFromCurrent = (invoiceNo && String(invoiceNo).match(/^[^0-9]*/)?.[0]) || '';
+                            const prefix = prefixFromReturned || prefixFromCurrent || '';
+                            setInvoiceNo(prefix + String(nextNum));
+                        }
                     }
-                } catch (e) {}
+
+                    // Reset form fields for new invoice
+                    setEditId(null);
+                    setItems([]);
+                    setSelectedParty(null);
+                    setTerms('1. Goods once sold will not be taken back or exchanged\n2. All disputes are subject to [ENTER_YOUR_CITY_NAME] jurisdiction only');
+                    setNotes('');
+                    setAdditionalCharges([]);
+                    setDiscountFlatStr('');
+                    setDiscountPercentStr('');
+                    setLastDiscountInput(null);
+                    setManualAdjustmentStr('');
+                    setCommittedAdjustment(0);
+                    setTotalAmountManuallySet(false);
+                    setAmountReceivedStr('');
+                    setIsFullyPaid(false);
+                    setPaymentMode('unpaid');
+                    setPaymentTerms('30');
+                    setDueDate('');
+                    setInvoiceDate(new Date().toISOString().split('T')[0]);
+                    setInvoiceNumber(nextNum);
+                    toast.success('Invoice saved. Ready for new invoice.');
+                }
             }
         } catch (e) {
             console.error('Save failed', e);
@@ -744,8 +816,8 @@ const CreatePurchaseInvoicePage = () => {
                             <h1 className="text-xl font-semibold text-gray-800">{editId ? 'Update Purchase Invoice' : 'Create Purchase Invoice'}</h1>
                         </div>
                             <div className="flex items-center gap-2">
-                            <Button variant="outline" className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-md shadow-sm cursor-pointer" onClick={() => setIsSettingsModalOpen(true)}>
-                                <Settings className="h-4 w-4 mr-2" /> Settings
+                            <Button variant="outline" className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-md cursor-pointer" onClick={() => setIsSettingsModalOpen(true)}>
+                                <Settings className="h-4 w-4 mr-2 text-gray-600" /> Settings
                             </Button>
                             <InvoiceSettingsModal
                                 isOpen={isSettingsModalOpen}
@@ -757,12 +829,20 @@ const CreatePurchaseInvoicePage = () => {
                                 }}
                             />
 
-                            <Button
-                                className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-4 py-2 rounded-md shadow-md cursor-pointer"
-                                onClick={handleSave}
-                            >
-                                {saving ? 'Saving…' : (editId ? 'Save Changes' : 'Save Purchase Invoice')}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    className="bg-white border border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-md cursor-pointer"
+                                    onClick={() => handleSave(false)}
+                                >
+                                    {saving ? 'Saving…' : 'Save & New'}
+                                </Button>
+                                <Button
+                                    className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-8 py-2 rounded-md shadow-md cursor-pointer"
+                                    onClick={() => handleSave(true)}
+                                >
+                                    {saving ? 'Saving…' : (editId ? 'Save Changes' : 'Save')}
+                                </Button>
+                            </div>
 
                             
                         </div>
@@ -782,6 +862,7 @@ const CreatePurchaseInvoicePage = () => {
                             onSelectParty={setSelectedParty}
                             onClearParty={() => setSelectedParty(null)}
                             partyType="Supplier"
+                            showAll={true}
                         />
                         <div className="flex flex-col items-end gap-4">
                              <div className="flex flex-col sm:flex-row gap-4">
@@ -862,7 +943,7 @@ const CreatePurchaseInvoicePage = () => {
                                         <td className="px-2 py-2"><Input type="text" placeholder="HSN" value={item.hsn} onChange={e => handleItemChange(item.id, 'hsn', e.target.value)} /></td>
                                                                                 <td className="px-2 py-2">
                                                                                     <div className="flex flex-col">
-                                                                                        <Input type="number" placeholder="1" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} />
+                                                                                        <Input type="number" placeholder="1" value={item.qty === 0 ? '' : item.qty} onChange={e => handleItemChange(item.id, 'qty', e.target.value)} />
                                                                                         {(() => {
                                                                                             // prefer live currentStock from productsCache when available
                                                                                             const p = (item.productId && productsCache.length) ? productsCache.find(pp => String(pp._id) === String(item.productId)) : null;
@@ -1106,7 +1187,22 @@ const CreatePurchaseInvoicePage = () => {
                                                     id="discount-amount-percent"
                                                     placeholder="0.00"
                                                     value={discountPercentStr}
-                                                    onChange={(e) => { setDiscountPercentStr(e.target.value); setLastDiscountInput('percent'); }}
+                                                    onChange={(e) => {
+                                                        const v = e.target.value;
+                                                        if (v === '' || v === '-') {
+                                                            setDiscountPercentStr('');
+                                                            setLastDiscountInput('percent');
+                                                            return;
+                                                        }
+                                                        let n = parseFloat(v);
+                                                        if (isNaN(n)) n = 0;
+                                                        if (n < 0) n = 0;
+                                                        // ignore entries greater than 100
+                                                        if (n > 100) return;
+                                                        const out = Number.isFinite(n) ? (n % 1 === 0 ? String(n) : String(Number(n.toFixed(2)))) : String(n);
+                                                        setDiscountPercentStr(out);
+                                                        setLastDiscountInput('percent');
+                                                    }}
                                                     className="pr-7 text-right h-9 w-full"
                                                 />
                                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">%</span>
@@ -1118,7 +1214,29 @@ const CreatePurchaseInvoicePage = () => {
                                                     id="discount-amount-rupees"
                                                     placeholder="0.00"
                                                     value={discountFlatStr}
-                                                    onChange={(e) => { setDiscountFlatStr(e.target.value); setLastDiscountInput('flat'); }}
+                                                    onChange={(e) => {
+                                                        const v = e.target.value;
+                                                        if (v === '' || v === '-') {
+                                                            setDiscountFlatStr('');
+                                                            setLastDiscountInput('flat');
+                                                            return;
+                                                        }
+                                                        let n = parseFloat(v);
+                                                        if (isNaN(n)) n = 0;
+                                                        if (n < 0) n = 0;
+                                                        const cap = Number.isFinite(discountBase) ? discountBase : Infinity;
+                                                        if (n > cap) return; // ignore entries exceeding cap
+                                                        setDiscountFlatStr(v);
+                                                        setLastDiscountInput('flat');
+                                                    }}
+                                                    onBlur={() => {
+                                                        if (discountFlatStr === '' || discountFlatStr === '-') return;
+                                                        let n = parseFloat(discountFlatStr) || 0;
+                                                        if (n < 0) n = 0;
+                                                        const cap = Number.isFinite(discountBase) ? discountBase : n;
+                                                        if (n > cap) n = cap;
+                                                        setDiscountFlatStr(n > 0 ? n.toFixed(2) : '');
+                                                    }}
                                                     className="pl-6 text-right h-9 w-full"
                                                 />
                                             </div>

@@ -106,6 +106,143 @@ export default function Dashboard() {
   const [statsData, setStatsData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [salesRecords, setSalesRecords] = useState<any[] | null>(null);
+  const [purchasesRecords, setPurchasesRecords] = useState<any[] | null>(null);
+  const [selectedRange, setSelectedRange] = useState<string>('MTD');
+  const [selectedStart, setSelectedStart] = useState<string | null>(null);
+  const [selectedEnd, setSelectedEnd] = useState<string | null>(null);
+  const [recentRawItems, setRecentRawItems] = useState<any[] | null>(null);
+
+  // Helper to sum amounts in an array between two dates
+  const sumAmountBetween = (arr: any[] | undefined, start: Date, end: Date, dateKey = 'invoiceDate') => {
+    if (!Array.isArray(arr)) return 0;
+    return arr.reduce((acc: number, it: any) => {
+      const t = new Date(it[dateKey]);
+      if (isNaN(t.getTime())) return acc;
+      if (t >= start && t <= end) return acc + (Number(it.totalAmount ?? it.invoiceAmount ?? 0) || 0);
+      return acc;
+    }, 0);
+  };
+
+  // Create start/end dates for a named range and also compute previous period for change calculation
+  const createRangeDates = (range: string, customStart?: string | null, customEnd?: string | null) => {
+    const now = new Date();
+    let start: Date, end: Date, prevStart: Date, prevEnd: Date;
+
+    switch ((range || 'MTD').toLowerCase()) {
+      case 'today':
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0,0);
+        end = now;
+        prevStart = new Date(start); prevStart.setDate(start.getDate() - 1);
+        prevEnd = new Date(end); prevEnd.setDate(end.getDate() - 1);
+        break;
+      case 'this week':
+        // week starting Sunday
+        start = new Date(now);
+        start.setHours(0,0,0,0);
+        start.setDate(now.getDate() - now.getDay());
+        end = now;
+        prevStart = new Date(start); prevStart.setDate(start.getDate() - 7);
+        prevEnd = new Date(end); prevEnd.setDate(end.getDate() - 7);
+        break;
+      case 'this year':
+        start = new Date(now.getFullYear(), 0, 1);
+        end = now;
+        prevStart = new Date(now.getFullYear() - 1, 0, 1);
+        prevEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+        break;
+      case 'this month':
+      case 'mtd':
+      default:
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = now;
+        prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        prevEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        break;
+      case 'custom':
+        if (customStart && customEnd) {
+          start = new Date(customStart);
+          end = new Date(customEnd);
+          end.setHours(23,59,59,999);
+          // previous period: same length ending before start
+          const length = end.getTime() - start.getTime();
+          prevEnd = new Date(start.getTime() - 1);
+          prevStart = new Date(prevEnd.getTime() - length);
+        } else {
+          // fallback to MTD
+          start = new Date(now.getFullYear(), now.getMonth(), 1);
+          end = now;
+          prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          prevEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        }
+        break;
+    }
+
+    return { start, end, prevStart, prevEnd };
+  };
+
+  const calculateChange = (current: number, previous: number): number | null => {
+    if (previous === 0) {
+      return current > 0 ? 100 : 0;
+    }
+    return ((current - previous) / previous) * 100;
+  };
+
+  // Handler used by StatsCards when the user changes the range
+  const handleRangeChange = (range: string, customStart?: string | null, customEnd?: string | null) => {
+    if (!salesRecords || !purchasesRecords) return; // data not loaded yet
+    // store selected values so child components can show context
+    setSelectedRange(range);
+    setSelectedStart(customStart ?? null);
+    setSelectedEnd(customEnd ?? null);
+    const { start, end, prevStart, prevEnd } = createRangeDates(range, customStart, customEnd);
+    const salesTotal = sumAmountBetween(salesRecords, start, end);
+    const purchasesTotal = sumAmountBetween(purchasesRecords, start, end);
+    const prevSales = sumAmountBetween(salesRecords, prevStart, prevEnd);
+    const prevPurchases = sumAmountBetween(purchasesRecords, prevStart, prevEnd);
+
+    const salesMomChange = calculateChange(salesTotal, prevSales);
+    const purchasesMomChange = calculateChange(purchasesTotal, prevPurchases);
+
+    setStatsData(prev => ({
+      salesMTD: salesTotal,
+      purchasesMTD: purchasesTotal,
+      salesMomChange: salesMomChange ?? null,
+      purchasesMomChange: purchasesMomChange ?? null,
+      stockValue: prev?.stockValue ?? null,
+      lowStockCount: prev?.lowStockCount ?? null
+    } as StatsData));
+
+    // update chart data to reflect selected range
+    try {
+      const filteredSales = salesRecords.filter(s => {
+        const t = new Date(s.invoiceDate);
+        return t >= start && t <= end;
+      });
+      const filteredPurchases = purchasesRecords.filter(p => {
+        const t = new Date(p.invoiceDate);
+        return t >= start && t <= end;
+      });
+      setChartData(groupByMonth(filteredSales, filteredPurchases));
+    } catch (e) {
+      // ignore grouping errors
+    }
+
+    // filter recent activities if we have raw items
+    if (recentRawItems && recentRawItems.length) {
+      const filtered = recentRawItems.filter((r: any) => {
+        const when = new Date(r.createdAt || r.invoiceDate || r.date);
+        if (isNaN(when.getTime())) return false;
+        return when >= start && when <= end;
+      }).map((l: any) => {
+        const when = new Date(l.createdAt || l.invoiceDate || l.date).toLocaleString();
+        const user = l.user?.name || (l.user?.email ?? 'Unknown');
+        if (l.action) return `${when} — ${user}: ${l.action}`;
+        return `${when} — ${user}: ${l.resourceType || 'Activity'}`;
+      });
+      if (filtered.length) setRecentActivitiesState(filtered.slice(0, 10));
+    }
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -120,25 +257,21 @@ export default function Dashboard() {
       const merged = groupByMonth(salesJson.data, purchasesJson.data);
       setChartData(merged);
 
+      // Keep raw records so we can compute totals for different ranges
+      const salesData = salesJson?.data || salesJson?.sales || [];
+      const purchasesData = purchasesJson?.data || purchasesJson?.purchases || [];
+      setSalesRecords(Array.isArray(salesData) ? salesData : []);
+      setPurchasesRecords(Array.isArray(purchasesData) ? purchasesData : []);
+
       // Month-to-date calculation for StatsCards
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const endOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
 
-      const sumAmountBetween = (arr: any[] | undefined, start: Date, end: Date, dateKey = 'invoiceDate') => {
-        if (!Array.isArray(arr)) return 0;
-        return arr.reduce((acc: number, it: any) => {
-          const t = new Date(it[dateKey]);
-          if (isNaN(t.getTime())) return acc;
-          if (t >= start && t <= end) return acc + (Number(it.totalAmount ?? it.invoiceAmount ?? 0) || 0);
-          return acc;
-        }, 0);
-      };
+      
 
-      const salesData = salesJson?.data || salesJson?.sales;
-      const purchasesData = purchasesJson?.data || purchasesJson?.purchases;
-
+      // Initially compute MTD totals and set stats data
       const salesTotal = sumAmountBetween(salesData, startOfMonth, now);
       const purchasesTotal = sumAmountBetween(purchasesData, startOfMonth, now);
 
@@ -147,7 +280,7 @@ export default function Dashboard() {
 
       const calculateChange = (current: number, previous: number): number | null => {
         if (previous === 0) {
-          return current > 0 ? 100 : 0; // Or null if you prefer not to show 100% for new activity
+          return current > 0 ? 100 : 0;
         }
         return ((current - previous) / previous) * 100;
       };
@@ -156,9 +289,9 @@ export default function Dashboard() {
       const purchasesMomChange = calculateChange(purchasesTotal, prevMonthPurchases);
 
       setStatsData(prev => ({ 
-        ...prev, 
         salesMTD: salesTotal, purchasesMTD: purchasesTotal,
-        salesMomChange: salesMomChange ?? null, purchasesMomChange: purchasesMomChange ?? null
+        salesMomChange: salesMomChange ?? null, purchasesMomChange: purchasesMomChange ?? null,
+        stockValue: prev?.stockValue ?? null, lowStockCount: prev?.lowStockCount ?? null
       } as StatsData));
     }
 
@@ -311,6 +444,8 @@ export default function Dashboard() {
 
         // json.items expected from /api/admin/audit-logs
         if (Array.isArray(json.items)) {
+          // keep raw items for range-based filtering
+          setRecentRawItems(json.items);
           const mapped = json.items.map((l: any) => {
             const when = new Date(l.createdAt).toLocaleString();
             const user = l.user?.name || (l.user?.email ?? 'Unknown');
@@ -384,18 +519,18 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-100">
       <main className="p-6 max-w-7xl mx-auto">
-        <StatsCards data={statsData} loading={loading} />
+  <StatsCards data={statsData} loading={loading} onRangeChange={handleRangeChange} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {loading ? (
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <h4 className="text-sm text-gray-600 mb-3"><Skeleton className="h-4 w-40" /></h4>
-              <div className="h-44 bg-white">
-                <TableSkeleton rows={3} />
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <h4 className="text-sm text-gray-600 mb-3"><Skeleton className="h-4 w-40" /></h4>
+                <div className="h-44 bg-white">
+                  <TableSkeleton rows= {3} />
+                </div>
               </div>
-            </div>
-          ) : (
-            <SalesChart data={chartData} />
-          )}
+            ) : (
+              <SalesChart data={chartData} subtitle={selectedRange === 'custom' && selectedEnd && selectedStart ? `${new Date(selectedStart!).toLocaleDateString()} - ${new Date(selectedEnd!).toLocaleDateString()}` : selectedRange} />
+            )}
 
           {loading ? (
             <div className="bg-white rounded-xl p-4 shadow-sm">
@@ -405,7 +540,7 @@ export default function Dashboard() {
               </div>
             </div>
           ) : (
-            <StockOverview data={categoryData} />
+            <StockOverview data={categoryData} range={selectedRange} startDate={selectedStart} endDate={selectedEnd} />
           )}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -421,7 +556,7 @@ export default function Dashboard() {
           ) : error ? (
             <div className="bg-red-200 text-red-800 rounded-xl p-6 shadow-lg">{error}</div>
           ) : (
-            <LowStockAlerts data={lowStockItems} />
+            <LowStockAlerts data={lowStockItems} range={selectedRange} startDate={selectedStart} endDate={selectedEnd} />
           )}
 
           <div className="space-y-6">
@@ -432,8 +567,8 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <UpgradeBanner />
-                <RecentActivity data={recentActivitiesState ?? recentActivities} />
+                  <UpgradeBanner />
+                  <RecentActivity data={recentActivitiesState ?? recentActivities} range={selectedRange} startDate={selectedStart} endDate={selectedEnd} />
               </>
             )}
           </div>

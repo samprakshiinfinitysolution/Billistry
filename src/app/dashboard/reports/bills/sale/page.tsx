@@ -194,19 +194,19 @@ const downloadSalePDF = () => {
 
         <button
           onClick={fetchReport}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer"
         >
           Refresh
         </button>
         <button
           onClick={downloadExcel}
-          className="bg-green-600 text-white px-4 py-2 rounded"
+          className="bg-green-600 text-white px-4 py-2 rounded cursor-pointer"
         >
           Download Excel
         </button>
         <button
           onClick={downloadSalePDF}
-          className="bg-red-600 text-white px-4 py-2 rounded"
+          className="bg-red-600 text-white px-4 py-2 rounded cursor-pointer"
         >
           Download PDF
         </button>

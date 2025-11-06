@@ -119,8 +119,17 @@ export const createParty = async (
       accountHolderName: "",
       upiId: "",
     },
-    openingBalance: body.openingBalance || 0,
-    balance: body.balance || 0,
+    // interpret opening balance and its type (To Collect => positive, To Pay => negative)
+    openingBalance: ((): number => {
+      const raw = Number(body.openingBalance ?? 0) || 0;
+      if ((body as any).openingBalanceType === "To Pay") return -Math.abs(raw);
+      return Math.abs(raw);
+    })(),
+    // initial balance should reflect opening balance (transactions will be added later)
+    balance: ((): number => {
+      const raw = Number(body.openingBalance ?? 0) || 0;
+      return (body as any).openingBalanceType === "To Pay" ? -Math.abs(raw) : Math.abs(raw);
+    })(),
     business: user.businessId,
     createdBy: user.userId,
     updatedBy: user.userId,
@@ -165,6 +174,15 @@ export const updateParty = async (
   }
 
   Object.assign(party, updateData, { updatedBy: user.userId });
+  // If openingBalance or its type was updated, normalize the sign and adjust balance accordingly
+  if ("openingBalance" in updateData || "openingBalanceType" in updateData) {
+    const raw = Number((updateData as any).openingBalance ?? party.openingBalance) || 0;
+    const type = (updateData as any).openingBalanceType ?? (party.openingBalance < 0 ? "To Pay" : "To Collect");
+    const normalized = type === "To Pay" ? -Math.abs(raw) : Math.abs(raw);
+    // adjust overall balance by removing old opening and adding new one
+    party.balance = (party.balance || 0) - (party.openingBalance || 0) + normalized;
+    party.openingBalance = normalized;
+  }
   await party.save();
   return party;
 };
