@@ -144,7 +144,7 @@ export default function AdminPartiesPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filtered.map(p => (
-                  <tr key={p._id}>
+                  <tr key={p._id} className="cursor-pointer">
                     {(fieldsMeta && fieldsMeta.length ? fieldsMeta : [
                       { key: 'partyName' }, { key: 'mobileNumber' }, { key: 'partyType' }, { key: 'balance' }
                     ]).map((f: any) => (

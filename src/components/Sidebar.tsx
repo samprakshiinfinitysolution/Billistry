@@ -41,18 +41,22 @@ const navLinks = [
     label: 'Sales', icon: TrendingUp, section: 'SALES', permission: 'sales', children: [
       { href: '/dashboard/sale/sales-data', label: 'Sales Invoices' },
       { href: '/dashboard/return/sale/sales-return-data', label: 'Sales Return', permission: 'salesReturn' },
+      { href: '/dashboard/sale/payment-in', label: 'Payment In' },
     ]
   },
   {
     label: 'Purchases', icon: ShoppingCart, section: 'PURCHASES', permission: 'purchases', children: [
       { href: '/dashboard/purchase/purchase-data', label: 'Purchase Invoices' },
-      { href: '/dashboard/return/purchase/purchase-return-data', label: 'Purchase Return', permission: 'purchasesReturn' }
+      { href: '/dashboard/return/purchase/purchase-return-data', label: 'Purchase Return', permission: 'purchasesReturn' },
+      { href: '/dashboard/purchase/payment-out', label: 'Payment Out' }
     ]
   },
   { href: '/dashboard/cashbook', label: 'Cashbook', icon: CreditCard, section: 'GENERAL', permission: 'cashbook' },
   { href: '/dashboard/expenses', label: 'Expenses', icon: Receipt, section: 'GENERAL', permission: 'expenses' },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart, section: 'GENERAL', permission: 'reports' },
   { href: '/dashboard/staff', label: 'Staff', icon: UserCog, section: 'GENERAL', permission: 'staff' },
+  { href: '/dashboard/e-invoicing', label: 'E-Invoicing', icon: FileText, section: 'ACCOUNTING', permission: 'eInvoicing' },
+  { href: '/dashboard/automated-bills', label: 'Automated Bills', icon: Receipt, section: 'ACCOUNTING', permission: 'automatedBills' },
 ];
 
 export default function Sidebar({ businesses = [] }: SidebarProps) {
@@ -268,7 +272,7 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
                   return (
                     <li key={link.label}>
                       <button
-                        onClick={() => {
+                              onClick={(e) => {
                           // If the parent has children, navigate to the first child's page
                           if (link.children && link.children[0] && link.children[0].href) {
                             try {
@@ -278,8 +282,11 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
                             }
                               // ensure only this dropdown is open (close others)
                               setOpenDropdowns([link.label]);
+                                  // smooth-center the clicked item within the sidebar
+                                  try { (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
                           } else {
                             toggleDropdown(link.label);
+                                  try { (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
                           }
                         }}
                         title={isCollapsed ? link.label : undefined}
@@ -306,7 +313,7 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
                             <Link
                               key={child.href}
                               href={child.href}
-                              onClick={() => setOpenDropdowns([])}
+                              onClick={(e) => { setOpenDropdowns([]); try { (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){} }}
                               className={clsx(
                                 'block px-5 py-1.5 rounded-md transition text-gray-300',
                                 pathname.startsWith(child.href)
@@ -327,7 +334,7 @@ export default function Sidebar({ businesses = [] }: SidebarProps) {
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      onClick={() => setOpenDropdowns([])}
+                      onClick={(e) => { setOpenDropdowns([]); try { (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){} }}
                       title={isCollapsed ? link.label : undefined}
                       className={clsx(
                         'flex items-center gap-3 px-3 py-2 rounded-md transition',

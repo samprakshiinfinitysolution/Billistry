@@ -1,6 +1,8 @@
 
 import { NewSaleReturn, INewSaleReturn } from '@/models/NewSaleReturn';
 import NewSale from '@/models/NewSale';
+import { Transaction } from '@/models/transactionModel';
+import { createTransaction, deleteTransaction } from './transactionController';
 import Product from '@/models/Product';
 import Party from '@/models/Party';
 import Counter from '@/models/Counter';
@@ -73,6 +75,41 @@ export const createNewSaleReturn = async (body: NewSaleReturnInput, user: UserPa
   }
 
   const doc = await NewSaleReturn.create(createObj);
+  // create linked transactions for sale return so ledger reflects refund
+  try {
+    if (doc && doc.selectedParty) {
+      const partyId = String(doc.selectedParty);
+      const returnAmount = Number((doc as any).totalAmount || (doc as any).balanceAmount || 0) || 0;
+      if (returnAmount > 0) {
+        const existing = await Transaction.findOne({ 'linked.source': 'newsalereturn', 'linked.refId': doc._id, business: user.businessId }).lean();
+        if (!existing) {
+          await createTransaction({ partyId, amount: returnAmount, type: 'You Gave', description: (doc as any).returnInvoiceNo || '' , date: (doc as any).returnDate || (doc as any).savedAt || (doc as any).createdAt }, user as any);
+          try {
+            const tx = await Transaction.findOne({ business: user.businessId, partyId, amount: returnAmount, description: (doc as any).returnInvoiceNo || '' }).sort({ createdAt: -1 }).limit(1).exec();
+            if (tx) {
+              tx.set('linked', { source: 'newsalereturn', refId: doc._id });
+              await tx.save();
+            }
+          } catch (e) {}
+        }
+      }
+
+      const refunded = Number((doc as any).amountRefunded || 0) || 0;
+      if (refunded > 0) {
+        const existingPay = await Transaction.findOne({ 'linked.source': 'newsalereturn_payment', 'linked.refId': doc._id, business: user.businessId }).lean();
+        if (!existingPay) {
+          const invNo = (doc as any).returnInvoiceNo || '';
+          await createTransaction({ partyId, amount: refunded, type: 'You Got', description: invNo, date: (doc as any).returnDate || (doc as any).savedAt || (doc as any).createdAt }, user as any);
+          try {
+            const tx2 = await Transaction.findOne({ business: user.businessId, partyId, amount: refunded, description: invNo }).sort({ createdAt: -1 }).limit(1).exec();
+            if (tx2) { tx2.set('linked', { source: 'newsalereturn_payment', refId: doc._id }); await tx2.save(); }
+          } catch (e) {}
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('createNewSaleReturn: failed to create linked transactions', String(e));
+  }
   // Return populated + normalized document for client convenience
   try {
     const populated = await NewSaleReturn.findById(doc._id)
@@ -420,5 +457,16 @@ export const deleteNewSaleReturn = async (id: string, user: UserPayload) => {
 
   doc.isDeleted = true;
   await doc.save();
+  // remove linked transactions
+  try {
+    const txs = await Transaction.find({ 'linked.refId': doc._id, business: user.businessId }).lean();
+    for (const t of txs) {
+      try {
+        await deleteTransaction(String((t as any)._id), user as any);
+      } catch (e) {}
+    }
+  } catch (e) {
+    console.warn('deleteNewSaleReturn: failed to remove linked transactions', String(e));
+  }
   return { id: doc._id, deleted: true };
 };

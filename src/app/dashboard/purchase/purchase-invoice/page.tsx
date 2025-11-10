@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Settings, CalendarIcon, Trash2, QrCode, X, ArrowLeft, Search, ArrowUp } from 'lucide-react';
 import {
   Select,
@@ -15,6 +15,7 @@ import { AddParty, Party } from "../../../../components/AddParty";
 import { ScanBarcodeModal } from "../../../../components/ScanBarcode";
 import InvoiceSettingsModal from '../../../../components/InvoiceSettingsModal';
 import FormSkeleton from '@/components/ui/FormSkeleton';
+import { apiService } from '@/services/apiService';
 
 // Helper Button and Input from main component
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
@@ -41,6 +42,17 @@ const formatCurrency = (amount: number) => {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(amount);
+};
+
+// Normalize party shape returned from API to the UI Party shape expected by AddParty
+const normalizePartyForUI = (p: any) => {
+    if (!p) return null;
+    const id = p._id || p.id || (typeof p === 'string' ? p : undefined);
+    const name = p.partyName || p.name || '';
+    const balance = typeof p.balance !== 'undefined' ? p.balance : (p.openingBalance || 0);
+    const phone = p.mobileNumber || p.phone || p.mobile || '';
+    const address = p.billingAddress || p.address || p.shippingAddress || '';
+    return { id: String(id || ''), name, balance, phone, address };
 };
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>((props, ref) => (
@@ -134,6 +146,7 @@ const CreatePurchaseInvoicePage = () => {
     const [isScanBarcodeModalOpen, setIsScanBarcodeModalOpen] = useState(false);
 
     const [selectedParty, setSelectedParty] = useState<Party | null>(null);
+    const searchParams = useSearchParams();
     const [isAddingParty, setIsAddingParty] = useState(false);
     const [partySearchTerm, setPartySearchTerm] = useState('');
     const [editId, setEditId] = useState<string | null>(null);
@@ -205,6 +218,26 @@ const CreatePurchaseInvoicePage = () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    // Preselect party when ?partyId= is present
+    useEffect(() => {
+        const pid = searchParams?.get?.('partyId');
+        if (!pid) return;
+        let mounted = true;
+        (async () => {
+            try {
+                const res = await apiService.getPartyById(pid);
+                if (!mounted) return;
+                if (res && res.party) {
+                    const uiParty = normalizePartyForUI(res.party);
+                    if (uiParty) setSelectedParty(uiParty as any);
+                }
+            } catch (e) {
+                // ignore
+            }
+        })();
+        return () => { mounted = false; };
+    }, [searchParams]);
 
     useEffect(() => {
         let mounted = true;
@@ -840,7 +873,7 @@ const CreatePurchaseInvoicePage = () => {
                                     className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-8 py-2 rounded-md shadow-md cursor-pointer"
                                     onClick={() => handleSave(true)}
                                 >
-                                    {saving ? 'Saving…' : (editId ? 'Save Changes' : 'Save')}
+                                    {saving ? 'Saving…' : 'Save'}
                                 </Button>
                             </div>
 

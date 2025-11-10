@@ -12,6 +12,8 @@ export interface ITransaction extends Document {
   date: Date;
   createdBy: Types.ObjectId; // Reference to User
   updatedBy: Types.ObjectId; // Reference to User
+  // Optional structured link to an originating document (invoice/return)
+  linked?: { source: string; refId: Types.ObjectId };
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -41,6 +43,11 @@ const transactionSchema = new Schema<ITransaction>(
     description: {
       type: String,
       trim: true,
+    },
+    // Optional structured link to an originating document (e.g. { source: 'newsale', refId: ObjectId })
+    linked: {
+      source: { type: String },
+      refId: { type: Schema.Types.ObjectId },
     },
     date: {
       type: Date,

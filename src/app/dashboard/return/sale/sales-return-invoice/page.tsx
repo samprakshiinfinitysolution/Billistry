@@ -16,6 +16,7 @@ import { LinkToInvoice, Invoice } from '../../../../../components/LinkToInvoice'
 import { ScanBarcodeModal } from '../../../../../components/ScanBarcode';
 import InvoiceSettingsModal from '../../../../../components/InvoiceSettingsModal';
 import FormSkeleton from '@/components/ui/FormSkeleton';
+import { apiService } from '@/services/apiService';
 
 const formatCurrency = (amount: number) => {
     if (isNaN(amount) || amount === null) return '0.00';
@@ -24,6 +25,16 @@ const formatCurrency = (amount: number) => {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(amount);
+};
+// Normalize party shape returned from API to the UI Party shape expected by AddParty
+const normalizePartyForUI = (p: any) => {
+    if (!p) return null;
+    const id = p._id || p.id || (typeof p === 'string' ? p : undefined);
+    const name = p.partyName || p.name || '';
+    const balance = typeof p.balance !== 'undefined' ? p.balance : (p.openingBalance || 0);
+    const phone = p.mobileNumber || p.phone || p.mobile || '';
+    const address = p.billingAddress || p.address || p.shippingAddress || '';
+    return { id: String(id || ''), name, balance, phone, address };
 };
 // Helper Button and Input from main component
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
@@ -211,6 +222,26 @@ const CreateSalesReturnInvoicePage = () => {
             }
         } catch (e) {}
     }, []);
+
+    // If ?partyId= is provided, preselect that party for the return
+    useEffect(() => {
+        const pid = searchParams.get('partyId');
+        if (!pid) return;
+        let mounted = true;
+        (async () => {
+            try {
+                const res = await apiService.getPartyById(pid);
+                if (!mounted) return;
+                if (res && res.party) {
+                    const uiParty = normalizePartyForUI(res.party);
+                    if (uiParty) setSelectedParty(uiParty as any);
+                }
+            } catch (e) {
+                // ignore
+            }
+        })();
+        return () => { mounted = false; };
+    }, [searchParams]);
 
     // Fetch business settings (name and signatureUrl)
     useEffect(() => {
@@ -929,13 +960,13 @@ const CreateSalesReturnInvoicePage = () => {
                                     className="bg-white border border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-md cursor-pointer"
                                     onClick={async () => await handleSave(false)}
                                 >
-                                    Save & New
+                                    {saving ? 'Saving…' : 'Save & New'}
                                 </Button>
                                 <Button
                                     className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700 px-8 py-2 rounded-md shadow-md cursor-pointer"
                                     onClick={async () => await handleSave(true)}
                                 >
-                                    Save
+                                    {saving ? 'Saving…' : 'Save'}
                                 </Button>
                             </>
                         </div>

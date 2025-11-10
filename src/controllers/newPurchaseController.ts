@@ -2,6 +2,8 @@ import { NewPurchase } from '@/models/NewPurchase';
 import Party from '@/models/Party';
 import Counter from '@/models/Counter';
 import Product from '@/models/Product';
+import { Transaction } from '@/models/transactionModel';
+import { createTransaction, deleteTransaction } from './transactionController';
 import { connectDB } from '@/lib/db';
 import { UserPayload } from '@/lib/middleware/auth';
 import mongoose from 'mongoose';
@@ -127,6 +129,45 @@ export const createNewPurchase = async (body: NewPurchaseInput, user: UserPayloa
   else delete createObj.selectedParty;
 
   const doc = await NewPurchase.create(createObj);
+
+  // Create linked transactions so party ledger shows purchase invoices/payments
+  try {
+    if (doc && doc.selectedParty) {
+      const partyId = String(doc.selectedParty);
+      const invoiceAmount = Number((doc as any).totalAmount || (doc as any).balanceAmount || 0) || 0;
+      if (invoiceAmount > 0) {
+        const existing = await Transaction.findOne({ 'linked.source': 'newpurchase', 'linked.refId': doc._id, business: user.businessId }).lean();
+        if (!existing) {
+          await createTransaction({ partyId, amount: invoiceAmount, type: 'You Gave', description: (doc as any).invoiceNo || '' , date: (doc as any).invoiceDate || (doc as any).savedAt || (doc as any).createdAt }, user as any);
+          try {
+            const tx = await Transaction.findOne({ business: user.businessId, partyId, amount: invoiceAmount, description: (doc as any).invoiceNo || '' }).sort({ createdAt: -1 }).limit(1).exec();
+            if (tx) {
+              tx.set('linked', { source: 'newpurchase', refId: doc._id });
+              await tx.save();
+            }
+          } catch (e) {}
+        }
+      }
+
+      const amountPaid = Number((doc as any).amountReceived || (doc as any).amountPaid || 0) || 0;
+      if (amountPaid > 0) {
+        const existingPay = await Transaction.findOne({ 'linked.source': 'newpurchase_payment', 'linked.refId': doc._id, business: user.businessId }).lean();
+        if (!existingPay) {
+          const invNo = (doc as any).invoiceNo || '';
+          await createTransaction({ partyId, amount: amountPaid, type: 'You Got', description: invNo, date: (doc as any).invoiceDate || (doc as any).savedAt || (doc as any).createdAt }, user as any);
+          try {
+            const tx2 = await Transaction.findOne({ business: user.businessId, partyId, amount: amountPaid, description: invNo }).sort({ createdAt: -1 }).limit(1).exec();
+            if (tx2) {
+              tx2.set('linked', { source: 'newpurchase_payment', refId: doc._id });
+              await tx2.save();
+            }
+          } catch (e) {}
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('createNewPurchase: failed to create linked transactions', String(e));
+  }
 
   // Adjust product stock: increment currentStock for each purchased item if product exists
   try {
@@ -449,5 +490,18 @@ export const deleteNewPurchase = async (id: string, user: UserPayload) => {
   doc.isDeleted = true;
   (doc as any).updatedBy = user.userId;
   await doc.save();
+  // remove linked transactions
+  try {
+    const txs = await Transaction.find({ 'linked.refId': doc._id, business: user.businessId }).lean();
+    for (const t of txs) {
+      try {
+        await deleteTransaction(String((t as any)._id), user as any);
+      } catch (e) {
+        // ignore
+      }
+    }
+  } catch (e) {
+    console.warn('deleteNewPurchase: failed to remove linked transactions', String(e));
+  }
   return { message: 'Deleted' };
 };

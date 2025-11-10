@@ -16,6 +16,7 @@ import { LinkToInvoice, Invoice } from '../../../../../components/LinkToInvoice'
 import { ScanBarcodeModal } from '../../../../../components/ScanBarcode';
 import InvoiceSettingsModal from '../../../../../components/InvoiceSettingsModal';
 import FormSkeleton from '@/components/ui/FormSkeleton';
+import { apiService } from '@/services/apiService';
 
 const formatCurrency = (amount: number) => {
     if (isNaN(amount) || amount === null) return '0.00';
@@ -24,6 +25,16 @@ const formatCurrency = (amount: number) => {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(amount);
+};
+// Normalize party shape returned from API to the UI Party shape expected by AddParty
+const normalizePartyForUI = (p: any) => {
+    if (!p) return null;
+    const id = p._id || p.id || (typeof p === 'string' ? p : undefined);
+    const name = p.partyName || p.name || '';
+    const balance = typeof p.balance !== 'undefined' ? p.balance : (p.openingBalance || 0);
+    const phone = p.mobileNumber || p.phone || p.mobile || '';
+    const address = p.billingAddress || p.address || p.shippingAddress || '';
+    return { id: String(id || ''), name, balance, phone, address };
 };
 // Helper Button and Input from main component
 const Button = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string, size?: string }) => (
@@ -204,6 +215,27 @@ const CreatePurchaseReturnInvoicePage = () => {
                         }
                     }).catch(() => {});
             }
+        } catch (e) {}
+    }, []);
+
+    // If ?partyId= is provided in URL, preselect that party
+    useEffect(() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const pid = params.get('partyId');
+            if (!pid) return;
+            let mounted = true;
+            (async () => {
+                try {
+                    const res = await apiService.getPartyById(pid);
+                    if (!mounted) return;
+                    if (res && res.party) {
+                        const uiParty = normalizePartyForUI(res.party);
+                        if (uiParty) setSelectedParty(uiParty as any);
+                    }
+                } catch (e) {}
+            })();
+            return () => { mounted = false; };
         } catch (e) {}
     }, []);
 

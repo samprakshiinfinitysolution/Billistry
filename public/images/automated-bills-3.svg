@@ -1,0 +1,17 @@
+<svg width="480" height="320" viewBox="0 0 480 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Automated bills illustration 3">
+  <rect width="480" height="320" rx="8" fill="#F7FBFF"/>
+  <g transform="translate(24,28)">
+    <rect x="0" y="0" width="128" height="72" rx="6" fill="#F0F9FF" stroke="#E6F4FB"/>
+    <rect x="160" y="0" width="128" height="72" rx="6" fill="#F7F5FA" stroke="#E6E1F2"/>
+
+    <circle cx="60" cy="140" r="36" fill="#EEF8FF"/>
+    <rect x="120" y="112" width="240" height="96" rx="8" fill="#FFF" stroke="#F1F8FF"/>
+
+    <rect x="136" y="128" width="64" height="10" rx="3" fill="#BFDBFE"/>
+    <rect x="136" y="146" width="200" height="8" rx="3" fill="#EAF4FF"/>
+    <rect x="136" y="162" width="160" height="8" rx="3" fill="#EAF4FF"/>
+
+    <rect x="360" y="220" width="64" height="20" rx="10" fill="#2563EB"/>
+    <text x="392" y="235" font-family="Arial" font-size="10" fill="#fff" text-anchor="middle">Pay</text>
+  </g>
+</svg>

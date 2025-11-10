@@ -1,5 +1,5 @@
 'use client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { Plus, Settings, CalendarIcon, Trash2, QrCode, X, ArrowLeft, Search, ArrowUp } from 'lucide-react';
@@ -15,6 +15,7 @@ import { AddParty, Party } from "../../../../components/AddParty";
 import { ScanBarcodeModal } from '../../../../components/ScanBarcode';
 import InvoiceSettingsModal from '../../../../components/InvoiceSettingsModal';
 import FormSkeleton from '@/components/ui/FormSkeleton';
+import { apiService } from '@/services/apiService';
 
 const formatCurrency = (amount: number) => {
     if (isNaN(amount) || amount === null) return '0.00';
@@ -158,6 +159,7 @@ const CreateSalesInvoicePage = () => {
     
 
     const [selectedParty, setSelectedParty] = useState<Party | null>(null);
+    const searchParams = useSearchParams();
     const [editId, setEditId] = useState<string | null>(null);
     const [isFetching, setIsFetching] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -210,6 +212,26 @@ const CreateSalesInvoicePage = () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    // If a partyId is provided in the URL (e.g. ?partyId=123), preselect that party
+    useEffect(() => {
+        const pid = searchParams?.get?.('partyId');
+        if (!pid) return;
+        let mounted = true;
+        (async () => {
+            try {
+                const res = await apiService.getPartyById(pid);
+                if (!mounted) return;
+                if (res && res.party) {
+                    const uiParty = normalizePartyForUI(res.party);
+                    if (uiParty) setSelectedParty(uiParty as any);
+                }
+            } catch (e) {
+                // ignore
+            }
+        })();
+        return () => { mounted = false; };
+    }, [searchParams]);
 
     // Fetch product list into cache so invoice editor always shows live currentStock
     useEffect(() => {

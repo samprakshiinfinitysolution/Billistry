@@ -2,6 +2,8 @@ import { NewSale, INewSale } from '@/models/NewSale';
 import Party from '@/models/Party';
 import Counter from '@/models/Counter';
 import Product from '@/models/Product';
+import { Transaction } from '@/models/transactionModel';
+import { createTransaction, deleteTransaction } from './transactionController';
 import { connectDB } from '@/lib/db';
 import { UserPayload } from '@/lib/middleware/auth';
 import mongoose from 'mongoose';
@@ -79,6 +81,52 @@ export const createNewSale = async (body: NewSaleInput, user: UserPayload) => {
   else delete createObj.selectedParty;
 
   const doc = await NewSale.create(createObj);
+  // Create linked transactions so party ledger shows invoices/payments as live transactions
+  try {
+    if (doc && doc.selectedParty) {
+      const partyId = String(doc.selectedParty);
+      // Invoice transaction (You Got)
+      const invoiceAmount = Number((doc as any).totalAmount || (doc as any).balanceAmount || 0) || 0;
+      if (invoiceAmount > 0) {
+        // avoid duplicate: check for existing linked transaction
+        const existing = await Transaction.findOne({ 'linked.source': 'newsale', 'linked.refId': doc._id, business: user.businessId }).lean();
+        if (!existing) {
+          await createTransaction({ partyId, amount: invoiceAmount, type: 'You Got', description: (doc as any).invoiceNo || '' , date: (doc as any).invoiceDate || (doc as any).savedAt || (doc as any).createdAt }, user as any);
+          // attach linked info on the created transaction for future deletion (createTransaction doesn't set linked field)
+          // find the tx we just created and set linked
+          try {
+            const tx = await Transaction.findOne({ business: user.businessId, partyId, amount: invoiceAmount, description: (doc as any).invoiceNo || '' }).sort({ createdAt: -1 }).limit(1).exec();
+            if (tx) {
+              tx.set('linked', { source: 'newsale', refId: doc._id });
+              await tx.save();
+            }
+          } catch (e) {
+            // ignore linking failure
+          }
+        }
+      }
+
+      // Payment recorded on invoice: create counter transaction (You Gave) to represent payment
+      const amountReceived = Number((doc as any).amountReceived || 0) || 0;
+      if (amountReceived > 0) {
+        const existingPay = await Transaction.findOne({ 'linked.source': 'newsale_payment', 'linked.refId': doc._id, business: user.businessId }).lean();
+        if (!existingPay) {
+          // use invoice number as description (no 'Payment for' prefix)
+          const invNo = (doc as any).invoiceNo || '';
+          await createTransaction({ partyId, amount: amountReceived, type: 'You Gave', description: invNo, date: (doc as any).invoiceDate || (doc as any).savedAt || (doc as any).createdAt }, user as any);
+          try {
+            const tx2 = await Transaction.findOne({ business: user.businessId, partyId, amount: amountReceived, description: invNo }).sort({ createdAt: -1 }).limit(1).exec();
+            if (tx2) {
+              tx2.set('linked', { source: 'newsale_payment', refId: doc._id });
+              await tx2.save();
+            }
+          } catch (e) {}
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('createNewSale: failed to create linked transactions', String(e));
+  }
   // Adjust product stock: decrement currentStock for each sold item if product exists
   try {
     if (Array.isArray(body.items)) {
@@ -424,5 +472,18 @@ export const deleteNewSale = async (id: string, user: UserPayload) => {
   doc.isDeleted = true;
   (doc as any).updatedBy = user.userId;
   await doc.save();
+  // remove linked transactions
+  try {
+    const txs = await Transaction.find({ 'linked.refId': doc._id, business: user.businessId }).lean();
+    for (const t of txs) {
+      try {
+        await deleteTransaction(String((t as any)._id), user as any);
+      } catch (e) {
+        // ignore individual deletion errors
+      }
+    }
+  } catch (e) {
+    console.warn('deleteNewSale: failed to remove linked transactions', String(e));
+  }
   return { message: 'Deleted' };
 };
